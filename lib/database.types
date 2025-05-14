@@ -1,0 +1,63 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      api_key_status: "ACTIVE" | "INACTIVE"
+      billing_cycle: "MONTHLY" | "YEARLY"
+      content_status: "DRAFT" | "GENERATING" | "ERROR" | "PUBLISHED" | "ARCHIVED"
+      content_type: "TWITTER_THREAD" | "NEWSLETTER" | "FRANBOT" | "ENVIBOT" | "WRITING_ASSISTANT" | "FACT_CHECKING"
+      invoice_status: "DRAFT" | "ISSUED" | "PAID" | "VOID"
+      provider_ai: "OPENAI" | "GOOGLE" | "PERPLEXITY"
+      resource_status: "ACTIVE" | "INACTIVE" | "ARCHIVED" | "DELETED"
+      resource_type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"
+      role: "OWNER" | "WORKSPACE_ADMIN" | "USER"
+      subscription_status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "EXPIRED"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DefaultSchema = Database[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
