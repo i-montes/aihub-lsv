@@ -9,9 +9,9 @@ export default async function UsersPage() {
   // const { users, error } = await getOrganizationUsers()
 
   // Si hay un error de permisos, redirigir al dashboard
-  if (error && error.includes("No tienes permisos")) {
-    redirect("/dashboard")
-  }
+  //if (error && error.includes("No tienes permisos")) {
+  //  redirect("/dashboard")
+  //}
 
   return (
     <Layout>
