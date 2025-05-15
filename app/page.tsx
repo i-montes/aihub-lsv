@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { ArrowRight, Edit3, FileText, MessageSquare, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -28,27 +29,18 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="container mx-auto py-4 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-whatsapp rounded-full flex items-center justify-center">
-            <span className="text-white font-bold">G</span>
+          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <span className="text-white font-bold">P</span>
           </div>
-          <span className="font-bold text-xl">Gabbler</span>
+          <span className="font-bold text-xl">PressTools</span>
         </div>
 
         <div className="hidden md:flex items-center space-x-8">
-          <Link href="#" className="text-gray-700 hover:text-whatsapp">
-            Producto
+          <Link href="#features" className="text-gray-700 hover:text-primary">
+            Herramientas
           </Link>
-          <Link href="#" className="text-gray-700 hover:text-whatsapp">
-            Clientes
-          </Link>
-          <Link href="#" className="text-gray-700 hover:text-whatsapp">
-            Recursos
-          </Link>
-          <Link href="#" className="text-gray-700 hover:text-whatsapp">
-            Partners
-          </Link>
-          <Link href="#" className="text-gray-700 hover:text-whatsapp">
-            Empresa
+          <Link href="#benefits" className="text-gray-700 hover:text-primary">
+            Beneficios
           </Link>
         </div>
 
@@ -58,7 +50,7 @@ export default function LandingPage() {
               Iniciar Sesión
             </Button>
           </Link>
-          <Button className="bg-whatsapp text-white hover:bg-whatsapp-dark rounded-md">Solicitar Demo</Button>
+          <Button className="bg-primary text-white hover:bg-primary/90 rounded-md">Prueba Gratuita</Button>
         </div>
       </nav>
 
@@ -67,92 +59,48 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-              Impulsa Más Ventas
+              Potencia tu
               <br />
-              Con Conversaciones
+              <span className="text-primary">Redacción Periodística</span>
               <br />
-              Activas Con Tus{" "}
-              <span className="bg-whatsapp-light px-2 py-1 inline-block transform -rotate-1">Clientes</span>
+              con Inteligencia Artificial
             </h1>
 
             <p className="mt-6 text-gray-600 text-lg">
-              La solución de mensajería de Gabbler genera un 18.5% del total de ingresos en línea para marcas líderes.
-              Obtén una demo gratuita hoy.
+              Suite completa de herramientas diseñadas específicamente para periodistas que buscan mejorar su redacción,
+              ahorrar tiempo y conectar mejor con sus audiencias.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <Input type="email" placeholder="Ingresa tu Email" className="w-full sm:w-64 rounded-md" />
-              <Button className="bg-whatsapp text-white hover:bg-whatsapp-dark rounded-md">Solicitar Demo</Button>
+              <Input type="email" placeholder="Tu correo electrónico" className="w-full sm:w-64 rounded-md" />
+              <Button className="bg-primary text-white hover:bg-primary/90 rounded-md">
+                Comenzar Ahora <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
 
           <div className="relative">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 border-t-2 border-r-2 border-gray-300"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 border-b-2 border-l-2 border-gray-300"></div>
+            <div className="bg-gray-100 rounded-3xl p-6 relative">
+              <Image
+                src="/placeholder.svg?key=dwp1y"
+                alt="Periodista trabajando"
+                width={500}
+                height={400}
+                className="rounded-2xl"
+              />
 
-            {/* Main image with chat */}
-            <div className="relative z-10">
-              <div className="bg-whatsapp-light/30 rounded-3xl p-4 relative">
-                <Image
-                  src="/woman-video-call.png"
-                  alt="Cliente usando la aplicación"
-                  width={350}
-                  height={400}
-                  className="rounded-2xl"
-                />
-
-                {/* Chat bubble */}
-                <div className="absolute top-1/4 -left-36 bg-white p-4 rounded-2xl shadow-lg w-64 border border-gray-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-whatsapp-dark rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">CB</span>
-                    </div>
-                    <span className="font-medium">Cici Beauty</span>
-                  </div>
-                  <p className="text-sm">
-                    Hola Hailey! Te encantará nuestro último producto, ¿te gustaría agregarlo al carrito?
-                  </p>
-                </div>
-
-                {/* Customer count badge */}
-                <div className="absolute bottom-10 right-0 translate-x-1/2 bg-whatsapp-dark text-white px-3 py-2 rounded-full flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-coral flex items-center justify-center text-white">
-                      <span className="text-xs">A</span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-whatsapp-light flex items-center justify-center text-whatsapp-dark">
-                      <span className="text-xs">B</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium">
-                    +120k
-                    <br />
-                    Clientes
-                  </span>
-                </div>
-
-                {/* Response bubble */}
-                <div className="absolute -bottom-20 left-0 right-0 bg-whatsapp-light p-4 rounded-2xl shadow-lg border border-gray-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium">Hailey Jones</span>
-                    <div className="w-6 h-6 rounded-full overflow-hidden">
-                      <Image src="/serene-gaze.png" alt="Hailey" width={24} height={24} />
-                    </div>
-                  </div>
-                  <p className="text-sm">
-                    ¡Lo revisaré! Gracias, lo agregaré al carrito ahora mismo. Avísame cuando tengan nuevos productos.
-                  </p>
+              {/* Floating elements */}
+              <div className="absolute top-10 -left-10 bg-white p-4 rounded-xl shadow-lg">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Corrección inteligente</span>
                 </div>
               </div>
-            </div>
 
-            {/* Circular element */}
-            <div className="absolute top-1/3 right-0 translate-x-1/2">
-              <div className="w-24 h-24 rounded-full border-4 border-whatsapp flex items-center justify-center relative">
-                <div className="w-12 h-12 bg-whatsapp rounded-l-full"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-[8px] text-gray-500 rotate-[30deg]">SCROLL TO EXPLORE</div>
+              <div className="absolute bottom-20 -right-10 bg-white p-4 rounded-xl shadow-lg">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Hilos optimizados</span>
                 </div>
               </div>
             </div>
@@ -161,106 +109,184 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-100 rounded-3xl p-8 relative">
-            <div className="w-10 h-10 bg-whatsapp text-white rounded-full flex items-center justify-center mb-4">
-              <span className="font-bold">1</span>
+      <section id="features" className="container mx-auto px-4 py-16 bg-gray-50">
+        <h2 className="text-3xl font-bold text-center mb-12">Herramientas Especializadas para Periodistas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white rounded-3xl p-8 shadow-sm transition-all hover:shadow-md">
+            <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+              <FileText className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-bold mb-3">Escala con nuestro manual</h3>
-            <p className="text-gray-600">
-              Accede a nuestras mejores prácticas y soporte para convertir rápidamente los SMS en uno de tus 3
-              principales canales de ingresos.
+            <h3 className="text-xl font-bold mb-3">Newsletters con IA</h3>
+            <p className="text-gray-600 mb-4">
+              Genera newsletters atractivos y personalizados con ayuda de IA. Optimiza tu contenido para diferentes
+              audiencias y aumenta las tasas de apertura.
             </p>
+            <ul className="space-y-2 mb-6">
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Plantillas personalizables</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Sugerencias de titulares</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Análisis de engagement</span>
+              </li>
+            </ul>
+            <Button variant="outline" className="w-full">
+              Explorar Función
+            </Button>
           </div>
 
-          <div className="bg-whatsapp-dark text-white rounded-3xl p-8 relative">
-            <div className="w-10 h-10 bg-white text-whatsapp-dark rounded-full flex items-center justify-center mb-4">
-              <span className="font-bold">2</span>
+          <div className="bg-white rounded-3xl p-8 shadow-sm transition-all hover:shadow-md">
+            <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+              <Edit3 className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-bold mb-3">Automatiza conversaciones</h3>
-            <p className="text-white/80">
-              Configura flujos de trabajo inteligentes que responden a las acciones de los clientes y aumentan las
-              conversiones.
+            <h3 className="text-xl font-bold mb-3">Corrección con Guías de Estilo</h3>
+            <p className="text-gray-600 mb-4">
+              Corrige tus textos según las guías de estilo más reconocidas en periodismo. Detecta errores gramaticales,
+              de estilo y mejora la claridad.
             </p>
+            <ul className="space-y-2 mb-6">
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Múltiples guías de estilo</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Corrección en tiempo real</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Sugerencias de mejora</span>
+              </li>
+            </ul>
+            <Button variant="outline" className="w-full">
+              Explorar Función
+            </Button>
           </div>
 
-          <div className="bg-whatsapp-light rounded-3xl p-8 relative">
-            <div className="w-10 h-10 bg-whatsapp text-white rounded-full flex items-center justify-center mb-4">
-              <span className="font-bold">3</span>
+          <div className="bg-white rounded-3xl p-8 shadow-sm transition-all hover:shadow-md">
+            <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+              <MessageSquare className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-bold mb-3">Analiza resultados</h3>
-            <p className="text-gray-700">
-              Obtén insights detallados sobre el rendimiento de tus campañas y optimiza tus estrategias en tiempo real.
+            <h3 className="text-xl font-bold mb-3">Hilos de Tweets</h3>
+            <p className="text-gray-600 mb-4">
+              Convierte tus artículos en hilos de tweets atractivos y optimizados para maximizar el alcance y engagement
+              en redes sociales.
             </p>
+            <ul className="space-y-2 mb-6">
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">División inteligente de contenido</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Optimización para engagement</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-xs">✓</span>
+                </div>
+                <span className="text-sm text-gray-600">Programación de publicaciones</span>
+              </li>
+            </ul>
+            <Button variant="outline" className="w-full">
+              Explorar Función
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="container mx-auto px-4 py-16 mb-16">
-        <h2 className="text-3xl font-bold text-center mb-12">Lo que dicen nuestros clientes</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-coral rounded-full flex items-center justify-center text-white">
-                <span className="font-bold">M</span>
-              </div>
-              <div>
-                <p className="font-bold">María Rodríguez</p>
-                <p className="text-sm text-gray-500">Directora de Marketing, FashionCo</p>
-              </div>
-            </div>
-            <p className="text-gray-700">
-              "Desde que implementamos Gabbler, nuestras conversiones aumentaron un 32%. La capacidad de comunicarnos
-              directamente con nuestros clientes ha transformado nuestra estrategia de ventas."
-            </p>
+      {/* Benefits Section */}
+      <section id="benefits" className="container mx-auto px-4 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <Image
+              src="/placeholder.svg?key=o7xgw"
+              alt="Equipo de periodistas colaborando"
+              width={500}
+              height={400}
+              className="rounded-3xl"
+            />
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-whatsapp-light rounded-full flex items-center justify-center text-whatsapp-dark">
-                <span className="font-bold">J</span>
-              </div>
-              <div>
-                <p className="font-bold">Juan Méndez</p>
-                <p className="text-sm text-gray-500">CEO, TechSolutions</p>
-              </div>
-            </div>
-            <p className="text-gray-700">
-              "La plataforma es increíblemente intuitiva y los resultados hablan por sí mismos. Hemos visto un ROI de
-              300% en nuestras campañas de mensajería."
-            </p>
-          </div>
+          <div>
+            <h2 className="text-3xl font-bold mb-6">Beneficios para Periodistas y Redacciones</h2>
 
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-whatsapp rounded-full flex items-center justify-center text-white">
-                <span className="font-bold">C</span>
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Zap className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">Ahorra hasta 10 horas semanales</h3>
+                  <p className="text-gray-600">
+                    Automatiza tareas repetitivas y enfócate en lo que realmente importa: crear contenido de calidad y
+                    contar historias impactantes.
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold">Carolina Vega</p>
-                <p className="text-sm text-gray-500">Gerente de E-commerce, HomeStyle</p>
+
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Edit3 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">Mejora la calidad editorial</h3>
+                  <p className="text-gray-600">
+                    Mantén consistencia en el estilo y tono de tus publicaciones. Reduce errores y mejora la claridad de
+                    tus textos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">Amplifica tu alcance</h3>
+                  <p className="text-gray-600">
+                    Distribuye tu contenido en múltiples formatos y canales para llegar a más audiencia y aumentar el
+                    engagement.
+                  </p>
+                </div>
               </div>
             </div>
-            <p className="text-gray-700">
-              "Gabbler nos ha permitido recuperar carritos abandonados y aumentar nuestras ventas en un 25%. El soporte
-              al cliente es excepcional y siempre están disponibles para ayudar."
-            </p>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-whatsapp-dark text-white py-16">
+      <section className="bg-primary text-white py-16">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Comienza a impulsar tus ventas hoy mismo</h2>
+          <h2 className="text-3xl font-bold mb-6">Potencia tu trabajo periodístico hoy mismo</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Únete a más de 120,000 empresas que ya están transformando sus conversaciones en ventas
+            Únete a cientos de periodistas que ya están mejorando su redacción y optimizando su flujo de trabajo
           </p>
-          <Button className="bg-whatsapp text-white hover:bg-whatsapp/90 text-lg px-8 py-6 rounded-md">
-            Solicitar una Demo Gratuita
+          <Button className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-6 rounded-md">
+            Comenzar Prueba Gratuita de 14 Días
           </Button>
+          <p className="mt-4 text-white/80 text-sm">No se requiere tarjeta de crédito</p>
         </div>
       </section>
 
@@ -270,35 +296,30 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-whatsapp rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">G</span>
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">P</span>
                 </div>
-                <span className="font-bold text-xl">Gabbler</span>
+                <span className="font-bold text-xl">PressTools</span>
               </div>
-              <p className="text-gray-600">La plataforma de mensajería que transforma conversaciones en ventas.</p>
+              <p className="text-gray-600">Herramientas de IA para periodistas que buscan mejorar su redacción.</p>
             </div>
 
             <div>
               <h3 className="font-bold mb-4">Producto</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Características
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Newsletters con IA
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Integraciones
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Corrección de Textos
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Precios
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Casos de uso
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Hilos de Tweets
                   </Link>
                 </li>
               </ul>
@@ -308,22 +329,22 @@ export default function LandingPage() {
               <h3 className="font-bold mb-4">Recursos</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
+                  <Link href="#" className="text-gray-600 hover:text-primary">
                     Blog
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Guías
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Guías de Estilo
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
+                  <Link href="#" className="text-gray-600 hover:text-primary">
                     Webinars
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
+                  <Link href="#" className="text-gray-600 hover:text-primary">
                     Centro de ayuda
                   </Link>
                 </li>
@@ -334,23 +355,23 @@ export default function LandingPage() {
               <h3 className="font-bold mb-4">Empresa</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
+                  <Link href="#" className="text-gray-600 hover:text-primary">
                     Sobre nosotros
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Carreras
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
+                  <Link href="#" className="text-gray-600 hover:text-primary">
                     Contacto
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                    Prensa
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Política de privacidad
+                  </Link>
+                </li>
+                <li>
+                  <Link href="#" className="text-gray-600 hover:text-primary">
+                    Términos de servicio
                   </Link>
                 </li>
               </ul>
@@ -358,16 +379,16 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-gray-300 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-600">© 2023 Gabbler. Todos los derechos reservados.</p>
+            <p className="text-gray-600">© 2023 PressTools. Todos los derechos reservados.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
-              <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                Términos
+              <Link href="#" className="text-gray-600 hover:text-primary">
+                Twitter
               </Link>
-              <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                Privacidad
+              <Link href="#" className="text-gray-600 hover:text-primary">
+                LinkedIn
               </Link>
-              <Link href="#" className="text-gray-600 hover:text-whatsapp">
-                Cookies
+              <Link href="#" className="text-gray-600 hover:text-primary">
+                Instagram
               </Link>
             </div>
           </div>

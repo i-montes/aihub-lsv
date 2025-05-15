@@ -20,7 +20,7 @@ import {
   HelpCircle,
   Settings,
 } from "lucide-react"
-import { FitnessLayout } from "@/components/fitness-layout"
+import { Layout } from "@/components/layout"
 import TiptapEditor from "@/components/tiptap-editor"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -344,7 +344,7 @@ export default function CorrectionsPage() {
   }
 
   return (
-    <FitnessLayout>
+    <Layout>
       <div className="container mx-auto p-4 space-y-4">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-800">Corrector de Texto</h1>
@@ -900,6 +900,6 @@ export default function CorrectionsPage() {
           </div>
         </div>
       </div>
-    </FitnessLayout>
+    </Layout>
   )
 }

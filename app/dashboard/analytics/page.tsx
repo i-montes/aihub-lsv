@@ -1,11 +1,11 @@
 import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { FitnessLayout } from "@/components/fitness-layout"
+import { Layout } from "@/components/layout"
 import { BarChart, LineChart, TrendingUp, Users, ArrowUpRight, ArrowDownRight } from "lucide-react"
 
 export default function AnalyticsPage() {
   return (
-    <FitnessLayout>
+    <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -552,7 +552,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-    </FitnessLayout>
+    </Layout>
   )
 }
 

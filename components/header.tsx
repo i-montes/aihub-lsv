@@ -44,6 +44,8 @@ export function Header() {
   const [userName, setUserName] = useState("Usuario")
   const [userEmail, setUserEmail] = useState("")
   const [userAvatar, setUserAvatar] = useState("/empowered-trainer.png")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const supabase = createClientComponentClient()
 
@@ -59,6 +61,9 @@ export function Header() {
   useEffect(() => {
     async function getUserInfo() {
       try {
+        setIsLoading(true)
+        setError(null)
+
         // Obtener la sesión actual
         const {
           data: { session },
@@ -68,39 +73,50 @@ export function Header() {
           // Establecer el email como nombre de usuario por defecto
           setUserEmail(session.user.email || "")
 
-          // Intentar obtener el nombre del usuario desde los metadatos de la sesión
-          if (session.user.user_metadata?.name) {
-            setUserName(session.user.user_metadata.name || session.user.email?.split("@")[0] || "Usuario")
+          // Usar exclusivamente los metadatos del usuario
+          const metadata = session.user.user_metadata || {}
+
+          // Intentar obtener el nombre del usuario de los metadatos
+          if (metadata.name) {
+            setUserName(metadata.name)
+          } else if (metadata.full_name) {
+            setUserName(metadata.full_name)
+          } else if (metadata.preferred_username) {
+            setUserName(metadata.preferred_username)
           } else {
-            // Si no hay metadatos, usar la primera parte del email
+            // Si no hay nombre en los metadatos, usar la primera parte del email
             setUserName(session.user.email?.split("@")[0] || "Usuario")
           }
 
-          try {
-            // Intentar obtener el perfil del usuario, pero manejar el error si ocurre
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("name, email")
-              .eq("id", session.user.id)
-              .single()
-
-            // Solo actualizar si se obtuvo el perfil correctamente
-            if (profile) {
-              setUserName(`${profile.name} ${profile.lastname}` || session.user.email?.split("@")[0] || "Usuario")
-              setUserEmail(profile.email || session.user.email || "")
-            }
-          } catch (profileError) {
-            console.error("Error al obtener el perfil:", profileError)
-            // No hacer nada, ya tenemos un nombre de usuario por defecto
+          // Intentar obtener el avatar del usuario de los metadatos
+          if (metadata.avatar_url) {
+            setUserAvatar(metadata.avatar_url)
+          } else if (metadata.picture) {
+            setUserAvatar(metadata.picture)
+          } else {
+            // Si no hay avatar en los metadatos, usar un avatar predeterminado
+            setUserAvatar(`https://api.dicebear.com/7.x/initials/svg?seed=${session.user.email || "Usuario"}`)
           }
         }
       } catch (error) {
         console.error("Error al obtener información del usuario:", error)
+        setError("Error al cargar la información del usuario")
+      } finally {
+        setIsLoading(false)
       }
     }
 
     getUserInfo()
   }, [])
+
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut()
+      window.location.href = "/auth/login"
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -147,7 +163,7 @@ export function Header() {
     <header className="p-4 flex-shrink-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">¡Hola, {userName}!</h1>
+          <h1 className="text-2xl font-bold">{isLoading ? "Cargando..." : error ? "¡Hola!" : `¡Hola, ${userName}!`}</h1>
           <p className="text-gray-500">Let's take a look at your activity today</p>
         </div>
 
@@ -235,7 +251,11 @@ export function Header() {
               onClick={() => setShowMenu(!showMenu)}
             >
               <div className="w-8 h-8 rounded-full bg-white border overflow-hidden flex-shrink-0">
-                <img src="/empowered-trainer.png" alt="Profile" className="w-full h-full object-cover" />
+                <img
+                  src={userAvatar || "/empowered-trainer.png"}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="font-medium">{userName}</span>
               <ChevronDown
@@ -260,7 +280,10 @@ export function Header() {
                   <Settings size={16} className="mr-2" />
                   Settings
                 </a>
-                <button className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
                   <LogOut size={16} className="mr-2" />
                   Cerrar sesión
                 </button>

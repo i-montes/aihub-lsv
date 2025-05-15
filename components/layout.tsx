@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 
-export function FitnessLayout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isMessagesPage = pathname === "/messages"
 

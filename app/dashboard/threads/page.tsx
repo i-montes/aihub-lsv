@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { FitnessLayout } from "@/components/fitness-layout"
+import { Layout } from "@/components/layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -217,7 +217,7 @@ export default function ThreadsPage() {
   }
 
   return (
-    <FitnessLayout>
+    <Layout>
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Generador de Hilos</h1>
@@ -716,6 +716,6 @@ export default function ThreadsPage() {
           </div>
         </div>
       </div>
-    </FitnessLayout>
+    </Layout>
   )
 }

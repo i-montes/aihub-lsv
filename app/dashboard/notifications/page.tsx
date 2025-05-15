@@ -1,4 +1,4 @@
-import { FitnessLayout } from "@/components/fitness-layout"
+import { Layout } from "@/components/layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MessageSquare, Users, Megaphone, Bell, Instagram, Check, AlertCircle } from "lucide-react"
 
@@ -117,7 +117,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
-    <FitnessLayout>
+    <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -190,7 +190,7 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
       </div>
-    </FitnessLayout>
+    </Layout>
   )
 }
 

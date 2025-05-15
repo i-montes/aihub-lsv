@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Layout } from "@/components/layout"
 
 export default function WritingAssistant() {
   const [content, setContent] = useState<string>("")
@@ -243,150 +244,152 @@ export default function WritingAssistant() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-white rounded-lg shadow">
-      {/* Barra superior con título y acciones */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <FileText className="text-primary size-5" />
-          <input
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            className="text-lg font-medium bg-transparent border-none focus:outline-none focus:ring-0 w-64"
-            aria-label="Título del documento"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="size-4 mr-1" />
-            Exportar
-          </Button>
-          <Button size="sm" onClick={handleSave}>
-            <Save className="size-4 mr-1" />
-            Guardar
-          </Button>
-        </div>
-      </div>
-
-      {/* Contenido principal */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Editor */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <MenuBar />
-          <div className="flex-1 overflow-auto p-4">
-            <EditorContent editor={editor} className="prose max-w-none h-full" />
+    <Layout>
+      <div className="flex flex-col h-full w-full overflow-hidden bg-white rounded-lg shadow">
+        {/* Barra superior con título y acciones */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <FileText className="text-primary size-5" />
+            <input
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              className="text-lg font-medium bg-transparent border-none focus:outline-none focus:ring-0 w-64"
+              aria-label="Título del documento"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="size-4 mr-1" />
+              Exportar
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              <Save className="size-4 mr-1" />
+              Guardar
+            </Button>
           </div>
         </div>
 
-        {/* Panel lateral de asistente */}
-        {aiAssistEnabled && (
-          <div className="w-80 border-l overflow-auto">
-            <Tabs defaultValue="suggestions" className="w-full">
-              <div className="px-4 pt-4 pb-2 border-b">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium">Asistente de IA</h3>
-                  <div className="flex items-center">
-                    <Switch id="ai-toggle" checked={aiAssistEnabled} onCheckedChange={setAiAssistEnabled} size="sm" />
-                    <Label htmlFor="ai-toggle" className="ml-2 text-xs">
-                      Activado
-                    </Label>
-                  </div>
-                </div>
-                <TabsList className="w-full">
-                  <TabsTrigger value="suggestions" className="flex-1 text-xs">
-                    Sugerencias
-                  </TabsTrigger>
-                  <TabsTrigger value="generate" className="flex-1 text-xs">
-                    Generar
-                  </TabsTrigger>
-                  <TabsTrigger value="improve" className="flex-1 text-xs">
-                    Mejorar
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+        {/* Contenido principal */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Editor */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <MenuBar />
+            <div className="flex-1 overflow-auto p-4">
+              <EditorContent editor={editor} className="prose max-w-none h-full" />
+            </div>
+          </div>
 
-              <TabsContent value="suggestions" className="p-4 space-y-3">
-                <p className="text-xs text-muted-foreground">Sugerencias basadas en tu contenido actual:</p>
-                {suggestions.map((suggestion, index) => (
-                  <Card key={index} className="p-3 cursor-pointer hover:bg-gray-50">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
-                      <p className="text-xs">{suggestion}</p>
+          {/* Panel lateral de asistente */}
+          {aiAssistEnabled && (
+            <div className="w-80 border-l overflow-auto">
+              <Tabs defaultValue="suggestions" className="w-full">
+                <div className="px-4 pt-4 pb-2 border-b">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium">Asistente de IA</h3>
+                    <div className="flex items-center">
+                      <Switch id="ai-toggle" checked={aiAssistEnabled} onCheckedChange={setAiAssistEnabled} size="sm" />
+                      <Label htmlFor="ai-toggle" className="ml-2 text-xs">
+                        Activado
+                      </Label>
                     </div>
-                  </Card>
-                ))}
-              </TabsContent>
+                  </div>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="suggestions" className="flex-1 text-xs">
+                      Sugerencias
+                    </TabsTrigger>
+                    <TabsTrigger value="generate" className="flex-1 text-xs">
+                      Generar
+                    </TabsTrigger>
+                    <TabsTrigger value="improve" className="flex-1 text-xs">
+                      Mejorar
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <TabsContent value="generate" className="p-4">
-                <p className="text-xs text-muted-foreground mb-3">Genera nuevo contenido con IA:</p>
-                <div className="space-y-3">
-                  <Textarea
-                    placeholder="Describe el contenido que quieres generar..."
-                    className="text-sm resize-none"
-                    rows={4}
-                  />
-                  <Button className="w-full" onClick={() => handleAIAssist("generate")}>
-                    <Wand2 className="size-4 mr-1" />
-                    Generar contenido
-                  </Button>
+                <TabsContent value="suggestions" className="p-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">Sugerencias basadas en tu contenido actual:</p>
+                  {suggestions.map((suggestion, index) => (
+                    <Card key={index} className="p-3 cursor-pointer hover:bg-gray-50">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
+                        <p className="text-xs">{suggestion}</p>
+                      </div>
+                    </Card>
+                  ))}
+                </TabsContent>
 
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Introducción
+                <TabsContent value="generate" className="p-4">
+                  <p className="text-xs text-muted-foreground mb-3">Genera nuevo contenido con IA:</p>
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Describe el contenido que quieres generar..."
+                      className="text-sm resize-none"
+                      rows={4}
+                    />
+                    <Button className="w-full" onClick={() => handleAIAssist("generate")}>
+                      <Wand2 className="size-4 mr-1" />
+                      Generar contenido
                     </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Conclusión
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Párrafo explicativo
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Lista de beneficios
+
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Introducción
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Conclusión
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Párrafo explicativo
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Lista de beneficios
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="improve" className="p-4">
+                  <p className="text-xs text-muted-foreground mb-3">Mejora tu texto seleccionado:</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Mejorar redacción
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Más formal
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Más conciso
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Más detallado
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Corregir gramática
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs justify-start">
+                        Simplificar
+                      </Button>
+                    </div>
+
+                    <Textarea
+                      placeholder="O describe cómo quieres mejorar el texto seleccionado..."
+                      className="text-sm resize-none mt-2"
+                      rows={4}
+                    />
+
+                    <Button className="w-full" onClick={() => handleAIAssist("improve")}>
+                      <Sparkles className="size-4 mr-1" />
+                      Mejorar selección
                     </Button>
                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="improve" className="p-4">
-                <p className="text-xs text-muted-foreground mb-3">Mejora tu texto seleccionado:</p>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Mejorar redacción
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Más formal
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Más conciso
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Más detallado
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Corregir gramática
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs justify-start">
-                      Simplificar
-                    </Button>
-                  </div>
-
-                  <Textarea
-                    placeholder="O describe cómo quieres mejorar el texto seleccionado..."
-                    className="text-sm resize-none mt-2"
-                    rows={4}
-                  />
-
-                  <Button className="w-full" onClick={() => handleAIAssist("improve")}>
-                    <Sparkles className="size-4 mr-1" />
-                    Mejorar selección
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Layout>
   )
 }

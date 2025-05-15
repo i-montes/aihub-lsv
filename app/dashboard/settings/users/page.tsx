@@ -2,6 +2,7 @@ import { getOrganizationUsers } from "@/lib/supabase/user-actions"
 import { UsersTable } from "./users-table"
 import { ExportUsersButton } from "./export-users-button"
 import { redirect } from "next/navigation"
+import { Layout } from "@/components/layout"
 
 export default async function UsersPage() {
   // Obtener los usuarios de la organización
@@ -13,15 +14,17 @@ export default async function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Lista de Usuarios</h2>
-        <div className="flex gap-2">
-          <ExportUsersButton />
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Lista de Usuarios</h2>
+          <div className="flex gap-2">
+            <ExportUsersButton />
+          </div>
         </div>
-      </div>
 
-      <UsersTable initialUsers={users || []} />
-    </div>
+        <UsersTable initialUsers={users || []} />
+      </div>
+    </Layout>
   )
 }

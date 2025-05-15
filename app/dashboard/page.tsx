@@ -23,7 +23,7 @@ import {
   Users,
   FileCheck,
 } from "lucide-react"
-import { FitnessLayout } from "@/components/fitness-layout"
+import { Layout } from "@/components/layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useState } from "react"
 
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   return (
-    <FitnessLayout>
+    <Layout>
       {/* Diálogo para añadir nuevo recurso */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -997,6 +997,6 @@ export default function Dashboard() {
           </div>
         </section>
       </div>
-    </FitnessLayout>
+    </Layout>
   )
 }
