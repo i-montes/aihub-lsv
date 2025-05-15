@@ -7,10 +7,9 @@ import { redirect } from "next/navigation"
 import type { Database } from "../database.types"
 import { createServerClient } from "./server"
 
-// Cliente para acciones del servidor
+// Cliente para acciones del servidor - con manejo explícito de cookies
 const getSupabaseAction = () => {
-  const cookieStore = cookies()
-  return createServerActionClient<Database>({ cookies: () => cookieStore })
+  return createServerActionClient<Database>({ cookies })
 }
 
 // Cliente con rol de servicio (bypass RLS)
@@ -37,7 +36,7 @@ export async function signIn(formData: FormData) {
     }
   }
 
-  const supabase = getSupabaseAction()
+  const supabase = await getSupabaseAction()
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -77,8 +76,8 @@ export async function signUp(formData: FormData) {
     }
   }
 
-  // Usamos el cliente normal para la autenticación
-  const supabase = getSupabaseAction()
+  // Usamos el cliente normal para la autenticación - ahora con await
+  const supabase = await getSupabaseAction()
 
   // Y el cliente de servicio para operaciones en la base de datos
   const serviceClient = getServiceClient()
@@ -199,7 +198,7 @@ export async function signUp(formData: FormData) {
 
 // Cerrar sesión
 export async function signOut() {
-  const supabase = getSupabaseAction()
+  const supabase = await getSupabaseAction()
   await supabase.auth.signOut()
   redirect("/auth/login")
 }
@@ -214,7 +213,7 @@ export async function requestPasswordReset(formData: FormData) {
     }
   }
 
-  const supabase = getSupabaseAction()
+  const supabase = await getSupabaseAction()
 
   // URL de redirección después de hacer clic en el enlace del correo
   const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
@@ -244,7 +243,7 @@ export async function resetPassword(formData: FormData) {
     }
   }
 
-  const supabase = getSupabaseAction()
+  const supabase = await getSupabaseAction()
 
   const { error } = await supabase.auth.updateUser({
     password,
@@ -267,7 +266,7 @@ export async function updateProfile(formData: FormData) {
   const lastname = formData.get("lastname") as string
   const avatar = formData.get("avatar") as string
 
-  const supabase = getSupabaseAction()
+  const supabase = await getSupabaseAction()
   const serviceClient = getServiceClient()
 
   // Obtener el usuario actual
@@ -321,7 +320,7 @@ export async function updateProfile(formData: FormData) {
  * Obtiene el usuario actual
  */
 export async function getCurrentUser() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const {
     data: { user },
@@ -342,7 +341,7 @@ export async function getCurrentUserOrganization() {
 
   if (!user || !user.organizationId) return null
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const { data } = await supabase.from("organization").select("*").eq("id", user.organizationId).single()
 
@@ -362,8 +361,7 @@ export async function resendConfirmationEmail(formData: FormData) {
   }
 
   try {
-    // Usar el cliente de Supabase ya configurado en lugar de crear uno nuevo
-    const supabase = getSupabaseAction()
+    const supabase = await getSupabaseAction()
 
     const { error } = await supabase.auth.resend({
       type: "signup",
