@@ -2,38 +2,52 @@
 
 import { cookies } from "next/headers"
 import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
 
-export async function changePassword(formData: {
+// Cliente para acciones del servidor
+const getSupabaseAction = () => {
+  const cookieStore = cookies()
+  return createServerActionClient<Database>({ cookies: () => cookieStore })
+}
+
+// Cliente con rol de servicio (bypass RLS)
+const getServiceClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Faltan variables de entorno para Supabase")
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseServiceKey)
+}
+
+export async function changePassword({
+  currentPassword,
+  newPassword,
+}: {
   currentPassword: string
   newPassword: string
 }) {
   try {
-    const { currentPassword, newPassword } = formData
+    const supabase = getSupabaseAction()
+    const serviceClient = getServiceClient()
 
-    if (!currentPassword || !newPassword) {
-      return {
-        error: "Todos los campos son requeridos",
-      }
-    }
-
-    const cookieStore = cookies()
-    const supabase = createServerActionClient<Database>({ cookies: () => cookieStore })
-
-    // Verificar la sesión actual
+    // 1. Obtener el usuario actual
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
       return {
-        error: "No hay sesión activa",
+        error: "Usuario no autenticado",
       }
     }
 
-    // Verificar la contraseña actual
+    // 2. Verificar la contraseña actual
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: session.user.email!,
+      email: user.email!,
       password: currentPassword,
     })
 
@@ -43,7 +57,7 @@ export async function changePassword(formData: {
       }
     }
 
-    // Cambiar la contraseña
+    // 3. Actualizar la contraseña
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     })
@@ -54,11 +68,11 @@ export async function changePassword(formData: {
       }
     }
 
-    // Registrar la actividad
+    // 4. Registrar la actividad
     try {
-      await supabase.from("activity").insert({
+      await serviceClient.from("activity").insert({
         id: crypto.randomUUID(),
-        userId: session.user.id,
+        userId: user.id,
         action: "PASSWORD_CHANGED",
         createdAt: new Date().toISOString(),
         details: {
@@ -74,9 +88,9 @@ export async function changePassword(formData: {
       success: true,
     }
   } catch (error) {
-    console.error("Error al cambiar la contraseña:", error)
+    console.error("Error al cambiar contraseña:", error)
     return {
-      error: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",
+      error: "Ocurrió un error inesperado al cambiar la contraseña",
     }
   }
 }

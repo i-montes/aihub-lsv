@@ -1,73 +1,37 @@
-import * as z from "zod"
+import { z } from "zod"
 
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, { message: "El correo electrónico es requerido" })
-    .email({ message: "Ingresa un correo electrónico válido" }),
-  password: z
-    .string()
-    .min(1, { message: "La contraseña es requerida" })
-    .min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+  email: z.string().email({ message: "Por favor, introduce un email válido" }),
+  password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+  remember: z.boolean().optional(),
 })
-
-export type LoginFormValues = z.infer<typeof loginSchema>
 
 export const registerSchema = z
   .object({
-    name: z
-      .string()
-      .min(1, { message: "El nombre es requerido" })
-      .max(50, { message: "El nombre no puede exceder los 50 caracteres" }),
-    lastname: z
-      .string()
-      .min(1, { message: "El apellido es requerido" })
-      .max(50, { message: "El apellido no puede exceder los 50 caracteres" }),
-    email: z
-      .string()
-      .min(1, { message: "El correo electrónico es requerido" })
-      .email({ message: "Ingresa un correo electrónico válido" }),
-    password: z
-      .string()
-      .min(1, { message: "La contraseña es requerida" })
-      .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
-      .regex(/[A-Z]/, { message: "La contraseña debe contener al menos una letra mayúscula" })
-      .regex(/[a-z]/, { message: "La contraseña debe contener al menos una letra minúscula" })
-      .regex(/[0-9]/, { message: "La contraseña debe contener al menos un número" }),
-    confirmPassword: z.string().min(1, { message: "Confirma tu contraseña" }),
+    name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
+    lastname: z.string().min(2, { message: "El apellido debe tener al menos 2 caracteres" }),
+    email: z.string().email({ message: "Por favor, introduce un email válido" }),
+    password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+    confirmPassword: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+    terms: z.boolean().refine((val) => val === true, {
+      message: "Debes aceptar los términos y condiciones",
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",
     path: ["confirmPassword"],
   })
 
-export type RegisterFormValues = z.infer<typeof registerSchema>
-
-// Esquema para solicitar restablecimiento de contraseña
 export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(1, { message: "El correo electrónico es requerido" })
-    .email({ message: "Ingresa un correo electrónico válido" }),
+  email: z.string().email({ message: "Por favor, introduce un email válido" }),
 })
 
-export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
-
-// Esquema para establecer nueva contraseña
 export const resetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(1, { message: "La contraseña es requerida" })
-      .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
-      .regex(/[A-Z]/, { message: "La contraseña debe contener al menos una letra mayúscula" })
-      .regex(/[a-z]/, { message: "La contraseña debe contener al menos una letra minúscula" })
-      .regex(/[0-9]/, { message: "La contraseña debe contener al menos un número" }),
-    confirmPassword: z.string().min(1, { message: "Confirma tu contraseña" }),
+    password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+    confirmPassword: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",
     path: ["confirmPassword"],
   })
-
-export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>

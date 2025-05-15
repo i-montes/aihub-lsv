@@ -63,7 +63,7 @@ export function OrganizationMembers() {
   }, [])
 
   // Función para obtener el color de la insignia según el rol
-  const getRoleBadgeColor = (role: Profile["role"]) => {
+  const getRoleBadgeColor = (role: Profile["role"]): string => {
     switch (role) {
       case "OWNER":
         return "bg-coral hover:bg-coral/80"
@@ -75,7 +75,7 @@ export function OrganizationMembers() {
   }
 
   // Función para obtener el texto del rol en español
-  const getRoleText = (role: Profile["role"]) => {
+  const getRoleText = (role: Profile["role"]): string => {
     switch (role) {
       case "OWNER":
         return "Propietario"
@@ -87,7 +87,7 @@ export function OrganizationMembers() {
   }
 
   // Función para obtener las iniciales para el avatar
-  const getInitials = (name: string, lastname: string) => {
+  const getInitials = (name: string, lastname: string): string => {
     return `${name?.charAt(0) || ""}${lastname?.charAt(0) || ""}`.toUpperCase()
   }
 

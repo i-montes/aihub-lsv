@@ -60,28 +60,22 @@ export type Database = {
         Row: {
           action: string
           createdAt: string
-          details: Json | null
+          details: Json
           id: string
-          ipAddress: string | null
-          userAgent: string | null
           userId: string
         }
         Insert: {
           action: string
-          createdAt?: string
-          details?: Json | null
+          createdAt: string
+          details: Json
           id: string
-          ipAddress?: string | null
-          userAgent?: string | null
           userId: string
         }
         Update: {
           action?: string
           createdAt?: string
-          details?: Json | null
+          details?: Json
           id?: string
-          ipAddress?: string | null
-          userAgent?: string | null
           userId?: string
         }
         Relationships: [
@@ -343,37 +337,44 @@ export type Database = {
         Row: {
           avatar: string | null
           created_at: string
-          email: string | null
+          email: string
           id: string
           lastname: string | null
           name: string | null
           organizationId: string | null
-          role: Database["public"]["Enums"]["role"]
+          role: string | null
           updated_at: string
         }
         Insert: {
           avatar?: string | null
-          created_at?: string
-          email?: string | null
+          created_at: string
+          email: string
           id: string
           lastname?: string | null
           name?: string | null
           organizationId?: string | null
-          role?: Database["public"]["Enums"]["role"]
+          role?: string | null
           updated_at: string
         }
         Update: {
           avatar?: string | null
           created_at?: string
-          email?: string | null
+          email?: string
           id?: string
           lastname?: string | null
           name?: string | null
           organizationId?: string | null
-          role?: Database["public"]["Enums"]["role"]
+          role?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_organizationId_fkey"
             columns: ["organizationId"]
@@ -385,52 +386,34 @@ export type Database = {
       }
       prompts: {
         Row: {
-          active: boolean
-          app: string
-          complementaryPrompts: Json | null
           content: string
           createdAt: string
-          description: string | null
           id: string
-          isDefault: boolean
+          isPublic: boolean
+          name: string
           organizationId: string | null
-          temperature: number
-          title: string
-          topP: number
           updatedAt: string
-          variables: string[] | null
+          userId: string
         }
         Insert: {
-          active?: boolean
-          app: string
-          complementaryPrompts?: Json | null
           content: string
-          createdAt?: string
-          description?: string | null
-          id?: string
-          isDefault?: boolean
+          createdAt: string
+          id: string
+          isPublic?: boolean
+          name: string
           organizationId?: string | null
-          temperature?: number
-          title: string
-          topP?: number
           updatedAt: string
-          variables?: string[] | null
+          userId: string
         }
         Update: {
-          active?: boolean
-          app?: string
-          complementaryPrompts?: Json | null
           content?: string
           createdAt?: string
-          description?: string | null
           id?: string
-          isDefault?: boolean
+          isPublic?: boolean
+          name?: string
           organizationId?: string | null
-          temperature?: number
-          title?: string
-          topP?: number
           updatedAt?: string
-          variables?: string[] | null
+          userId?: string
         }
         Relationships: [
           {
@@ -438,6 +421,13 @@ export type Database = {
             columns: ["organizationId"]
             isOneToOne: false
             referencedRelation: "organization"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompts_userId_fkey"
+            columns: ["userId"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -557,7 +547,7 @@ export type Database = {
           userId: string
         }
         Insert: {
-          createdAt?: string
+          createdAt: string
           emailNotifications?: boolean
           id: string
           language?: string
@@ -578,7 +568,7 @@ export type Database = {
           {
             foreignKeyName: "user_preference_userId_fkey"
             columns: ["userId"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -703,7 +693,7 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+export type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -814,3 +804,13 @@ export const Constants = {
     },
   },
 } as const
+
+export type User = {
+  id: string
+  email?: string
+  name?: string
+  lastname?: string
+  avatar?: string
+  role?: string
+  organizationId?: string
+}

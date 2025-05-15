@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -12,7 +11,12 @@ import { createPrompt, updatePrompt } from "@/lib/supabase/prompts"
 import { useToast } from "@/components/ui/use-toast"
 
 interface PromptFormProps {
-  prompt?: any // Tipo del prompt
+  prompt?: {
+    id: string
+    title: string
+    description?: string
+    content: string
+  }
   isNew?: boolean
 }
 

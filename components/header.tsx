@@ -5,8 +5,17 @@ import { Input } from "@/components/ui/input"
 import { useState, useRef, useEffect } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
+// Tipado para las notificaciones
+type Notification = {
+  id: number
+  title: string
+  description: string
+  time: string
+  read: boolean
+}
+
 // Datos de ejemplo para las notificaciones
-const notificationsData = [
+const notificationsData: Notification[] = [
   {
     id: 1,
     title: "Nuevo mensaje",
@@ -40,7 +49,7 @@ const notificationsData = [
 export function Header() {
   const [showMenu, setShowMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState(notificationsData)
+  const [notifications, setNotifications] = useState<Notification[]>(notificationsData)
   const [userName, setUserName] = useState("Usuario")
   const [userEmail, setUserEmail] = useState("")
   const [userAvatar, setUserAvatar] = useState("/empowered-trainer.png")

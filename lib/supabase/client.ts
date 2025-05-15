@@ -3,17 +3,17 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "../database.types"
 
-// Implementamos el patrón singleton para evitar múltiples instancias del cliente
-let supabase: ReturnType<typeof createClientComponentClient<Database>> | null = null
+// Singleton para evitar múltiples instancias del cliente
+let supabaseClient: ReturnType<typeof createClientComponentClient<Database>> | null = null
 
 export const getSupabaseClient = () => {
-  if (!supabase) {
-    supabase = createClientComponentClient<Database>({
+  if (!supabaseClient) {
+    supabaseClient = createClientComponentClient<Database>({
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     })
   }
-  return supabase
+  return supabaseClient
 }
 
 // Función para obtener el usuario actual
@@ -46,4 +46,4 @@ export const subscribeToAuthChanges = (
 }
 
 // Exportamos el cliente directamente para casos de uso específicos
-export const supabaseClient = getSupabaseClient()
+export const supabase = getSupabaseClient()

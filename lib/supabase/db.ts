@@ -1,4 +1,4 @@
-import { createServiceClient } from "./server"
+import { createClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
 
 // Tipos para las funciones de consulta
@@ -9,9 +9,21 @@ type Update<T extends Table> = Database["public"]["Tables"][T]["Update"]
 
 // Funciones de utilidad para interactuar con la base de datos
 
+// Cliente con rol de servicio (bypass RLS)
+export const getServiceClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Faltan variables de entorno para Supabase")
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseServiceKey)
+}
+
 // Obtener un registro por ID
 export async function getById<T extends Table>(table: T, id: string): Promise<Row<T> | null> {
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
   const { data, error } = await supabase.from(table).select("*").eq("id", id).single()
 
   if (error) {
@@ -33,7 +45,7 @@ export async function getMany<T extends Table>(
   } = {},
 ): Promise<Row<T>[]> {
   const { filters = {}, limit, offset, orderBy } = options
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
 
   let query = supabase.from(table).select("*")
 
@@ -70,7 +82,7 @@ export async function getMany<T extends Table>(
 
 // Crear un nuevo registro
 export async function create<T extends Table>(table: T, data: Insert<T>): Promise<Row<T> | null> {
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
   const { data: result, error } = await supabase.from(table).insert(data).select().single()
 
   if (error) {
@@ -83,7 +95,7 @@ export async function create<T extends Table>(table: T, data: Insert<T>): Promis
 
 // Actualizar un registro existente
 export async function update<T extends Table>(table: T, id: string, data: Update<T>): Promise<Row<T> | null> {
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
   const { data: result, error } = await supabase.from(table).update(data).eq("id", id).select().single()
 
   if (error) {
@@ -96,7 +108,7 @@ export async function update<T extends Table>(table: T, id: string, data: Update
 
 // Eliminar un registro
 export async function remove<T extends Table>(table: T, id: string): Promise<boolean> {
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
   const { error } = await supabase.from(table).delete().eq("id", id)
 
   if (error) {
@@ -109,7 +121,7 @@ export async function remove<T extends Table>(table: T, id: string): Promise<boo
 
 // Registrar una actividad
 export async function logActivity(userId: string, action: string, details?: any): Promise<void> {
-  const supabase = createServiceClient()
+  const supabase = getServiceClient()
   const { error } = await supabase.from("activity").insert({
     id: crypto.randomUUID(),
     userId,

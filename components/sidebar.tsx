@@ -94,19 +94,15 @@ export function Sidebar() {
   )
 }
 
-function NavItem({
-  icon,
-  href,
-  isActive = false,
-  label,
-  expanded = false,
-}: {
+interface NavItemProps {
   icon: React.ReactNode
   href: string
   isActive?: boolean
   label: string
   expanded?: boolean
-}) {
+}
+
+function NavItem({ icon, href, isActive = false, label, expanded = false }: NavItemProps) {
   const [showTooltip, setShowTooltip] = useState(false)
 
   return (
@@ -135,14 +131,19 @@ function NavItem({
   )
 }
 
-function NotificationsItem({ icon, isActive = false }) {
+interface NotificationsItemProps {
+  icon: React.ReactNode
+  isActive?: boolean
+}
+
+function NotificationsItem({ icon, isActive = false }: NotificationsItemProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
   const buttonRef = useRef(null)
 
   // Cerrar el dropdown cuando se hace clic fuera de él
   useEffect(() => {
-    function handleClickOutside(event) {
+    function handleClickOutside(event: MouseEvent) {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&

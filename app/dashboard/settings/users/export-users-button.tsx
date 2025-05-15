@@ -9,7 +9,7 @@ export function ExportUsersButton() {
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
 
-  const exportUsersToCSV = async () => {
+  const exportUsersToCSV = async (): Promise<void> => {
     setIsExporting(true)
 
     try {

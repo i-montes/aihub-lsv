@@ -1,141 +1,149 @@
-import { createServiceClient } from "./server"
-import type { Database } from "../database.types"
+"use server"
 
-type Organization = Database["public"]["Tables"]["organization"]["Row"]
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+import { createServerClient } from "./server"
+import { getServiceClient } from "./db"
 
-// Obtener una organización por ID
-export async function getOrganizationById(id: string): Promise<Organization | null> {
-  const supabase = createServiceClient()
-  const { data, error } = await supabase.from("organization").select("*").eq("id", id).single()
+export async function getOrganizationMembers(organizationId: string) {
+  const supabase = createServerClient()
 
-  if (error) {
-    console.error("Error al obtener la organización:", error)
-    return null
-  }
-
-  return data
-}
-
-// Obtener todos los miembros de una organización
-export async function getOrganizationMembers(organizationId: string): Promise<Profile[]> {
-  const supabase = createServiceClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, name, lastname, email, avatar, role, created_at")
     .eq("organizationId", organizationId)
-    .order("role", { ascending: false }) // Ordenar por rol (OWNER primero)
+    .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Error al obtener los miembros de la organización:", error)
+    console.error("Error fetching organization members:", error)
     return []
   }
 
-  return data
+  return data || []
 }
 
-// Actualizar una organización
-export async function updateOrganization(
-  id: string,
-  updates: Partial<Database["public"]["Tables"]["organization"]["Update"]>,
-): Promise<Organization | null> {
-  const supabase = createServiceClient()
+export async function updateOrganization(organizationId: string, name: string) {
+  const serviceClient = getServiceClient()
 
-  // Asegurarse de que updatedAt esté actualizado
-  const updatesWithTimestamp = {
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  }
-
-  const { data, error } = await supabase
+  const { error } = await serviceClient
     .from("organization")
-    .update(updatesWithTimestamp)
-    .eq("id", id)
-    .select()
-    .single()
+    .update({
+      name,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", organizationId)
 
   if (error) {
-    console.error("Error al actualizar la organización:", error)
-    return null
+    console.error("Error updating organization:", error)
+    return { error: error.message }
   }
 
-  return data
+  return { success: true }
 }
 
-// Invitar a un usuario a una organización
-export async function inviteUserToOrganization(
-  organizationId: string,
-  email: string,
-  role: Database["public"]["Enums"]["role"] = "USER",
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient()
+export async function inviteUserToOrganization(email: string, organizationId: string, role: string) {
+  // Esta función simula el envío de una invitación por correo electrónico
+  // En una implementación real, enviarías un correo electrónico con un enlace de invitación
 
-  // Verificar si el usuario ya existe
-  const { data: existingUser } = await supabase.from("profiles").select("id, email").eq("email", email).single()
+  const serviceClient = getServiceClient()
 
-  if (existingUser) {
-    // Si el usuario ya existe, verificar si ya está en la organización
-    const { data: existingMember } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", existingUser.id)
-      .eq("organizationId", organizationId)
-      .single()
+  // Registrar la invitación en la base de datos
+  const { error } = await serviceClient.from("invitations").insert({
+    id: crypto.randomUUID(),
+    email,
+    organizationId,
+    role,
+    status: "PENDING",
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 días
+  })
 
-    if (existingMember) {
-      return { success: false, error: "El usuario ya es miembro de esta organización" }
-    }
-
-    // Actualizar el perfil del usuario para añadirlo a la organización
-    const { error } = await supabase.from("profiles").update({ organizationId, role }).eq("id", existingUser.id)
-
-    if (error) {
-      return { success: false, error: "Error al añadir el usuario a la organización" }
-    }
-
-    return { success: true }
-  } else {
-    // TODO: Implementar lógica para invitar a un usuario que no existe
-    // Esto requeriría enviar un email con un enlace de invitación
-    return {
-      success: false,
-      error: "La invitación a usuarios que no existen aún no está implementada",
-    }
+  if (error) {
+    console.error("Error creating invitation:", error)
+    return { error: error.message }
   }
+
+  // Aquí iría la lógica para enviar el correo electrónico
+
+  return { success: true }
 }
 
-// Eliminar un miembro de la organización
-export async function removeOrganizationMember(
-  organizationId: string,
-  userId: string,
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient()
+export async function removeUserFromOrganization(userId: string, organizationId: string) {
+  const serviceClient = getServiceClient()
 
-  // Verificar que el usuario no sea el propietario
-  const { data: userProfile } = await supabase
+  // Verificar que el usuario no sea el propietario de la organización
+  const { data: user, error: userError } = await serviceClient
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .eq("organizationId", organizationId)
     .single()
 
-  if (!userProfile) {
-    return { success: false, error: "El usuario no es miembro de esta organización" }
+  if (userError) {
+    console.error("Error fetching user:", userError)
+    return { error: userError.message }
   }
 
-  if (userProfile.role === "OWNER") {
-    return { success: false, error: "No se puede eliminar al propietario de la organización" }
+  if (user.role === "OWNER") {
+    return { error: "No puedes eliminar al propietario de la organización" }
   }
 
-  // Eliminar al usuario de la organización (establecer organizationId a null)
-  const { error } = await supabase
+  // Actualizar el perfil del usuario para desvincularlo de la organización
+  const { error } = await serviceClient
     .from("profiles")
-    .update({ organizationId: null })
+    .update({
+      organizationId: null,
+      role: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", userId)
     .eq("organizationId", organizationId)
 
   if (error) {
-    return { success: false, error: "Error al eliminar el miembro de la organización" }
+    console.error("Error removing user from organization:", error)
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function removeOrganizationMember(userId: string, organizationId: string) {
+  return removeUserFromOrganization(userId, organizationId)
+}
+
+export async function updateUserRole(userId: string, organizationId: string, role: string) {
+  const serviceClient = getServiceClient()
+
+  // Verificar que no estemos cambiando el rol del propietario
+  if (role !== "OWNER") {
+    const { data: owners, error: ownersError } = await serviceClient
+      .from("profiles")
+      .select("id")
+      .eq("organizationId", organizationId)
+      .eq("role", "OWNER")
+
+    if (ownersError) {
+      console.error("Error fetching owners:", ownersError)
+      return { error: ownersError.message }
+    }
+
+    // Si el usuario es el único propietario, no permitir cambiar su rol
+    if (owners.length === 1 && owners[0].id === userId) {
+      return { error: "La organización debe tener al menos un propietario" }
+    }
+  }
+
+  // Actualizar el rol del usuario
+  const { error } = await serviceClient
+    .from("profiles")
+    .update({
+      role,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .eq("organizationId", organizationId)
+
+  if (error) {
+    console.error("Error updating user role:", error)
+    return { error: error.message }
   }
 
   return { success: true }

@@ -3,19 +3,19 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
+  Button,
+  Badge,
+  Input,
+  Label,
+  Switch,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/button"
 import { Search, Filter, Edit, Trash, MoreVertical, ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import type { Database } from "@/lib/database.types"
 import { updateUser, createUser, deleteUser } from "@/lib/supabase/user-actions"

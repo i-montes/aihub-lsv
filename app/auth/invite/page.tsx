@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type React } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,7 @@ export default function InvitePage() {
     setEmail(emailParam)
   }, [searchParams, router])
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -46,7 +46,7 @@ export default function InvitePage() {
     }))
   }
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const newErrors = {}
 
     if (!formData.firstName.trim()) {
@@ -71,7 +71,7 @@ export default function InvitePage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {

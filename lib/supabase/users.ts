@@ -1,57 +1,128 @@
-import { createServiceClient } from "./server"
-import type { Database } from "../database.types"
+"use server"
+import { getServiceClient } from "./db"
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+export async function getAllUsers() {
+  const serviceClient = getServiceClient()
 
-/**
- * Obtiene todos los usuarios de una organización
- */
-export async function getOrganizationUsers(organizationId: string): Promise<Profile[]> {
-  const supabase = createServiceClient()
-
-  const { data, error } = await supabase
+  const { data, error } = await serviceClient
     .from("profiles")
-    .select("*")
-    .eq("organizationId", organizationId)
-    .order("role", { ascending: false })
-    .order("createdAt", { ascending: false })
+    .select("id, name, lastname, email, avatar, role, organizationId, created_at")
+    .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Error al obtener usuarios:", error)
+    console.error("Error fetching users:", error)
     return []
   }
 
   return data || []
 }
 
-/**
- * Obtiene los datos de usuarios formateados para exportación
- */
-export async function getUsersForExport(organizationId: string) {
-  const users = await getOrganizationUsers(organizationId)
+export async function getUserById(userId: string) {
+  const serviceClient = getServiceClient()
 
-  // Formatear los datos para exportación
-  return users.map((user) => ({
-    ID: user.id,
-    Nombre: user.name || "",
-    Email: user.email || "",
-    Rol: user.role || "",
-    "Fecha de creación": formatDate(user.createdAt),
-    "Último acceso": formatDate(user.lastLogin),
-    Estado: user.active ? "Activo" : "Inactivo",
-  }))
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select("id, name, lastname, email, avatar, role, organizationId, created_at")
+    .eq("id", userId)
+    .single()
+
+  if (error) {
+    console.error("Error fetching user:", error)
+    return null
+  }
+
+  return data
 }
 
-/**
- * Formatea una fecha para exportación
- */
-function formatDate(date: string | null | undefined): string {
-  if (!date) return ""
-  return new Date(date).toLocaleString("es-ES", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+export async function getUsersByOrganization(organizationId: string) {
+  const serviceClient = getServiceClient()
+
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select("id, name, lastname, email, avatar, role, created_at")
+    .eq("organizationId", organizationId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching organization users:", error)
+    return []
+  }
+
+  return data || []
+}
+
+export async function updateUserProfile(
+  userId: string,
+  { name, lastname, email }: { name: string; lastname: string; email: string },
+) {
+  const serviceClient = getServiceClient()
+
+  const { error } = await serviceClient
+    .from("profiles")
+    .update({
+      name,
+      lastname,
+      email,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+
+  if (error) {
+    console.error("Error updating user profile:", error)
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function deleteUser(userId: string) {
+  const serviceClient = getServiceClient()
+
+  // Verificar que el usuario no sea el propietario de una organización
+  const { data: user, error: userError } = await serviceClient
+    .from("profiles")
+    .select("role, organizationId")
+    .eq("id", userId)
+    .single()
+
+  if (userError) {
+    console.error("Error fetching user:", userError)
+    return { error: userError.message }
+  }
+
+  if (user.role === "OWNER") {
+    // Verificar si hay más propietarios en la organización
+    const { data: owners, error: ownersError } = await serviceClient
+      .from("profiles")
+      .select("id")
+      .eq("organizationId", user.organizationId)
+      .eq("role", "OWNER")
+
+    if (ownersError) {
+      console.error("Error fetching owners:", ownersError)
+      return { error: ownersError.message }
+    }
+
+    if (owners.length === 1) {
+      return { error: "No puedes eliminar al único propietario de una organización" }
+    }
+  }
+
+  // Eliminar el usuario de Auth
+  const { error: authError } = await serviceClient.auth.admin.deleteUser(userId)
+
+  if (authError) {
+    console.error("Error deleting user from Auth:", authError)
+    return { error: authError.message }
+  }
+
+  // Eliminar el perfil del usuario
+  const { error } = await serviceClient.from("profiles").delete().eq("id", userId)
+
+  if (error) {
+    console.error("Error deleting user profile:", error)
+    return { error: error.message }
+  }
+
+  return { success: true }
 }
