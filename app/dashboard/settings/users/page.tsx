@@ -6,7 +6,7 @@ import { Layout } from "@/components/layout"
 
 export default async function UsersPage() {
   // Obtener los usuarios de la organización
-  const { users, error } = await getOrganizationUsers()
+  // const { users, error } = await getOrganizationUsers()
 
   // Si hay un error de permisos, redirigir al dashboard
   if (error && error.includes("No tienes permisos")) {
@@ -23,7 +23,7 @@ export default async function UsersPage() {
           </div>
         </div>
 
-        <UsersTable initialUsers={users || []} />
+        {/*  <UsersTable initialUsers={users || []} /> */}
       </div>
     </Layout>
   )
