@@ -20,7 +20,6 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
   isLoading: boolean
-  refreshProfile: () => Promise<void>
 }
 
 // Crear el contexto con valores por defecto
@@ -36,7 +35,6 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => {},
   updatePassword: async () => {},
   isLoading: false,
-  refreshProfile: async () => {},
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -96,33 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
   }, [])
-
-  useEffect(() => {
-    const handleAuthUpdate = async () => {
-      // Recargar el perfil cuando se dispare el evento auth-update
-      await refreshProfile()
-    }
-
-    // Añadir el event listener
-    window.addEventListener("auth-update", handleAuthUpdate)
-
-    // Limpiar el event listener
-    return () => {
-      window.removeEventListener("auth-update", handleAuthUpdate)
-    }
-  }, [])
-
-  const refreshProfile = async () => {
-    try {
-      const response = await fetch("/api/profile")
-      const data = await response.json()
-      if (data.success && data.profile) {
-        setProfile(data.profile)
-      }
-    } catch (error) {
-      console.error("Error refreshing profile:", error)
-    }
-  }
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true)
@@ -256,7 +227,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updatePassword,
     isLoading,
-    refreshProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

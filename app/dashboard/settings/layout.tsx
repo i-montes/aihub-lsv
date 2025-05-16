@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,25 +16,19 @@ import {
   Building,
   Globe,
   FileText,
-  ClipboardList,
 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
 import { api } from "@/lib/api-client"
 import { toast } from "sonner"
 
-export default function SettingsLayout({ children }) {
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { profile, logout } = useAuth()
   const [expandedGroups, setExpandedGroups] = useState({
     account: true,
-    organization: false,
-    system: false,
+    organization: true,
   })
 
-  const isAdmin = profile?.role === "OWNER" || profile?.role === "WORKSPACE_ADMIN"
-
-  const toggleGroup = (group) => {
+  const toggleGroup = (group: string) => {
     setExpandedGroups((prev) => ({
       ...prev,
       [group]: !prev[group],
@@ -41,8 +37,7 @@ export default function SettingsLayout({ children }) {
 
   const handleLogout = async () => {
     try {
-      await api.post("/auth/logout", {})
-      logout()
+      await api.post("/auth/logout")
       router.push("/login")
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
@@ -62,7 +57,7 @@ export default function SettingsLayout({ children }) {
               {/* Account Group */}
               <div className="space-y-1">
                 <SettingsMenuGroup
-                  title="Cuenta"
+                  title="Account"
                   expanded={expandedGroups.account}
                   onToggle={() => toggleGroup("account")}
                 />
@@ -70,14 +65,14 @@ export default function SettingsLayout({ children }) {
                   <>
                     <SettingsMenuItem
                       icon={<User size={18} />}
-                      title="Perfil"
+                      title="Profile"
                       active={pathname === "/dashboard/settings/profile"}
                       onClick={() => router.push("/dashboard/settings/profile")}
                       indented
                     />
                     <SettingsMenuItem
                       icon={<Shield size={18} />}
-                      title="Seguridad"
+                      title="Security"
                       active={pathname === "/dashboard/settings/security"}
                       onClick={() => router.push("/dashboard/settings/security")}
                       indented
@@ -89,7 +84,7 @@ export default function SettingsLayout({ children }) {
               {/* Organization Group */}
               <div className="space-y-1">
                 <SettingsMenuGroup
-                  title="Organización"
+                  title="Organization"
                   expanded={expandedGroups.organization}
                   onToggle={() => toggleGroup("organization")}
                 />
@@ -97,21 +92,21 @@ export default function SettingsLayout({ children }) {
                   <>
                     <SettingsMenuItem
                       icon={<Building size={18} />}
-                      title="Información General"
+                      title="General Information"
                       active={pathname === "/dashboard/settings/general-information"}
                       onClick={() => router.push("/dashboard/settings/general-information")}
                       indented
                     />
                     <SettingsMenuItem
                       icon={<Users size={18} />}
-                      title="Lista de Usuarios"
+                      title="User List"
                       active={pathname === "/dashboard/settings/user-list"}
                       onClick={() => router.push("/dashboard/settings/user-list")}
                       indented
                     />
                     <SettingsMenuItem
                       icon={<MessageSquare size={18} />}
-                      title="Integraciones"
+                      title="Integrations"
                       active={pathname === "/dashboard/settings/integrations"}
                       onClick={() => router.push("/dashboard/settings/integrations")}
                       indented
@@ -132,7 +127,7 @@ export default function SettingsLayout({ children }) {
                     />
                     <SettingsMenuItem
                       icon={<CreditCard size={18} />}
-                      title="Facturación"
+                      title="Billing & Usage"
                       active={pathname === "/dashboard/settings/billing"}
                       onClick={() => router.push("/dashboard/settings/billing")}
                       indented
@@ -140,28 +135,6 @@ export default function SettingsLayout({ children }) {
                   </>
                 )}
               </div>
-
-              {/* System Group - Solo visible para administradores */}
-              {isAdmin && (
-                <div className="space-y-1">
-                  <SettingsMenuGroup
-                    title="Sistema"
-                    expanded={expandedGroups.system}
-                    onToggle={() => toggleGroup("system")}
-                  />
-                  {expandedGroups.system && (
-                    <>
-                      <SettingsMenuItem
-                        icon={<ClipboardList size={18} />}
-                        title="Registros de Auditoría"
-                        active={pathname === "/dashboard/settings/audit-logs"}
-                        onClick={() => router.push("/dashboard/settings/audit-logs")}
-                        indented
-                      />
-                    </>
-                  )}
-                </div>
-              )}
 
               <div className="pt-4 mt-4 border-t">
                 <SettingsMenuItem
@@ -177,12 +150,16 @@ export default function SettingsLayout({ children }) {
       </div>
 
       {/* Contenido de configuración */}
-      <div className="w-full md:w-3/4">{children}</div>
+      <div className="w-full md:w-3/4">
+        <Card className="bg-white rounded-3xl shadow-sm">
+          <CardContent className="p-6">{children}</CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
 
-function SettingsMenuGroup({ title, expanded, onToggle }) {
+function SettingsMenuGroup({ title, expanded, onToggle }: { title: string; expanded: boolean; onToggle: () => void }) {
   return (
     <button
       className="w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors hover:bg-gray-100"
@@ -194,7 +171,21 @@ function SettingsMenuGroup({ title, expanded, onToggle }) {
   )
 }
 
-function SettingsMenuItem({ icon, title, active = false, onClick, className = "", indented = false }) {
+function SettingsMenuItem({
+  icon,
+  title,
+  active = false,
+  onClick,
+  className = "",
+  indented = false,
+}: {
+  icon: React.ReactNode
+  title: string
+  active?: boolean
+  onClick: () => void
+  className?: string
+  indented?: boolean
+}) {
   return (
     <button
       className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
