@@ -5,21 +5,28 @@ import type { NextRequest } from "next/server"
 export const GET = createApiHandler(async (req: NextRequest) => {
   const supabase = getSupabaseServer()
 
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession()
+  try {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession()
 
-  if (error) {
-    return errorResponse(error.message, 400)
+    if (error) {
+      console.error("Error getting session:", error)
+      return errorResponse(error.message, 400)
+    }
+
+    if (!session) {
+      return successResponse({ session: null, user: null })
+    }
+
+    // Include the complete session in the response
+    return successResponse({
+      session,
+      user: session.user,
+    })
+  } catch (error: any) {
+    console.error("Error getting session:", error)
+    return errorResponse("Error retrieving session", 500)
   }
-
-  if (!session) {
-    return successResponse({ session: null, user: null })
-  }
-
-  return successResponse({
-    session,
-    user: session.user,
-  })
 })

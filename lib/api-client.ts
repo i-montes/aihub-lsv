@@ -23,7 +23,7 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   const config: RequestInit = {
     method,
     headers: defaultHeaders,
-    credentials: "include",
+    credentials: "include", // Importante para incluir cookies
     cache,
   }
 
@@ -31,27 +31,32 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
     config.body = JSON.stringify(body)
   }
 
-  const response = await fetch(`/api${endpoint}`, config)
+  try {
+    const response = await fetch(`/api${endpoint}`, config)
 
-  // Handle non-JSON responses
-  const contentType = response.headers.get("content-type")
-  if (contentType && !contentType.includes("application/json")) {
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    // Handle non-JSON responses
+    const contentType = response.headers.get("content-type")
+    if (contentType && !contentType.includes("application/json")) {
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+      return response as any
     }
-    return response as any
+
+    // Parse JSON response
+    const data = await response.json()
+
+    // Handle API errors
+    if (!response.ok) {
+      const error = data.error || response.statusText
+      throw new Error(error)
+    }
+
+    return data
+  } catch (error) {
+    console.error(`Error in API call to ${endpoint}:`, error)
+    throw error
   }
-
-  // Parse JSON response
-  const data = await response.json()
-
-  // Handle API errors
-  if (!response.ok) {
-    const error = data.error || response.statusText
-    throw new Error(error)
-  }
-
-  return data
 }
 
 /**

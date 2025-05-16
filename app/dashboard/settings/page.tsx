@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Layout } from "@/components/layout"
 import {
   Card,
   CardContent,
@@ -49,143 +48,139 @@ export default function SettingsPage() {
   }
 
   return (
-    <Layout>
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Menú vertical */}
-        <div className="w-full md:w-1/4">
-          <Card className="bg-white rounded-3xl shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                <h2 className="text-lg font-bold mb-2">Configuración</h2>
+    <div className="flex flex-col md:flex-row gap-6">
+      {/* Menú vertical */}
+      <div className="w-full md:w-1/4">
+        <Card className="bg-white rounded-3xl shadow-sm">
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold mb-2">Configuración</h2>
 
-                {/* Account Group */}
-                <div className="space-y-1">
-                  <SettingsMenuGroup
-                    title="Account"
-                    expanded={expandedGroups.account}
-                    onToggle={() => toggleGroup("account")}
-                  />
-                  {expandedGroups.account && (
-                    <>
-                      <SettingsMenuItem
-                        icon={<User size={18} />}
-                        title="Profile"
-                        active={activeSection === "profile"}
-                        onClick={() => setActiveSection("profile")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<Shield size={18} />}
-                        title="Security"
-                        active={activeSection === "security"}
-                        onClick={() => setActiveSection("security")}
-                        indented
-                      />
-                    </>
-                  )}
-                </div>
-
-                {/* Organization Group */}
-                <div className="space-y-1">
-                  <SettingsMenuGroup
-                    title="Organization"
-                    expanded={expandedGroups.organization}
-                    onToggle={() => toggleGroup("organization")}
-                  />
-                  {expandedGroups.organization && (
-                    <>
-                      <SettingsMenuItem
-                        icon={<Building size={18} />}
-                        title="General Information"
-                        active={activeSection === "general-information"}
-                        onClick={() => setActiveSection("general-information")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<Users size={18} />}
-                        title="User List"
-                        active={activeSection === "user-list"}
-                        onClick={() => setActiveSection("user-list")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<MessageSquare size={18} />}
-                        title="Integrations"
-                        active={activeSection === "integrations"}
-                        onClick={() => setActiveSection("integrations")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<FileText size={18} />}
-                        title="Prompts"
-                        active={activeSection === "prompts"}
-                        onClick={() => setActiveSection("prompts")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<Globe size={18} />}
-                        title="Wordpress"
-                        active={activeSection === "wordpress"}
-                        onClick={() => setActiveSection("wordpress")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<CreditCard size={18} />}
-                        title="Billing & Usage"
-                        active={activeSection === "billing"}
-                        onClick={() => setActiveSection("billing")}
-                        indented
-                      />
-                    </>
-                  )}
-                </div>
-
-                <div className="pt-4 mt-4 border-t">
-                  <SettingsMenuItem
-                    icon={<LogOut size={18} />}
-                    title="Cerrar Sesión"
-                    onClick={() => console.log("Cerrar sesión")}
-                    className="text-red-500 hover:bg-red-50"
-                  />
-                </div>
+              {/* Account Group */}
+              <div className="space-y-1">
+                <SettingsMenuGroup
+                  title="Account"
+                  expanded={expandedGroups.account}
+                  onToggle={() => toggleGroup("account")}
+                />
+                {expandedGroups.account && (
+                  <>
+                    <SettingsMenuItem
+                      icon={<User size={18} />}
+                      title="Profile"
+                      active={activeSection === "profile"}
+                      onClick={() => setActiveSection("profile")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<Shield size={18} />}
+                      title="Security"
+                      active={activeSection === "security"}
+                      onClick={() => setActiveSection("security")}
+                      indented
+                    />
+                  </>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Contenido de configuración */}
-        <div className="w-full md:w-3/4">
-          <Card className="bg-white rounded-3xl shadow-sm">
-            <CardContent className="p-6">
-              {activeSection === "profile" && <ProfileSettings />}
-              {activeSection === "security" && <SecuritySettings />}
-              {activeSection === "general-information" && <GeneralInformationSettings />}
-              {activeSection === "user-list" && <UserListSettings />}
-              {activeSection === "integrations" && <IntegrationSettings />}
-              {activeSection === "prompts" && <PromptsSettings />}
-              {activeSection === "wordpress" && <WordpressSettings />}
-              {activeSection === "billing" && <BillingSettings />}
-              {![
-                "profile",
-                "security",
-                "general-information",
-                "user-list",
-                "integrations",
-                "prompts",
-                "wordpress",
-                "billing",
-              ].includes(activeSection) && (
-                <div className="text-center py-10">
-                  <h3 className="text-xl font-medium text-gray-500">
-                    Selecciona una sección para ver su configuración
-                  </h3>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              {/* Organization Group */}
+              <div className="space-y-1">
+                <SettingsMenuGroup
+                  title="Organization"
+                  expanded={expandedGroups.organization}
+                  onToggle={() => toggleGroup("organization")}
+                />
+                {expandedGroups.organization && (
+                  <>
+                    <SettingsMenuItem
+                      icon={<Building size={18} />}
+                      title="General Information"
+                      active={activeSection === "general-information"}
+                      onClick={() => setActiveSection("general-information")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<Users size={18} />}
+                      title="User List"
+                      active={activeSection === "user-list"}
+                      onClick={() => setActiveSection("user-list")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<MessageSquare size={18} />}
+                      title="Integrations"
+                      active={activeSection === "integrations"}
+                      onClick={() => setActiveSection("integrations")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<FileText size={18} />}
+                      title="Prompts"
+                      active={activeSection === "prompts"}
+                      onClick={() => setActiveSection("prompts")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<Globe size={18} />}
+                      title="Wordpress"
+                      active={activeSection === "wordpress"}
+                      onClick={() => setActiveSection("wordpress")}
+                      indented
+                    />
+                    <SettingsMenuItem
+                      icon={<CreditCard size={18} />}
+                      title="Billing & Usage"
+                      active={activeSection === "billing"}
+                      onClick={() => setActiveSection("billing")}
+                      indented
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="pt-4 mt-4 border-t">
+                <SettingsMenuItem
+                  icon={<LogOut size={18} />}
+                  title="Cerrar Sesión"
+                  onClick={() => console.log("Cerrar sesión")}
+                  className="text-red-500 hover:bg-red-50"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </Layout>
+
+      {/* Contenido de configuración */}
+      <div className="w-full md:w-3/4">
+        <Card className="bg-white rounded-3xl shadow-sm">
+          <CardContent className="p-6">
+            {activeSection === "profile" && <ProfileSettings />}
+            {activeSection === "security" && <SecuritySettings />}
+            {activeSection === "general-information" && <GeneralInformationSettings />}
+            {activeSection === "user-list" && <UserListSettings />}
+            {activeSection === "integrations" && <IntegrationSettings />}
+            {activeSection === "prompts" && <PromptsSettings />}
+            {activeSection === "wordpress" && <WordpressSettings />}
+            {activeSection === "billing" && <BillingSettings />}
+            {![
+              "profile",
+              "security",
+              "general-information",
+              "user-list",
+              "integrations",
+              "prompts",
+              "wordpress",
+              "billing",
+            ].includes(activeSection) && (
+              <div className="text-center py-10">
+                <h3 className="text-xl font-medium text-gray-500">Selecciona una sección para ver su configuración</h3>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }
 

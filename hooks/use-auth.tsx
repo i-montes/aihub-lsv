@@ -5,12 +5,13 @@ import type React from "react"
 import { useState, useEffect, createContext, useContext } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AuthService, type User, type Profile } from "@/lib/services/auth-service"
+import { AuthService, type User, type Profile, type Session } from "@/lib/services/auth-service"
 
-// Define the type for the authentication context
+// Definir el tipo para el contexto de autenticación
 type AuthContextType = {
   user: User | null
   profile: Profile | null
+  session: Session | null
   loading: boolean
   isAuthenticated: boolean
   signIn: (email: string, password: string) => Promise<void>
@@ -21,10 +22,11 @@ type AuthContextType = {
   isLoading: boolean
 }
 
-// Create the context with default values
+// Crear el contexto con valores por defecto
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
+  session: null,
   loading: true,
   isAuthenticated: false,
   signIn: async () => {},
@@ -37,29 +39,33 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext)
 
-// Authentication provider
+// Proveedor de autenticación
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  // Initialize authentication state
+  // Inicializar el estado de autenticación
   useEffect(() => {
     const initializeAuth = async () => {
       setLoading(true)
       try {
-        // Send request to get current session
-        const response = await fetch("/api/auth/session")
+        // Enviar petición para obtener la sesión actual
+        const response = await fetch("/api/auth/session", {
+          credentials: "include", // Importante: incluir las cookies en la petición
+        })
 
         if (response.ok) {
           const { data } = await response.json()
 
           if (data?.user) {
             setUser(data.user)
+            setSession(data.session)
 
-            // Get profile data
+            // Obtener datos del perfil
             try {
               const { profile } = await AuthService.getProfile()
               setProfile(profile)
@@ -69,15 +75,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setUser(null)
             setProfile(null)
+            setSession(null)
           }
         } else {
           setUser(null)
           setProfile(null)
+          setSession(null)
         }
       } catch (error) {
         console.error("Error initializing auth:", error)
         setUser(null)
         setProfile(null)
+        setSession(null)
       } finally {
         setLoading(false)
       }
@@ -89,13 +98,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { user, profile } = await AuthService.signIn({ email, password })
+      const result = await AuthService.signIn({ email, password })
+      console.log("Login result:", result) // Añadir para depuración
 
-      setUser(user)
-      setProfile(profile || null)
+      // Verificar que tenemos todos los datos necesarios
+      if (!result.user) {
+        throw new Error("No se recibieron datos del usuario")
+      }
+
+      // No lanzar error si no hay sesión, solo registrar en consola
+      if (!result.session) {
+        console.warn("No se recibió sesión del servidor, pero continuamos con el login")
+      }
+
+      setUser(result.user)
+      setProfile(result.profile || null)
+      setSession(result.session)
 
       toast.success("Inicio de sesión exitoso")
-      router.push("/dashboard")
+
+      // Importante: Agregamos una pequeña pausa para asegurar que las cookies sean establecidas
+      // antes de redirigir al dashboard
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 300) // Aumentamos el tiempo de espera a 300ms
     } catch (error: any) {
       console.error("Error signing in:", error)
       toast.error(error.message || "Error al iniciar sesión")
@@ -114,8 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push("/login")
       } else {
         setUser(user)
+        setSession(session)
 
-        // Create a basic profile from user metadata
+        // Crear un perfil básico a partir de los metadatos del usuario
         const profileData: Profile = {
           id: user.id,
           email,
@@ -128,7 +155,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setProfile(profileData)
 
-        router.push("/dashboard")
+        // Añadimos una pequeña pausa antes de la redirección
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 300)
       }
 
       toast.success("Cuenta creada exitosamente")
@@ -146,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(null)
       setProfile(null)
+      setSession(null)
 
       toast.success("Sesión cerrada exitosamente")
       router.push("/login")
@@ -187,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     profile,
+    session,
     loading,
     isAuthenticated: !!user,
     signIn,

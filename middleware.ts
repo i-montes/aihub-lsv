@@ -4,25 +4,16 @@ import type { NextRequest } from "next/server"
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
 
-  // Check if we have a session cookie
+  // Check if the user is trying to access auth routes with active auth cookies
   const hasSuperbaseAuthCookie = req.cookies.has("sb-access-token") || req.cookies.has("sb-refresh-token")
-
-  // Check if the user is authenticated
-  const isAuthenticated = hasSuperbaseAuthCookie
 
   const isAuthRoute =
     req.nextUrl.pathname.startsWith("/login") ||
     req.nextUrl.pathname.startsWith("/register") ||
     req.nextUrl.pathname.startsWith("/reset-password")
 
-  // If user is not authenticated and trying to access protected routes
-  if (!isAuthenticated && req.nextUrl.pathname.startsWith("/dashboard")) {
-    const redirectUrl = new URL("/login", req.url)
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  // If user is authenticated and trying to access auth routes
-  if (isAuthenticated && isAuthRoute) {
+  // If user appears to be authenticated and trying to access auth routes
+  if (hasSuperbaseAuthCookie && isAuthRoute) {
     const redirectUrl = new URL("/dashboard", req.url)
     return NextResponse.redirect(redirectUrl)
   }
@@ -31,5 +22,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register", "/reset-password/:path*"],
+  matcher: ["/login", "/register", "/reset-password/:path*"],
 }

@@ -1,4 +1,3 @@
-import { Layout } from "@/components/layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MessageSquare, Users, Megaphone, Bell, Instagram, Check, AlertCircle } from "lucide-react"
 
@@ -117,80 +116,78 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Notificaciones</h1>
-            <p className="text-gray-500">Mantente al día con tus actividades recientes</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-sidebar text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-              <Bell size={14} />
-              <span>{unreadCount} no leídas</span>
-            </div>
-            <button className="text-sm text-sidebar hover:underline">Marcar todas como leídas</button>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Notificaciones</h1>
+          <p className="text-gray-500">Mantente al día con tus actividades recientes</p>
         </div>
-
-        <Card className="bg-white rounded-3xl shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle>Centro de Notificaciones</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Hoy */}
-              {today.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-500">Hoy</h3>
-                  <div className="space-y-3">
-                    {today.map((notification) => (
-                      <NotificationItem key={notification.id} notification={notification} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Ayer */}
-              {yesterday.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-500">Ayer</h3>
-                  <div className="space-y-3">
-                    {yesterday.map((notification) => (
-                      <NotificationItem key={notification.id} notification={notification} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Esta semana */}
-              {thisWeek.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-500">Esta semana</h3>
-                  <div className="space-y-3">
-                    {thisWeek.map((notification) => (
-                      <NotificationItem key={notification.id} notification={notification} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Anteriores */}
-              {earlier.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-500">Anteriores</h3>
-                  <div className="space-y-3">
-                    {earlier.map((notification) => (
-                      <NotificationItem key={notification.id} notification={notification} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2">
+          <div className="bg-sidebar text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+            <Bell size={14} />
+            <span>{unreadCount} no leídas</span>
+          </div>
+          <button className="text-sm text-sidebar hover:underline">Marcar todas como leídas</button>
+        </div>
       </div>
-    </Layout>
+
+      <Card className="bg-white rounded-3xl shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle>Centro de Notificaciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Hoy */}
+            {today.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">Hoy</h3>
+                <div className="space-y-3">
+                  {today.map((notification) => (
+                    <NotificationItem key={notification.id} notification={notification} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Ayer */}
+            {yesterday.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">Ayer</h3>
+                <div className="space-y-3">
+                  {yesterday.map((notification) => (
+                    <NotificationItem key={notification.id} notification={notification} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Esta semana */}
+            {thisWeek.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">Esta semana</h3>
+                <div className="space-y-3">
+                  {thisWeek.map((notification) => (
+                    <NotificationItem key={notification.id} notification={notification} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Anteriores */}
+            {earlier.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">Anteriores</h3>
+                <div className="space-y-3">
+                  {earlier.map((notification) => (
+                    <NotificationItem key={notification.id} notification={notification} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
