@@ -1,55 +1,37 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import type { Database } from "@/lib/database.types"
-
-// Rutas que requieren autenticación
-const protectedRoutes = [
-  "/dashboard",
-  "/dashboard/analytics",
-  "/dashboard/settings",
-  "/dashboard/corrections",
-  "/dashboard/threads",
-  "/dashboard/writing-assistant",
-]
-
-// Rutas de autenticación
-const authRoutes = ["/auth/login", "/auth/register", "/auth/forgot-password"]
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
-  const supabase = createMiddlewareClient<Database>({ req, res })
+  const supabase = createMiddlewareClient({ req, res })
 
-  // Verificar si el usuario está autenticado
   const {
     data: { session },
   } = await supabase.auth.getSession()
+
+  // Check if the user is authenticated
   const isAuthenticated = !!session
+  const isAuthRoute =
+    req.nextUrl.pathname.startsWith("/login") ||
+    req.nextUrl.pathname.startsWith("/register") ||
+    req.nextUrl.pathname.startsWith("/reset-password")
 
-  const path = req.nextUrl.pathname
-
-  // Redirigir a usuarios no autenticados a la página de inicio de sesión
-  if (!isAuthenticated && protectedRoutes.some((route) => path.startsWith(route))) {
-    const redirectUrl = new URL("/auth/login", req.url)
-    redirectUrl.searchParams.set("redirectUrl", path)
+  // If user is not authenticated and trying to access protected routes
+  if (!isAuthenticated && req.nextUrl.pathname.startsWith("/dashboard")) {
+    const redirectUrl = new URL("/login", req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirigir a usuarios autenticados al dashboard si intentan acceder a rutas de autenticación
-  if (isAuthenticated && authRoutes.some((route) => path.startsWith(route))) {
-    return NextResponse.redirect(new URL("/dashboard", req.url))
+  // If user is authenticated and trying to access auth routes
+  if (isAuthenticated && isAuthRoute) {
+    const redirectUrl = new URL("/dashboard", req.url)
+    return NextResponse.redirect(redirectUrl)
   }
 
   return res
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Coincide con todas las rutas de solicitud excepto:
-     * 1. Todas las rutas que comienzan con /api, _next, static, public, favicon.ico
-     * 2. Todas las rutas que terminan con un punto (archivos)
-     */
-    "/((?!api|_next|static|public|favicon.ico).*)",
-  ],
+  matcher: ["/dashboard/:path*", "/login", "/register", "/reset-password/:path*"],
 }

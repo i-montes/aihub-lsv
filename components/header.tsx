@@ -1,154 +1,39 @@
 "use client"
 
-import { Search, ChevronDown, Settings, LogOut, Bell, X } from "lucide-react"
+import { Search, ChevronDown, Settings, LogOut, Bell } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useState, useRef, useEffect } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-
-// Tipado para las notificaciones
-type Notification = {
-  id: number
-  title: string
-  description: string
-  time: string
-  read: boolean
-}
-
-// Datos de ejemplo para las notificaciones
-const notificationsData: Notification[] = [
-  {
-    id: 1,
-    title: "Nuevo mensaje",
-    description: "Has recibido un nuevo mensaje de María García",
-    time: "Hace 5 minutos",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Recordatorio",
-    description: "Tienes una reunión programada para hoy a las 15:00",
-    time: "Hace 1 hora",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Actualización del sistema",
-    description: "El sistema se ha actualizado a la versión 2.5.0",
-    time: "Hace 3 horas",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "Nuevo seguidor",
-    description: "Juan Pérez ha comenzado a seguirte",
-    time: "Ayer",
-    read: true,
-  },
-]
+import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 export function Header() {
-  const [showMenu, setShowMenu] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>(notificationsData)
-  const [userName, setUserName] = useState("Usuario")
-  const [userEmail, setUserEmail] = useState("")
-  const [userAvatar, setUserAvatar] = useState("/empowered-trainer.png")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+  const buttonRef = useRef(null)
+  const notificationsRef = useRef(null)
+  const notificationsButtonRef = useRef(null)
+  const { user, profile, signOut } = useAuth()
 
-  const supabase = createClientComponentClient()
-
-  const menuRef = useRef<HTMLDivElement>(null)
-  const profileButtonRef = useRef<HTMLDivElement>(null)
-  const notificationsRef = useRef<HTMLDivElement>(null)
-  const notificationButtonRef = useRef<HTMLDivElement>(null)
-
-  // Calcular notificaciones no leídas
-  const unreadCount = notifications.filter((n) => !n.read).length
-
-  // Obtener información del usuario al cargar el componente
+  // Cerrar el dropdown cuando se hace clic fuera de él
   useEffect(() => {
-    async function getUserInfo() {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Obtener la sesión actual
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (session?.user) {
-          // Establecer el email como nombre de usuario por defecto
-          setUserEmail(session.user.email || "")
-
-          // Usar exclusivamente los metadatos del usuario
-          const metadata = session.user.user_metadata || {}
-
-          // Intentar obtener el nombre del usuario de los metadatos
-          if (metadata.name) {
-            setUserName(metadata.name)
-          } else if (metadata.full_name) {
-            setUserName(metadata.full_name)
-          } else if (metadata.preferred_username) {
-            setUserName(metadata.preferred_username)
-          } else {
-            // Si no hay nombre en los metadatos, usar la primera parte del email
-            setUserName(session.user.email?.split("@")[0] || "Usuario")
-          }
-
-          // Intentar obtener el avatar del usuario de los metadatos
-          if (metadata.avatar_url) {
-            setUserAvatar(metadata.avatar_url)
-          } else if (metadata.picture) {
-            setUserAvatar(metadata.picture)
-          } else {
-            // Si no hay avatar en los metadatos, usar un avatar predeterminado
-            setUserAvatar(`https://api.dicebear.com/7.x/initials/svg?seed=${session.user.email || "Usuario"}`)
-          }
-        }
-      } catch (error) {
-        console.error("Error al obtener información del usuario:", error)
-        setError("Error al cargar la información del usuario")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    getUserInfo()
-  }, [])
-
-  async function handleLogout() {
-    try {
-      await supabase.auth.signOut()
-      window.location.href = "/auth/login"
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error)
-    }
-  }
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Cerrar menú de perfil si se hace clic fuera
+    function handleClickOutside(event) {
       if (
-        showMenu &&
-        menuRef.current &&
-        profileButtonRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        !profileButtonRef.current.contains(event.target as Node)
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target)
       ) {
-        setShowMenu(false)
+        setIsDropdownOpen(false)
       }
 
-      // Cerrar menú de notificaciones si se hace clic fuera
       if (
-        showNotifications &&
         notificationsRef.current &&
-        notificationButtonRef.current &&
-        !notificationsRef.current.contains(event.target as Node) &&
-        !notificationButtonRef.current.contains(event.target as Node)
+        !notificationsRef.current.contains(event.target) &&
+        notificationsButtonRef.current &&
+        !notificationsButtonRef.current.contains(event.target)
       ) {
-        setShowNotifications(false)
+        setIsNotificationsOpen(false)
       }
     }
 
@@ -156,98 +41,98 @@ export function Header() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
-  }, [showMenu, showNotifications])
+  }, [])
 
-  // Marcar notificación como leída
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  const handleLogout = async () => {
+    await signOut()
   }
 
-  // Marcar todas como leídas
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })))
-  }
+  // Get user's display name
+  const displayName =
+    profile?.name ||
+    (user?.user_metadata ? user.user_metadata.name : null) ||
+    (user?.email ? user.email.split("@")[0] : "Usuario")
 
   return (
     <header className="p-4 flex-shrink-0">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{isLoading ? "Cargando..." : error ? "¡Hola!" : `¡Hola, ${userName}!`}</h1>
-          <p className="text-gray-500">Let's take a look at your activity today</p>
-        </div>
+        <div className="flex-1"></div>
 
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-            <Input className="pl-10 w-[300px] bg-gray-50 border-gray-100" placeholder="Search for health data" />
+            <Input className="pl-10 w-[300px] bg-gray-50 border-gray-100" placeholder="Buscar contenido" />
           </div>
 
-          {/* Icono de notificaciones */}
           <div className="relative">
-            <div
-              ref={notificationButtonRef}
-              className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-50 relative"
-              onClick={() => setShowNotifications(!showNotifications)}
+            <button
+              ref={notificationsButtonRef}
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-50 relative"
             >
               <Bell size={20} className="text-gray-600" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 w-5 h-5 bg-coral text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </div>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
 
-            {/* Menú de notificaciones */}
-            {showNotifications && (
+            {isNotificationsOpen && (
               <div
                 ref={notificationsRef}
-                className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-100 max-h-[400px] overflow-y-auto"
+                className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-10 border border-gray-100"
               >
-                <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Notificaciones</p>
-                    <p className="text-xs text-gray-500">{unreadCount} no leídas</p>
-                  </div>
-                  {unreadCount > 0 && (
-                    <button className="text-xs text-sidebar hover:underline" onClick={markAllAsRead}>
-                      Marcar todas como leídas
-                    </button>
-                  )}
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <h3 className="font-medium">Notificaciones</h3>
                 </div>
 
-                <div className="divide-y divide-gray-100">
-                  {notifications.length > 0 ? (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 hover:bg-gray-50 ${!notification.read ? "bg-gray-50" : ""}`}
-                      >
-                        <div className="flex justify-between">
-                          <p className={`text-sm font-medium ${!notification.read ? "text-sidebar" : ""}`}>
-                            {notification.title}
-                          </p>
-                          {!notification.read && (
-                            <button
-                              className="text-gray-400 hover:text-gray-600"
-                              onClick={() => markAsRead(notification.id)}
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">{notification.description}</p>
-                        <p className="text-xs text-gray-400 mt-2">{notification.time}</p>
+                <div className="max-h-80 overflow-y-auto">
+                  <div className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 mr-3 flex-shrink-0">
+                        <Bell size={14} />
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-gray-500 text-sm">No tienes notificaciones</div>
-                  )}
+                      <div>
+                        <p className="text-sm font-medium">Nuevo artículo disponible</p>
+                        <p className="text-xs text-gray-500">
+                          Hemos publicado un nuevo artículo sobre técnicas de escritura
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Hace 5 minutos</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-green-50 rounded-full flex items-center justify-center text-green-600 mr-3 flex-shrink-0">
+                        <Settings size={14} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Actualización de la plataforma</p>
+                        <p className="text-xs text-gray-500">Hemos mejorado el generador de hilos para Twitter</p>
+                        <p className="text-xs text-gray-400 mt-1">Hace 2 horas</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-3 hover:bg-gray-50">
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-yellow-50 rounded-full flex items-center justify-center text-yellow-600 mr-3 flex-shrink-0">
+                        <Bell size={14} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Recordatorio</p>
+                        <p className="text-xs text-gray-500">No olvides revisar tu artículo programado para mañana</p>
+                        <p className="text-xs text-gray-400 mt-1">Hace 1 día</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="px-4 py-2 border-t border-gray-100">
-                  <a href="/dashboard/notifications" className="text-xs text-sidebar hover:underline block text-center">
+                  <Link
+                    href="/dashboard/notifications"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium block text-center"
+                  >
                     Ver todas las notificaciones
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}
@@ -255,46 +140,52 @@ export function Header() {
 
           <div className="relative">
             <div
-              ref={profileButtonRef}
+              ref={buttonRef}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center space-x-2 bg-white rounded-full py-1 px-3 cursor-pointer hover:bg-gray-50"
-              onClick={() => setShowMenu(!showMenu)}
             >
               <div className="w-8 h-8 rounded-full bg-white border overflow-hidden flex-shrink-0">
-                <img
-                  src={userAvatar || "/empowered-trainer.png"}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
+                {profile?.avatar ? (
+                  <img
+                    src={profile.avatar || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : user?.user_metadata?.avatar ? (
+                  <img
+                    src={user.user_metadata.avatar || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img src="/empowered-trainer.png" alt="Profile" className="w-full h-full object-cover" />
+                )}
               </div>
-              <span className="font-medium">{userName}</span>
+              <span className="font-medium">{displayName}</span>
               <ChevronDown
                 size={16}
-                className={`text-gray-400 transition-transform duration-200 ${showMenu ? "transform rotate-180" : ""}`}
+                className={`text-gray-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
               />
             </div>
 
-            {showMenu && (
+            {isDropdownOpen && (
               <div
-                ref={menuRef}
-                className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-100"
+                ref={dropdownRef}
+                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-10 border border-gray-100"
               >
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium">{userName}</p>
-                  <p className="text-xs text-gray-500">{userEmail}</p>
-                </div>
-                <a
+                <Link
                   href="/dashboard/settings"
                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Settings size={16} className="mr-2" />
                   Settings
-                </a>
+                </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
                 >
                   <LogOut size={16} className="mr-2" />
-                  Cerrar sesión
+                  Log out
                 </button>
               </div>
             )}

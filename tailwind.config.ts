@@ -19,41 +19,65 @@ const config: Config = {
     },
     extend: {
       colors: {
-        background: "#ECEFF1",
-        sidebar: "#0D47A1", // Azul Periodístico (antes verde WhatsApp)
+        background: "#f5f5f5",
+        sidebar: "#1859d0", // Updated to primary-700
         card: "#ffffff",
-        whatsapp: {
-          DEFAULT: "#1976D2", // Azul Editorial (antes verde WhatsApp)
-          dark: "#0D47A1", // Azul Periodístico (antes verde oscuro)
-          light: "#F5F7FA", // Gris Papel (antes verde claro)
-          teal: "#002D62", // Azul Marino (antes verde azulado)
+        primary: {
+          "50": "#f0f7ff",
+          "100": "#e0eefe",
+          "200": "#bddafd",
+          "300": "#90c2fc",
+          "400": "#61a6fa",
+          "500": "#338bfd",
+          "600": "#1b70e8",
+          "700": "#1859d0",
+          "800": "#1747a6",
+          "900": "#163c82",
+          DEFAULT: "#1b70e8", // primary-600
         },
         accent: {
-          DEFAULT: "#607D8B", // Gris Pluma (antes azul WhatsApp)
-          light: "#E1F5FE",
+          "50": "#fff7eb",
+          "100": "#ffead2",
+          "200": "#ffd6a5",
+          "300": "#ffba6b",
+          "400": "#ff9636",
+          "500": "#fd7e14",
+          "600": "#e86612",
+          "700": "#c4510e",
+          "800": "#a04111",
+          "900": "#823812",
+          DEFAULT: "#fd7e14", // accent-500
         },
-        yellow: {
-          DEFAULT: "#FFC107", // Dorado Destacado (se mantiene)
-          light: "#FFF8E1",
+        neutral: {
+          "50": "#f9fafb",
+          "100": "#f3f4f6",
+          "200": "#e5e7eb",
+          "300": "#d1d5db",
+          "400": "#9ca3af",
+          "500": "#6b7280",
+          "600": "#4b5563",
+          "700": "#374151",
+          "800": "#1f2937",
+          "900": "#111827",
+          DEFAULT: "#6b7280", // neutral-500
         },
-        coral: {
-          DEFAULT: "#D32F2F", // Rojo Editorial (antes coral)
-          light: "#FFCCCB",
-        },
-        green: {
-          DEFAULT: "#1976D2", // Azul Editorial (antes verde)
-        },
-        navy: {
-          DEFAULT: "#002D62", // Azul Marino (antes verde azulado)
+        soft: {
+          "50": "#f0fdfa",
+          "100": "#ccfbf1",
+          "200": "#99f6e4",
+          "300": "#5eead4",
+          "400": "#2dd4bf",
+          "500": "#14b8a6",
+          "600": "#0d9488",
+          "700": "#0f766e",
+          "800": "#115e59",
+          "900": "#134e4a",
+          DEFAULT: "#14b8a6", // soft-500
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
