@@ -1,9 +1,9 @@
 import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseRouteHandler } from "@/lib/supabase/server"
+import { getSupabaseServer } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const GET = createApiHandler(async (req: NextRequest) => {
-  const supabase = await getSupabaseRouteHandler()
+  const supabase = await getSupabaseServer()
 
   try {
     const {
