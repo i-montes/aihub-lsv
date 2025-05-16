@@ -1,6 +1,7 @@
 import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
 import { getSupabaseServer } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
+import { withAudit } from "@/lib/audit-middleware"
 
 export const GET = createApiHandler(async (req: NextRequest) => {
   const supabase = await getSupabaseServer()
@@ -29,7 +30,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   return successResponse({ profile })
 })
 
-export const PUT = createApiHandler(async (req: NextRequest) => {
+const updateProfileHandler = async (req: NextRequest) => {
   const body = await req.json()
   const { name, lastname, email, avatar } = body
 
@@ -91,4 +92,23 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
     success: true,
     emailUpdated: !!emailUpdateResult,
   })
+}
+
+// Aplicar middleware de auditoría al endpoint PUT
+export const PUT = withAudit(updateProfileHandler, {
+  action: "profile.update",
+  entityType: "profile",
+  getEntityId: async (req) => {
+    const supabase = await getSupabaseServer()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    return session?.user?.id || ""
+  },
+  getDetails: async (req) => {
+    const body = await req.clone().json()
+    // Filtrar información sensible
+    const { password, ...safeData } = body
+    return safeData
+  },
 })

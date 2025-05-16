@@ -141,7 +141,7 @@ export type Database = {
           createdAt?: string
           id?: string
           logo?: string | null
-          name?: string
+          name: string
           updatedAt?: string
         }
         Relationships: []
