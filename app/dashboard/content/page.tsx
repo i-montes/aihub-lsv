@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { ContentService, type Content } from "@/lib/services/content-service"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,17 +14,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 export default function ContentPage() {
   const { user, profile } = useAuth()
-  const [contents, setContents] = useState([])
+  const [contents, setContents] = useState<Content[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
   })
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState("all") // 'all', 'mine', 'published', 'draft'
-
-  const supabase = getSupabaseClient()
 
   useEffect(() => {
     if (user) {
@@ -34,22 +32,8 @@ export default function ContentPage() {
 
   const fetchContent = async () => {
     try {
-      let query = supabase.from("content").select("*").order("updatedAt", { ascending: false })
-
-      // Apply filters
-      if (filter === "mine") {
-        query = query.eq("userId", user.id)
-      } else if (filter === "published") {
-        query = query.eq("status", "PUBLISHED")
-      } else if (filter === "draft") {
-        query = query.eq("status", "DRAFT")
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      setContents(data || [])
+      const { contents } = await ContentService.getContents(filter)
+      setContents(contents)
     } catch (error) {
       console.error("Error fetching content:", error)
       toast.error("Could not load content data")
@@ -77,31 +61,18 @@ export default function ContentPage() {
     try {
       if (editingId) {
         // Update existing content
-        const { error } = await supabase
-          .from("content")
-          .update({
-            title: formData.title,
-            description: formData.description,
-            updatedAt: new Date().toISOString(),
-          })
-          .eq("id", editingId)
-
-        if (error) throw error
+        await ContentService.updateContent(editingId, {
+          title: formData.title,
+          description: formData.description,
+        })
 
         toast.success("Content updated successfully")
       } else {
         // Create new content
-        const { error } = await supabase.from("content").insert({
+        await ContentService.createContent({
           title: formData.title,
           description: formData.description,
-          userId: user.id,
-          organizationId: profile?.organizationId,
-          status: "DRAFT",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         })
-
-        if (error) throw error
 
         toast.success("Content created successfully")
       }
@@ -117,7 +88,7 @@ export default function ContentPage() {
     }
   }
 
-  const handleEdit = (content) => {
+  const handleEdit = (content: Content) => {
     setFormData({
       title: content.title,
       description: content.description || "",
@@ -126,14 +97,11 @@ export default function ContentPage() {
     setShowForm(true)
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this content?")) return
 
     try {
-      const { error } = await supabase.from("content").delete().eq("id", id)
-
-      if (error) throw error
-
+      await ContentService.deleteContent(id)
       toast.success("Content deleted successfully")
       fetchContent()
     } catch (error) {
@@ -142,7 +110,7 @@ export default function ContentPage() {
     }
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A"
     const date = new Date(dateString)
     return new Intl.DateTimeFormat("en-US", {
@@ -152,7 +120,7 @@ export default function ContentPage() {
     }).format(date)
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status?: string) => {
     switch (status) {
       case "PUBLISHED":
         return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Published</span>
@@ -183,7 +151,7 @@ export default function ContentPage() {
           <div>
             <h1 className="text-2xl font-bold">Content Management</h1>
             <p className="text-gray-500">
-              Create and manage content. This demonstrates how RLS policies control access to the content table.
+              Create and manage content. This demonstrates how API-based access control works.
             </p>
           </div>
 
@@ -318,7 +286,7 @@ export default function ContentPage() {
                 </CardContent>
                 <CardFooter className="bg-gray-50 py-2 px-6 flex justify-between">
                   <div className="text-xs text-gray-500">
-                    {content.userId === user.id ? "Created by you" : "Created by team member"}
+                    {content.userId === user?.id ? "Created by you" : "Created by team member"}
                   </div>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <Eye className="h-4 w-4" />

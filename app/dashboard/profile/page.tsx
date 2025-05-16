@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { AuthService } from "@/lib/services/auth-service"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Layout } from "@/components/layout"
 import { toast } from "sonner"
 import { Building } from "lucide-react"
+import { OrganizationService } from "@/lib/services/organization-service"
 
 export default function ProfilePage() {
   const { user, profile } = useAuth()
@@ -23,8 +24,6 @@ export default function ProfilePage() {
     avatar: "",
   })
 
-  const supabase = getSupabaseClient()
-
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -36,7 +35,7 @@ export default function ProfilePage() {
 
       // If user has an organization, fetch it
       if (profile.organizationId) {
-        fetchOrganization(profile.organizationId)
+        fetchOrganization()
       } else {
         setLoading(false)
       }
@@ -45,13 +44,10 @@ export default function ProfilePage() {
     }
   }, [profile])
 
-  const fetchOrganization = async (orgId) => {
+  const fetchOrganization = async () => {
     try {
-      const { data, error } = await supabase.from("organization").select("*").eq("id", orgId).single()
-
-      if (error) throw error
-
-      setOrganization(data)
+      const { organization } = await OrganizationService.getOrganization()
+      setOrganization(organization)
     } catch (error) {
       console.error("Error fetching organization:", error)
       toast.error("Could not load organization data")
@@ -73,17 +69,18 @@ export default function ProfilePage() {
 
     setUpdating(true)
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          name: formData.name,
-          lastname: formData.lastname,
-          avatar: formData.avatar,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id)
+      const { success, emailUpdated } = await AuthService.updateProfile({
+        name: formData.name,
+        lastname: formData.lastname,
+        email: formData.email !== profile?.email ? formData.email : undefined,
+        avatar: formData.avatar,
+      })
 
-      if (error) throw error
+      if (emailUpdated) {
+        toast.info(
+          "Se ha enviado un correo de confirmación a tu nueva dirección. Por favor, verifica tu bandeja de entrada.",
+        )
+      }
 
       toast.success("Profile updated successfully")
     } catch (error) {
@@ -133,8 +130,12 @@ export default function ProfilePage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" value={formData.email} disabled />
-                    <p className="text-xs text-gray-500">Email cannot be changed</p>
+                    <Input id="email" name="email" value={formData.email} onChange={handleInputChange} />
+                    {formData.email !== profile?.email && (
+                      <p className="text-xs text-yellow-500">
+                        Changing your email will require confirmation via a link sent to the new address.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
