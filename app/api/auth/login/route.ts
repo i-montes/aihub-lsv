@@ -10,7 +10,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     return errorResponse("Email and password are required", 400)
   }
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
