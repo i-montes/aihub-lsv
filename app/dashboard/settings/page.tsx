@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Card,
   CardContent,
@@ -16,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { api } from "@/lib/api-client"
 import {
   User,
   Shield,
@@ -34,11 +35,16 @@ import {
 } from "lucide-react"
 
 export default function SettingsPage() {
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState("profile")
   const [expandedGroups, setExpandedGroups] = useState({
     account: true,
     organization: false,
   })
+
+  useEffect(() => {
+    router.push("/dashboard/settings/profile")
+  }, [router])
 
   const toggleGroup = (group) => {
     setExpandedGroups((prev) => ({
@@ -221,7 +227,6 @@ function ProfileSettings() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailVerified, setEmailVerified] = useState(true)
   const [showEmailAlert, setShowEmailAlert] = useState(false)
-  const supabase = getSupabaseClient()
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -262,62 +267,38 @@ function ProfileSettings() {
       const emailChanged = formData.email !== profile?.email
       const nameOrLastnameChanged = formData.name !== profile?.name || formData.lastname !== profile?.lastname
 
-      // Actualizar metadata y profiles si cambió nombre o apellido
+      // Prepare update data
+      const updateData = {}
+
       if (nameOrLastnameChanged) {
-        // Actualizar metadata en auth
-        const { error: metadataError } = await supabase.auth.updateUser({
-          data: {
-            name: formData.name,
-            lastname: formData.lastname,
-          },
-        })
-
-        if (metadataError) throw metadataError
-
-        // Actualizar tabla profiles
-        const { error: profilesError } = await supabase
-          .from("profiles")
-          .update({
-            name: formData.name,
-            lastname: formData.lastname,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", profile?.id)
-
-        if (profilesError) throw profilesError
+        updateData.name = formData.name
+        updateData.lastname = formData.lastname
       }
 
-      // Actualizar email si cambió
       if (emailChanged) {
-        // Actualizar email en auth (esto enviará un email de confirmación)
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: formData.email,
-        })
-
-        if (emailError) throw emailError
-
-        // Actualizar email en profiles
-        const { error: profileEmailError } = await supabase
-          .from("profiles")
-          .update({
-            email: formData.email,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", profile?.id)
-
-        if (profileEmailError) throw profileEmailError
-
-        // Mostrar alerta de confirmación
-        toast.info(
-          "Se ha enviado un correo de confirmación a tu nueva dirección. Por favor, verifica tu bandeja de entrada.",
-        )
-        setEmailVerified(false)
+        updateData.email = formData.email
       }
 
-      toast.success("Perfil actualizado correctamente")
+      // Only make the API call if there are changes
+      if (Object.keys(updateData).length > 0) {
+        // Use the API route to update the profile
+        const response = await api.put("/profile", updateData)
+
+        if (response.data.emailUpdated) {
+          // Mostrar alerta de confirmación
+          toast.info(
+            "Se ha enviado un correo de confirmación a tu nueva dirección. Por favor, verifica tu bandeja de entrada.",
+          )
+          setEmailVerified(false)
+        }
+
+        toast.success("Perfil actualizado correctamente")
+      } else {
+        toast.info("No se detectaron cambios")
+      }
     } catch (error) {
       console.error("Error al actualizar el perfil:", error)
-      toast.error(error.message || "Error al actualizar el perfil")
+      toast.error(error.response?.data?.message || error.message || "Error al actualizar el perfil")
     } finally {
       setIsSubmitting(false)
     }
@@ -718,7 +699,7 @@ function TeamSettings() {
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Miembros del Equipo</h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
                   <img src="/empowered-trainer.png" alt="Amanda Johnson" className="w-full h-full object-cover" />
@@ -731,7 +712,7 @@ function TeamSettings() {
               <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
                   <img
@@ -750,7 +731,7 @@ function TeamSettings() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
                   <img src="/serene-woman-gaze.png" alt="María García" className="w-full h-full object-cover" />
