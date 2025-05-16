@@ -10,7 +10,7 @@ import { api } from "@/lib/api-client"
 import { AlertCircle, Info } from "lucide-react"
 
 export default function ProfileSettingsPage() {
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, isLoading, setProfile } = useAuth()
   const [formData, setFormData] = useState({
     name: "",
     lastname: "",
@@ -84,7 +84,31 @@ export default function ProfileSettingsPage() {
           setEmailVerified(false)
         }
 
-        toast.success("Perfil actualizado correctamente")
+        // Después de la llamada API exitosa y antes del toast de éxito
+        if (response.data.success) {
+          setIsSubmitting(false)
+          toast({
+            title: "Perfil actualizado",
+            description: "Tu perfil ha sido actualizado correctamente",
+          })
+
+          // Disparar evento para actualizar la sesión en toda la aplicación
+          try {
+            window.dispatchEvent(new Event("auth-update"))
+          } catch (error) {
+            console.error("Error al disparar evento de actualización:", error)
+          }
+
+          // Opcional: Recargar los datos del perfil
+          fetchProfile()
+        } else {
+          setIsSubmitting(false)
+          toast({
+            title: "Error",
+            description: "Ha ocurrido un error al actualizar tu perfil",
+            variant: "destructive",
+          })
+        }
       } else {
         toast.info("No se detectaron cambios")
       }
@@ -95,6 +119,44 @@ export default function ProfileSettingsPage() {
       setIsSubmitting(false)
     }
   }
+
+  const fetchProfile = async () => {
+    try {
+      const response = await api.get("/profile")
+      const data = response.data
+      if (data.success && data.profile) {
+        setFormData({
+          name: data.profile.name || "",
+          lastname: data.profile.lastname || "",
+          email: data.profile.email || "",
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+    }
+  }
+
+  // Añadir un efecto para escuchar el evento de actualización de autenticación
+  useEffect(() => {
+    const handleAuthUpdate = async () => {
+      try {
+        // Obtener datos del perfil
+        const { data } = await api.get("/profile")
+        const profile = data.profile
+        setProfile(profile)
+      } catch (error) {
+        console.error("Failed to refresh profile:", error)
+      }
+    }
+
+    // Añadir el event listener
+    window.addEventListener("auth-update", handleAuthUpdate)
+
+    // Limpiar el event listener
+    return () => {
+      window.removeEventListener("auth-update", handleAuthUpdate)
+    }
+  }, [setProfile])
 
   if (isLoading) {
     return (

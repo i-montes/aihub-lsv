@@ -6,7 +6,7 @@ export interface AuditOptions {
   action: AuditAction
   entityType?: EntityType
   getEntityId?: (req: NextRequest, res: NextResponse) => string | Promise<string>
-  getDetails?: (req: NextRequest, res: NextResponse) => Record<string, any> | Promise<Record<string, any>>
+  getDetails?: (body: any, req: NextRequest, res: NextResponse) => Record<string, any> | Promise<Record<string, any>>
   skipAudit?: (req: NextRequest, res: NextResponse) => boolean | Promise<boolean>
 }
 
@@ -15,7 +15,29 @@ export interface AuditOptions {
  */
 export function withAudit(handler: (req: NextRequest) => Promise<NextResponse>, options: AuditOptions) {
   return async (req: NextRequest): Promise<NextResponse> => {
+    // Extraer el cuerpo de la solicitud una sola vez al inicio
+    let bodyData: any = null
+
     try {
+      // Solo intentar extraer el cuerpo si es un método que puede tener cuerpo
+      if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
+        try {
+          // Clonar la solicitud para leer el cuerpo sin consumirlo
+          const clonedReq = req.clone()
+          const contentType = req.headers.get("content-type") || ""
+
+          if (contentType.includes("application/json")) {
+            const text = await clonedReq.text()
+            if (text) {
+              bodyData = JSON.parse(text)
+            }
+          }
+        } catch (e) {
+          console.warn("[AuditMiddleware] Could not parse request body:", e)
+          // Continuar sin el cuerpo
+        }
+      }
+
       // Ejecutar el handler original
       const response = await handler(req)
 
@@ -45,8 +67,8 @@ export function withAudit(handler: (req: NextRequest) => Promise<NextResponse>, 
 
         // Obtener detalles adicionales si se proporcionó una función
         let details: Record<string, any> = {}
-        if (options.getDetails) {
-          details = await options.getDetails(req, response)
+        if (options.getDetails && bodyData !== null) {
+          details = await options.getDetails(bodyData, req, response)
         }
 
         // Registrar la acción

@@ -105,8 +105,7 @@ export const PUT = withAudit(updateProfileHandler, {
     } = await supabase.auth.getSession()
     return session?.user?.id || ""
   },
-  getDetails: async (req) => {
-    const body = await req.clone().json()
+  getDetails: async (body, req) => {
     // Filtrar información sensible
     const { password, ...safeData } = body
     return safeData
