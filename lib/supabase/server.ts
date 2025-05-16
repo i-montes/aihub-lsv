@@ -9,7 +9,7 @@ const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env
  * Obtiene el cliente de Supabase para componentes del servidor
  * Esta función es segura para usar en componentes del servidor de React
  */
-export function getSupabaseServer() {
+export async function getSupabaseServer() {
   try {
     // Si Supabase no está configurado, devolver un cliente simulado
     if (!isSupabaseConfigured) {
@@ -18,7 +18,7 @@ export function getSupabaseServer() {
     }
 
     // Crear una nueva instancia para cada solicitud (esto es seguro en el servidor)
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     return createServerComponentClient<Database>({ cookies: () => cookieStore })
   } catch (error) {
     console.error("[Server] Error al crear el cliente de Supabase:", error)
@@ -30,7 +30,7 @@ export function getSupabaseServer() {
  * Obtiene el cliente de Supabase para Route Handlers y Server Actions
  * Esta función es segura para usar en Route Handlers y Server Actions
  */
-export function getSupabaseRouteHandler() {
+export async function getSupabaseRouteHandler() {
   try {
     // Si Supabase no está configurado, devolver un cliente simulado
     if (!isSupabaseConfigured) {
@@ -39,7 +39,7 @@ export function getSupabaseRouteHandler() {
     }
 
     // Crear una nueva instancia para cada solicitud (esto es seguro en el servidor)
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     return createServerComponentClient<Database>({ cookies: () => cookieStore })
   } catch (error) {
     console.error("[Server] Error al crear el cliente de Supabase:", error)
@@ -68,4 +68,4 @@ function createDummyClient() {
 }
 
 // Exportar el tipo para facilitar su uso en otros archivos
-export type SupabaseServerClient = ReturnType<typeof getSupabaseServer>
+export type SupabaseServerClient = Awaited<ReturnType<typeof getSupabaseServer>>

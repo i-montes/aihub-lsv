@@ -1,9 +1,9 @@
 import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const GET = createApiHandler(async (req: NextRequest) => {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseRouteHandler()
 
   // Get the current session
   const {
@@ -33,7 +33,7 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
   const body = await req.json()
   const { name, lastname, email, avatar } = body
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseRouteHandler()
 
   // Get the current session
   const {
