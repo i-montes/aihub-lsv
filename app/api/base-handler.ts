@@ -39,3 +39,6 @@ export function createApiHandler(handler: (req: NextRequest) => Promise<NextResp
     }
   }
 }
+
+// Añadir la exportación faltante de baseHandler
+export const baseHandler = createApiHandler

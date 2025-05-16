@@ -7,6 +7,30 @@ import { useToast } from "@/components/ui/use-toast"
 import { OrganizationService } from "@/lib/services/organization-service"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+
+// Esquema de validación con Zod
+const inviteUserSchema = z.object({
+  email: z.string().email({ message: "Debe ser un email válido" }),
+  role: z.enum(["OWNER", "ADMIN", "USER"], {
+    required_error: "Debes seleccionar un rol",
+  }),
+})
+
+type InviteUserFormValues = z.infer<typeof inviteUserSchema>
 
 export default function UserListSettingsPage() {
   const { toast } = useToast()
@@ -14,6 +38,17 @@ export default function UserListSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [members, setMembers] = useState([])
   const [pendingInvitations, setPendingInvitations] = useState([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Configuración de React Hook Form con Zod
+  const form = useForm<InviteUserFormValues>({
+    resolver: zodResolver(inviteUserSchema),
+    defaultValues: {
+      email: "",
+      role: "USER",
+    },
+  })
 
   useEffect(() => {
     async function loadMembers() {
@@ -44,18 +79,55 @@ export default function UserListSettingsPage() {
     const roleMap = {
       OWNER: "Propietario",
       ADMIN: "Administrador",
-      EDITOR: "Editor",
       USER: "Usuario",
-      VIEWER: "Visualizador",
     }
     return roleMap[role] || role
+  }
+
+  // Función para manejar la invitación de usuario
+  const onSubmit = async (data: InviteUserFormValues) => {
+    try {
+      setIsSubmitting(true)
+      const response = await OrganizationService.inviteUser(data.email, data.role)
+
+      toast({
+        title: "Usuario invitado",
+        description: `Se ha enviado una invitación a ${data.email}`,
+      })
+
+      // Cerrar el diálogo y resetear el formulario
+      setIsDialogOpen(false)
+      form.reset()
+
+      // Actualizar la lista de invitaciones pendientes
+      // En un caso real, deberíamos obtener las invitaciones pendientes de la API
+      setPendingInvitations([
+        ...pendingInvitations,
+        {
+          email: data.email,
+          role: translateRole(data.role),
+          daysAgo: 0,
+        },
+      ])
+    } catch (error) {
+      console.error("Error inviting user:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo invitar al usuario. Inténtalo de nuevo.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Lista de Usuarios</h2>
-        <Button className="bg-sidebar text-white hover:bg-sidebar/90">Añadir Usuario</Button>
+        <Button className="bg-sidebar text-white hover:bg-sidebar/90" onClick={() => setIsDialogOpen(true)}>
+          Invitar usuario
+        </Button>
       </div>
 
       <Card className="border border-gray-200">
@@ -143,6 +215,72 @@ export default function UserListSettingsPage() {
           </div>
         </CardContent2>
       </Card>
+
+      {/* Diálogo para invitar usuarios */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Invitar usuario</DialogTitle>
+            <DialogDescription>
+              Envía una invitación por correo electrónico para que un nuevo usuario se una a tu organización.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo electrónico</FormLabel>
+                    <FormControl>
+                      <Input placeholder="correo@ejemplo.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rol</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un rol" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="OWNER">Propietario</SelectItem>
+                        <SelectItem value="ADMIN">Administrador</SelectItem>
+                        <SelectItem value="USER">Usuario</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-sidebar text-white hover:bg-sidebar/90" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Enviar invitación"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
