@@ -15,6 +15,7 @@ export default function SecuritySettingsPage() {
     newPassword: "",
     confirmPassword: "",
   })
+  const [error, setError] = useState("")
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -22,18 +23,23 @@ export default function SecuritySettingsPage() {
       ...prev,
       [name]: value,
     }))
+    // Limpiar el error cuando el usuario comienza a escribir
+    if (error) setError("")
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError("")
 
     // Validate passwords
     if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError("Las contraseñas no coinciden")
       toast.error("Las contraseñas no coinciden")
       return
     }
 
     if (passwordData.newPassword.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres")
       toast.error("La contraseña debe tener al menos 8 caracteres")
       return
     }
@@ -41,22 +47,31 @@ export default function SecuritySettingsPage() {
     setIsSubmitting(true)
 
     try {
-      await api.put("/auth/update-password", {
+      const response = await api.put("/auth/update-password", {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
       })
 
-      toast.success("Contraseña actualizada correctamente")
+      if (response.success) {
+        toast.success(response.message || "Contraseña actualizada correctamente")
 
-      // Reset form
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      })
+        // Reset form
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        })
+      }
     } catch (error) {
       console.error("Error al actualizar la contraseña:", error)
-      toast.error(error.response?.data?.message || error.message || "Error al actualizar la contraseña")
+
+      // Extraer el mensaje de error de diferentes posibles ubicaciones
+      const errorMessage =
+        error.data?.error || error.message || "Error al actualizar la contraseña. Por favor, inténtalo de nuevo."
+
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -75,6 +90,9 @@ export default function SecuritySettingsPage() {
             <CardDescription>Actualiza tu contraseña para mantener tu cuenta segura</CardDescription>
           </CardHeader>
           <CardContent2 className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">{error}</div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Contraseña Actual</Label>
@@ -113,55 +131,6 @@ export default function SecuritySettingsPage() {
                 {isSubmitting ? "Actualizando..." : "Actualizar Contraseña"}
               </Button>
             </form>
-          </CardContent2>
-        </Card>
-
-        <Card className="border border-gray-200">
-          <CardHeader>
-            <CardTitle>Autenticación de Dos Factores</CardTitle>
-            <CardDescription>Añade una capa adicional de seguridad a tu cuenta</CardDescription>
-          </CardHeader>
-          <CardContent2>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">
-                  Estado: <span className="text-red-500">Desactivado</span>
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  La autenticación de dos factores no está habilitada actualmente
-                </p>
-              </div>
-              <Button>Activar 2FA</Button>
-            </div>
-          </CardContent2>
-        </Card>
-
-        <Card className="border border-gray-200">
-          <CardHeader>
-            <CardTitle>Sesiones Activas</CardTitle>
-            <CardDescription>Gestiona tus sesiones activas en diferentes dispositivos</CardDescription>
-          </CardHeader>
-          <CardContent2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">Chrome en Windows</p>
-                  <p className="text-sm text-gray-500">Última actividad: Hace 5 minutos</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Cerrar Sesión
-                </Button>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">Safari en iPhone</p>
-                  <p className="text-sm text-gray-500">Última actividad: Hace 2 días</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Cerrar Sesión
-                </Button>
-              </div>
-            </div>
           </CardContent2>
         </Card>
       </div>

@@ -28,7 +28,13 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   }
 
   if (body) {
-    config.body = JSON.stringify(body)
+    // Asegurarse de que el body sea serializable
+    try {
+      config.body = JSON.stringify(body)
+    } catch (error) {
+      console.error("Error al serializar el body:", error)
+      throw new Error("Error al procesar los datos de la solicitud")
+    }
   }
 
   try {
@@ -48,8 +54,11 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
 
     // Handle API errors
     if (!response.ok) {
-      const error = data.error || response.statusText
-      throw new Error(error)
+      const error = new Error(data.error || response.statusText)
+      // Añadir información adicional al error
+      ;(error as any).status = response.status
+      ;(error as any).data = data
+      throw error
     }
 
     return data

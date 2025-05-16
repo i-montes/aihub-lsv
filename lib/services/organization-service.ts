@@ -4,8 +4,12 @@ import type { Profile } from "./auth-service"
 export interface Organization {
   id: string
   name: string
+  description: string | null
+  website: string | null
+  contactemail: string | null
   address: string | null
   city: string | null
+  state: string | null
   country: string | null
   logo: string | null
   createdAt: string
@@ -19,8 +23,12 @@ export const OrganizationService = {
 
   async updateOrganization(data: {
     name: string
+    description?: string
+    website?: string
+    contactemail?: string
     address?: string
     city?: string
+    state?: string
     country?: string
   }): Promise<{ success: boolean }> {
     return api.put("/organization", data)

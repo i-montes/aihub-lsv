@@ -3,7 +3,7 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const GET = createApiHandler(async (req: NextRequest) => {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Get the current session
   const {
@@ -46,13 +46,13 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
 export const PUT = createApiHandler(async (req: NextRequest) => {
   const body = await req.json()
-  const { name, address, city, country } = body
+  const { name, description, website, contactemail, address, city, state, country } = body
 
   if (!name) {
     return errorResponse("Organization name is required", 400)
   }
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Get the current session
   const {
@@ -80,8 +80,8 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
   }
 
   // Check if user has permission to update organization
-  if (profile.role !== "OWNER") {
-    return errorResponse("Only organization owners can update organization details", 403)
+  if (profile.role !== "OWNER" && profile.role !== "WORKSPACE_ADMIN") {
+    return errorResponse("Only organization owners or admins can update organization details", 403)
   }
 
   // Update organization
@@ -89,8 +89,12 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
     .from("organization")
     .update({
       name,
+      description,
+      website,
+      contactemail,
       address,
       city,
+      state,
       country,
       updatedAt: new Date().toISOString(),
     })
