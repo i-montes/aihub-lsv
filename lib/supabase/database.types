@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   public: {
@@ -53,7 +59,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
@@ -104,7 +110,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organization"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       organization: {
@@ -160,4 +166,14 @@ export type Database = {
       subscription_status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "EXPIRED"
     }
   }
+}
+
+export type User = {
+  id: string
+  email?: string
+  name?: string
+  lastname?: string
+  avatar?: string
+  role?: string
+  organizationId?: string
 }

@@ -84,29 +84,6 @@ export default function ProfileSettingsPage() {
           setEmailVerified(false)
         }
 
-        // Actualizar los datos de la sesión después de guardar correctamente
-        // Refrescar los datos del perfil desde el servidor
-        try {
-          const { profile: updatedProfile } = await api.get("/profile").then((res) => res.data)
-
-          // Actualizar el estado local con los nuevos datos
-          if (updatedProfile) {
-            setFormData({
-              name: updatedProfile.name || "",
-              lastname: updatedProfile.lastname || "",
-              email: updatedProfile.email || "",
-            })
-
-            // Forzar una actualización de la sesión en el contexto de autenticación
-            if (typeof window !== "undefined") {
-              // Disparar un evento personalizado que el AuthProvider puede escuchar
-              window.dispatchEvent(new CustomEvent("profile-updated", { detail: updatedProfile }))
-            }
-          }
-        } catch (refreshError) {
-          console.error("Error al actualizar los datos de la sesión:", refreshError)
-        }
-
         toast.success("Perfil actualizado correctamente")
       } else {
         toast.info("No se detectaron cambios")
