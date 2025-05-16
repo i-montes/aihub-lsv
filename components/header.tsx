@@ -9,15 +9,15 @@ import { useAuth } from "@/hooks/use-auth"
 export function Header() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
-  const dropdownRef = useRef(null)
-  const buttonRef = useRef(null)
-  const notificationsRef = useRef(null)
-  const notificationsButtonRef = useRef(null)
+  const dropdownRef = useRef<any>(null)
+  const buttonRef = useRef<any>(null)
+  const notificationsRef = useRef<any>(null)
+  const notificationsButtonRef = useRef<any>(null)
   const { user, profile, signOut } = useAuth()
 
   // Cerrar el dropdown cuando se hace clic fuera de él
   useEffect(() => {
-    function handleClickOutside(event) {
+    function handleClickOutside(event: MouseEvent) {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&
@@ -46,6 +46,8 @@ export function Header() {
   const handleLogout = async () => {
     await signOut()
   }
+
+  console.log(profile)
 
   // Get user's display name
   const displayName =
@@ -147,18 +149,18 @@ export function Header() {
               <div className="w-8 h-8 rounded-full bg-white border overflow-hidden flex-shrink-0">
                 {profile?.avatar ? (
                   <img
-                    src={profile.avatar || "/placeholder.svg"}
+                    src={profile.avatar}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : user?.user_metadata?.avatar ? (
                   <img
-                    src={user.user_metadata.avatar || "/placeholder.svg"}
+                    src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user.id}`}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <img src="/empowered-trainer.png" alt="Profile" className="w-full h-full object-cover" />
+                  <img src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user.id}`} alt="Profile" className="w-full h-full object-cover" />
                 )}
               </div>
               <span className="font-medium">{displayName}</span>

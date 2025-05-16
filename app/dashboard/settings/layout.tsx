@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { toast } from "sonner"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -44,6 +45,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       toast.error("Error al cerrar sesión")
     }
   }
+
+  const { profile } = useAuth()
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
@@ -82,59 +85,61 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
               </div>
 
               {/* Organization Group */}
-              <div className="space-y-1">
-                <SettingsMenuGroup
-                  title="Organization"
-                  expanded={expandedGroups.organization}
-                  onToggle={() => toggleGroup("organization")}
-                />
-                {expandedGroups.organization && (
-                  <>
-                    <SettingsMenuItem
-                      icon={<Building size={18} />}
-                      title="General Information"
-                      active={pathname === "/dashboard/settings/general-information"}
-                      onClick={() => router.push("/dashboard/settings/general-information")}
-                      indented
-                    />
-                    <SettingsMenuItem
-                      icon={<Users size={18} />}
-                      title="User List"
-                      active={pathname === "/dashboard/settings/user-list"}
-                      onClick={() => router.push("/dashboard/settings/user-list")}
-                      indented
-                    />
-                    <SettingsMenuItem
-                      icon={<MessageSquare size={18} />}
-                      title="Integrations"
-                      active={pathname === "/dashboard/settings/integrations"}
-                      onClick={() => router.push("/dashboard/settings/integrations")}
-                      indented
-                    />
-                    <SettingsMenuItem
-                      icon={<FileText size={18} />}
-                      title="Prompts"
-                      active={pathname === "/dashboard/settings/prompts"}
-                      onClick={() => router.push("/dashboard/settings/prompts")}
-                      indented
-                    />
-                    <SettingsMenuItem
-                      icon={<Globe size={18} />}
-                      title="Wordpress"
-                      active={pathname === "/dashboard/settings/wordpress"}
-                      onClick={() => router.push("/dashboard/settings/wordpress")}
-                      indented
-                    />
-                    <SettingsMenuItem
-                      icon={<CreditCard size={18} />}
-                      title="Billing & Usage"
-                      active={pathname === "/dashboard/settings/billing"}
-                      onClick={() => router.push("/dashboard/settings/billing")}
-                      indented
-                    />
-                  </>
-                )}
-              </div>
+              {profile && (profile.role === "OWNER" || profile.role === "ADMIN") && (
+                <div className="space-y-1">
+                  <SettingsMenuGroup
+                    title="Organization"
+                    expanded={expandedGroups.organization}
+                    onToggle={() => toggleGroup("organization")}
+                  />
+                  {expandedGroups.organization && (
+                    <>
+                      <SettingsMenuItem
+                        icon={<Building size={18} />}
+                        title="General Information"
+                        active={pathname === "/dashboard/settings/general-information"}
+                        onClick={() => router.push("/dashboard/settings/general-information")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<Users size={18} />}
+                        title="User List"
+                        active={pathname === "/dashboard/settings/user-list"}
+                        onClick={() => router.push("/dashboard/settings/user-list")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<MessageSquare size={18} />}
+                        title="Integrations"
+                        active={pathname === "/dashboard/settings/integrations"}
+                        onClick={() => router.push("/dashboard/settings/integrations")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<FileText size={18} />}
+                        title="Prompts"
+                        active={pathname === "/dashboard/settings/prompts"}
+                        onClick={() => router.push("/dashboard/settings/prompts")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<Globe size={18} />}
+                        title="Wordpress"
+                        active={pathname === "/dashboard/settings/wordpress"}
+                        onClick={() => router.push("/dashboard/settings/wordpress")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<CreditCard size={18} />}
+                        title="Billing & Usage"
+                        active={pathname === "/dashboard/settings/billing"}
+                        onClick={() => router.push("/dashboard/settings/billing")}
+                        indented
+                      />
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="pt-4 mt-4 border-t">
                 <SettingsMenuItem
