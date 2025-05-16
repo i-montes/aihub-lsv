@@ -3,7 +3,7 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const GET = createApiHandler(async (req: NextRequest) => {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Get the current session
   const {

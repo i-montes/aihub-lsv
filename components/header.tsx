@@ -47,8 +47,6 @@ export function Header() {
     await signOut()
   }
 
-  console.log(profile)
-
   // Get user's display name
   const displayName =
     profile?.name ||
@@ -155,12 +153,12 @@ export function Header() {
                   />
                 ) : user?.user_metadata?.avatar ? (
                   <img
-                    src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user.id}`}
+                    src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user?.id}`}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <img src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user.id}`} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={`https://api.dicebear.com/9.x/bottts/jpg?seed=${user?.id}`} alt="Profile" className="w-full h-full object-cover" />
                 )}
               </div>
               <span className="font-medium">{displayName}</span>

@@ -18,7 +18,8 @@ export interface Organization {
 
 export const OrganizationService = {
   async getOrganization(): Promise<{ organization: Organization | null }> {
-    return api.get("/organization")
+    const response = await api.get("/organization")
+    return response.data
   },
 
   async updateOrganization(data: {

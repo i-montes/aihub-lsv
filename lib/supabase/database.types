@@ -52,15 +52,7 @@ export type Database = {
           type?: string
           userId?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "account_userId_fkey"
-            columns: ["userId"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -97,13 +89,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "profiles_organizationId_fkey"
             columns: ["organizationId"]
@@ -166,14 +151,4 @@ export type Database = {
       subscription_status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "EXPIRED"
     }
   }
-}
-
-export type User = {
-  id: string
-  email?: string
-  name?: string
-  lastname?: string
-  avatar?: string
-  role?: string
-  organizationId?: string
 }

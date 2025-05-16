@@ -133,7 +133,7 @@ export default function ProfileSettingsPage() {
         <div className="w-full md:w-1/3 flex flex-col items-center">
           <div className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mb-4">
             <img
-              src={profile?.avatar || "/empowered-trainer.png"}
+              src={profile?.avatar || `https://api.dicebear.com/9.x/bottts/jpg?seed=${profile?.id}`}
               alt="Foto de perfil"
               className="w-full h-full object-cover"
             />
