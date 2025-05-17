@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { getSupabaseRouteHandler } from "@/lib/supabase/server"
-import { BaseHandler } from "@/app/api/base-handler"
+import { createApiHandler } from "@/app/api/base-handler"
 
-export const POST = BaseHandler(async (req) => {
+export const POST = createApiHandler(async (req) => {
   try {
     const { email, role, name, lastname } = await req.json()
 
