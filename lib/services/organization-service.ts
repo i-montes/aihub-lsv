@@ -39,9 +39,4 @@ export const OrganizationService = {
     const response = await api.get("/organization/members")
     return response.data
   },
-
-  async inviteUser(email: string, role: string): Promise<{ success: boolean; message: string; invitation?: any }> {
-    const response = await api.post("/organization/invite", { email, role })
-    return response.data
-  },
 }

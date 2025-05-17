@@ -40,5 +40,14 @@ export function createApiHandler(handler: (req: NextRequest) => Promise<NextResp
   }
 }
 
-// Añadir la exportación faltante de baseHandler
-export const baseHandler = createApiHandler
+// Añadiendo la exportación faltante
+export interface BaseHandler {
+  handle: (req: NextRequest) => Promise<NextResponse>
+}
+
+// Clase de implementación básica para mantener compatibilidad
+export class BaseHandlerImpl implements BaseHandler {
+  async handle(req: NextRequest): Promise<NextResponse> {
+    throw new Error("Method not implemented. Override this method in your handler.")
+  }
+}

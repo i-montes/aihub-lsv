@@ -3,7 +3,7 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const supabase = await getSupabaseServer()
+  const supabase = getSupabaseServer()
 
   const { error } = await supabase.auth.signOut()
 

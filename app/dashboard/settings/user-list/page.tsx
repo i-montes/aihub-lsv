@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent as CardContent2 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
 import { OrganizationService } from "@/lib/services/organization-service"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2 } from "lucide-react"
+import type { Profile } from "@/lib/services/auth-service"
 import {
   Dialog,
   DialogContent,
@@ -14,110 +15,90 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-
-// Esquema de validación con Zod
-const inviteUserSchema = z.object({
-  email: z.string().email({ message: "Debe ser un email válido" }),
-  role: z.enum(["OWNER", "ADMIN", "USER"], {
-    required_error: "Debes seleccionar un rol",
-  }),
-})
-
-type InviteUserFormValues = z.infer<typeof inviteUserSchema>
+import { toast } from "sonner"
+import { api } from "@/lib/api-client"
 
 export default function UserListSettingsPage() {
-  const { toast } = useToast()
-  const { profile } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [members, setMembers] = useState([])
-  const [pendingInvitations, setPendingInvitations] = useState([])
+  const { profile: currentUserProfile } = useAuth()
+  const [members, setMembers] = useState<Profile[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Configuración de React Hook Form con Zod
-  const form = useForm<InviteUserFormValues>({
-    resolver: zodResolver(inviteUserSchema),
-    defaultValues: {
-      email: "",
-      role: "USER",
-    },
+  const [isInviting, setIsInviting] = useState(false)
+  const [inviteForm, setInviteForm] = useState({
+    email: "",
+    role: "USER",
+    name: "",
+    lastname: "",
   })
 
   useEffect(() => {
-    async function loadMembers() {
+    async function fetchMembers() {
       try {
-        setLoading(true)
-        const response = await OrganizationService.getMembers()
-        console.log("Members response:", response)
-        if (response && response.members) {
-          setMembers(response.members)
-        }
-      } catch (error) {
-        console.error("Error loading members:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los miembros de la organización",
-          variant: "destructive",
-        })
+        setIsLoading(true)
+        const { members } = await OrganizationService.getMembers()
+        setMembers(members)
+      } catch (err) {
+        console.error("Error fetching members:", err)
+        setError("No se pudieron cargar los miembros de la organización")
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
 
-    loadMembers()
-  }, [toast])
+    fetchMembers()
+  }, [])
 
-  // Función para traducir roles a español
-  const translateRole = (role) => {
-    const roleMap = {
-      OWNER: "Propietario",
-      ADMIN: "Administrador",
-      USER: "Usuario",
-    }
-    return roleMap[role] || role
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setInviteForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  // Función para manejar la invitación de usuario
-  const onSubmit = async (data: InviteUserFormValues) => {
+  const handleRoleChange = (value: string) => {
+    setInviteForm((prev) => ({ ...prev, role: value }))
+  }
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!inviteForm.email) {
+      toast.error("El correo electrónico es obligatorio")
+      return
+    }
+
     try {
-      setIsSubmitting(true)
-      const response = await OrganizationService.inviteUser(data.email, data.role)
+      setIsInviting(true)
 
-      toast({
-        title: "Usuario invitado",
-        description: `Se ha enviado una invitación a ${data.email}`,
+      // Usar el cliente API en lugar de fetch directamente
+      await api.post("/organization/invite", {
+        email: inviteForm.email,
+        role: inviteForm.role,
+        name: inviteForm.name,
+        lastname: inviteForm.lastname,
       })
 
-      // Cerrar el diálogo y resetear el formulario
+      toast.success(`Invitación enviada a ${inviteForm.email}`)
+      setInviteForm({
+        email: "",
+        role: "USER",
+        name: "",
+        lastname: "",
+      })
       setIsDialogOpen(false)
-      form.reset()
 
-      // Actualizar la lista de invitaciones pendientes
-      // En un caso real, deberíamos obtener las invitaciones pendientes de la API
-      setPendingInvitations([
-        ...pendingInvitations,
-        {
-          email: data.email,
-          role: translateRole(data.role),
-          daysAgo: 0,
-        },
-      ])
-    } catch (error) {
-      console.error("Error inviting user:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo invitar al usuario. Inténtalo de nuevo.",
-        variant: "destructive",
-      })
+      // Refrescar la lista de miembros e invitaciones
+      const { members } = await OrganizationService.getMembers()
+      setMembers(members)
+    } catch (err: any) {
+      console.error("Error inviting user:", err)
+      toast.error(err.message || "Error al invitar al usuario")
     } finally {
-      setIsSubmitting(false)
+      setIsInviting(false)
     }
   }
 
@@ -125,9 +106,84 @@ export default function UserListSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Lista de Usuarios</h2>
-        <Button className="bg-sidebar text-white hover:bg-sidebar/90" onClick={() => setIsDialogOpen(true)}>
-          Invitar usuario
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-sidebar text-white hover:bg-sidebar/90">Añadir Usuario</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Invitar Nuevo Usuario</DialogTitle>
+              <DialogDescription>
+                Envía una invitación por correo electrónico para que un nuevo usuario se una a tu organización.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleInviteSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right">
+                    Email*
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={inviteForm.email}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Nombre
+                  </Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={inviteForm.name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="lastname" className="text-right">
+                    Apellido
+                  </Label>
+                  <Input
+                    id="lastname"
+                    name="lastname"
+                    value={inviteForm.lastname}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="role" className="text-right">
+                    Rol
+                  </Label>
+                  <Select value={inviteForm.role} onValueChange={handleRoleChange}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecciona un rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OWNER">Propietario</SelectItem>
+                      <SelectItem value="ADMIN">Administrador</SelectItem>
+                      <SelectItem value="USER">Usuario</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-sidebar text-white hover:bg-sidebar/90" disabled={isInviting}>
+                  {isInviting ? "Enviando..." : "Enviar Invitación"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card className="border border-gray-200">
@@ -136,50 +192,46 @@ export default function UserListSettingsPage() {
           <CardDescription>Gestiona los usuarios de tu organización</CardDescription>
         </CardHeader>
         <CardContent2>
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-sidebar" />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {members.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">No hay miembros en esta organización</div>
-              ) : (
-                members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                        {member.avatar_url ? (
-                          <img
-                            src={member.avatar_url || "/placeholder.svg"}
-                            alt={member.full_name || member.email}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-sidebar text-white">
-                            {(member.full_name || member.email || "").charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{member.full_name || "Sin nombre"}</p>
-                        <p className="text-sm text-gray-500">
-                          {member.email} • {translateRole(member.role)}
-                        </p>
-                      </div>
+          <div className="space-y-4">
+            {isLoading ? (
+              <div className="text-center py-4">Cargando miembros...</div>
+            ) : error ? (
+              <div className="text-center py-4 text-red-500">{error}</div>
+            ) : members.length === 0 ? (
+              <div className="text-center py-4">No hay miembros en esta organización</div>
+            ) : (
+              members.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                      {member.avatar ? (
+                        <img
+                          src={member.avatar || "/placeholder.svg"}
+                          alt={`${member.name || ""} ${member.lastname || ""}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-sidebar text-white">
+                          {(member.name?.[0] || "") + (member.lastname?.[0] || "")}
+                        </div>
+                      )}
                     </div>
-                    {profile && profile.id === member.id ? (
-                      <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
-                    ) : (
-                      <Button variant="outline" size="sm">
-                        Gestionar
-                      </Button>
-                    )}
+                    <div>
+                      <p className="font-medium">{`${member.name || ""} ${member.lastname || ""}`}</p>
+                      <p className="text-sm text-gray-500">{`${member.email} • ${member.role || "Usuario"}`}</p>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                  {currentUserProfile?.id === member.id ? (
+                    <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
+                  ) : (
+                    <Button variant="outline" size="sm">
+                      Gestionar
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </CardContent2>
       </Card>
 
@@ -190,97 +242,23 @@ export default function UserListSettingsPage() {
         </CardHeader>
         <CardContent2>
           <div className="space-y-4">
-            {pendingInvitations.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">No hay invitaciones pendientes</div>
-            ) : (
-              pendingInvitations.map((invitation, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{invitation.email}</p>
-                    <p className="text-sm text-gray-500">
-                      Enviada hace {invitation.daysAgo} días • {invitation.role}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                      Reenviar
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50">
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium">juan@example.com</p>
+                <p className="text-sm text-gray-500">Enviada hace 2 días • Editor</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                  Reenviar
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50">
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent2>
       </Card>
-
-      {/* Diálogo para invitar usuarios */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Invitar usuario</DialogTitle>
-            <DialogDescription>
-              Envía una invitación por correo electrónico para que un nuevo usuario se una a tu organización.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo electrónico</FormLabel>
-                    <FormControl>
-                      <Input placeholder="correo@ejemplo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rol</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="OWNER">Propietario</SelectItem>
-                        <SelectItem value="ADMIN">Administrador</SelectItem>
-                        <SelectItem value="USER">Usuario</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-sidebar text-white hover:bg-sidebar/90" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    "Enviar invitación"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

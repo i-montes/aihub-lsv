@@ -9,7 +9,143 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      account: {
+        Row: {
+          access_token: string | null
+          expires_at: number | null
+          id: string
+          id_token: string | null
+          provider: string
+          providerAccountId: string
+          refresh_token: string | null
+          scope: string | null
+          session_state: string | null
+          token_type: string | null
+          type: string
+          userId: string
+        }
+        Insert: {
+          access_token?: string | null
+          expires_at?: number | null
+          id: string
+          id_token?: string | null
+          provider: string
+          providerAccountId: string
+          refresh_token?: string | null
+          scope?: string | null
+          session_state?: string | null
+          token_type?: string | null
+          type: string
+          userId: string
+        }
+        Update: {
+          access_token?: string | null
+          expires_at?: number | null
+          id?: string
+          id_token?: string | null
+          provider?: string
+          providerAccountId?: string
+          refresh_token?: string | null
+          scope?: string | null
+          session_state?: string | null
+          token_type?: string | null
+          type?: string
+          userId?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_userId_fkey"
+            columns: ["userId"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          email: string
+          id: string
+          lastname: string | null
+          name: string | null
+          organizationId: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar?: string | null
+          created_at: string
+          email: string
+          id: string
+          lastname?: string | null
+          name?: string | null
+          organizationId?: string | null
+          role?: string | null
+          updated_at: string
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          lastname?: string | null
+          name?: string | null
+          organizationId?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_organizationId_fkey"
+            columns: ["organizationId"]
+            isOneToOne: false
+            referencedRelation: "organization"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      organization: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          createdAt: string
+          id: string
+          logo: string | null
+          name: string
+          updatedAt: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          createdAt?: string
+          id?: string
+          logo?: string | null
+          name: string
+          updatedAt: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          createdAt?: string
+          id?: string
+          logo?: string | null
+          name?: string
+          updatedAt?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,10 +154,26 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
+      api_key_status: "ACTIVE" | "INACTIVE"
+      billing_cycle: "MONTHLY" | "YEARLY"
+      content_status: "DRAFT" | "GENERATING" | "ERROR" | "PUBLISHED" | "ARCHIVED"
+      content_type: "TWITTER_THREAD" | "NEWSLETTER" | "FRANBOT" | "ENVIBOT" | "WRITING_ASSISTANT" | "FACT_CHECKING"
+      invoice_status: "DRAFT" | "ISSUED" | "PAID" | "VOID"
+      provider_ai: "OPENAI" | "GOOGLE" | "PERPLEXITY"
+      resource_status: "ACTIVE" | "INACTIVE" | "ARCHIVED" | "DELETED"
+      resource_type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"
+      role: "OWNER" | "WORKSPACE_ADMIN" | "USER"
+      subscription_status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "EXPIRED"
     }
   }
+}
+
+export type User = {
+  id: string
+  email?: string
+  name?: string
+  lastname?: string
+  avatar?: string
+  role?: string
+  organizationId?: string
 }

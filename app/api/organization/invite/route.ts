@@ -1,25 +1,18 @@
 import { NextResponse } from "next/server"
-import { getSupabaseAdmin } from "@/lib/supabase/server"
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
-import { baseHandler } from "@/app/api/base-handler"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
+import { BaseHandler } from "@/app/api/base-handler"
 
-export const POST = baseHandler(async (req) => {
+export const POST = BaseHandler(async (req) => {
   try {
-    const { email, role } = await req.json()
+    const { email, role, name, lastname } = await req.json()
 
-    if (!email || !role) {
-      return NextResponse.json({ error: "Email y rol son requeridos" }, { status: 400 })
+    if (!email) {
+      return NextResponse.json({ error: "El correo electrónico es obligatorio" }, { status: 400 })
     }
 
-    // Validar que el rol sea válido
-    const validRoles = ["ADMIN", "EDITOR", "USER", "VIEWER"]
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: "Rol inválido" }, { status: 400 })
-    }
+    const supabase = await getSupabaseRouteHandler()
 
-    // Obtener el usuario actual y verificar permisos
-    const supabase = createServerActionClient({ cookies })
+    // Verificar la sesión del usuario actual
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -28,85 +21,46 @@ export const POST = baseHandler(async (req) => {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // Obtener el perfil del usuario actual
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+    // Obtener el perfil del usuario actual para verificar permisos
+    const { data: currentUserProfile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
 
-    // Verificar que el usuario tenga permisos para invitar
-    if (!profile || (profile.role !== "OWNER" && profile.role !== "ADMIN")) {
+    // Verificar si el usuario tiene permisos para invitar (OWNER o ADMIN)
+    if (!currentUserProfile || (currentUserProfile.role !== "OWNER" && currentUserProfile.role !== "ADMIN")) {
       return NextResponse.json({ error: "No tienes permisos para invitar usuarios" }, { status: 403 })
     }
 
-    // Obtener la organización del usuario
-    const { data: userOrg } = await supabase
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", session.user.id)
-      .single()
+    // Obtener la organización del usuario actual
+    const organizationId = currentUserProfile.organizationId
 
-    if (!userOrg || !userOrg.organization_id) {
-      return NextResponse.json({ error: "No se encontró la organización" }, { status: 404 })
+    if (!organizationId) {
+      return NextResponse.json({ error: "No tienes una organización asignada" }, { status: 400 })
     }
 
-    // Verificar si el usuario ya existe
-    const { data: existingUser } = await supabase.from("profiles").select("id").eq("email", email).single()
+    // Crear la URL de redirección
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`
 
-    // Obtener el cliente admin para operaciones privilegiadas
-    const supabaseAdmin = await getSupabaseAdmin()
-
-    // Si el usuario ya existe, añadirlo directamente a la organización
-    if (existingUser) {
-      // Verificar que no esté ya en la organización
-      const { data: existingMember } = await supabase
-        .from("user_organizations")
-        .select("*")
-        .eq("user_id", existingUser.id)
-        .eq("organization_id", userOrg.organization_id)
-        .single()
-
-      if (existingMember) {
-        return NextResponse.json({ error: "El usuario ya es miembro de la organización" }, { status: 400 })
-      }
-
-      // Añadir el usuario a la organización
-      await supabaseAdmin.from("user_organizations").insert({
-        user_id: existingUser.id,
-        organization_id: userOrg.organization_id,
-        role: role,
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: "Usuario añadido a la organización",
-      })
-    }
-
-    // Si el usuario no existe, crear una invitación
-    const { data: invitation, error: invitationError } = await supabaseAdmin
-      .from("invitations")
-      .insert({
-        email,
-        organization_id: userOrg.organization_id,
+    // Invitar al usuario usando la API de administrador de Supabase
+    const { data: user, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: {
         role,
-        invited_by: session.user.id,
-        status: "PENDING",
-      })
-      .select()
+        name,
+        lastname,
+        organizationId,
+      },
+    })
 
-    if (invitationError) {
-      console.error("Error creating invitation:", invitationError)
-      return NextResponse.json({ error: "Error al crear la invitación" }, { status: 500 })
+    if (inviteError) {
+      console.error("Error inviting user:", inviteError)
+      return NextResponse.json({ error: inviteError.message }, { status: 500 })
     }
-
-    // Aquí se enviaría un email con la invitación
-    // Por ahora, solo simulamos que se ha enviado
 
     return NextResponse.json({
-      success: true,
       message: "Invitación enviada correctamente",
-      invitation: invitation[0],
+      user,
     })
-  } catch (error) {
-    console.error("Error inviting user:", error)
-    return NextResponse.json({ error: "Error al procesar la invitación" }, { status: 500 })
+  } catch (error: any) {
+    console.error("Error in invite API:", error)
+    return NextResponse.json({ error: error.message || "Error interno del servidor" }, { status: 500 })
   }
 })

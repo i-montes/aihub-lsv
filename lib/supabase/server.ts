@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr"
-import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/supabase/database.types"
 
@@ -47,24 +46,37 @@ export async function getSupabaseServer() {
 }
 
 /**
- * Obtiene el cliente de Supabase con la clave de servicio para operaciones administrativas
- * Esta función debe usarse con precaución y solo para operaciones que requieren privilegios elevados
+ * Obtiene el cliente de Supabase para Route Handlers y Server Actions
+ * Esta función es segura para usar en Route Handlers y Server Actions
  */
-export async function getSupabaseAdmin() {
+export async function getSupabaseRouteHandler() {
   try {
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn("[Server] Clave de servicio de Supabase no configurada. Usando cliente simulado.")
+    // Si Supabase no está configurado, devolver un cliente simulado
+    if (!isSupabaseConfigured) {
+      console.warn("[Server] Supabase no está configurado. Usando cliente simulado.")
       return createDummyClient()
     }
 
-    return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+    // Crear una nueva instancia para cada solicitud (esto es seguro en el servidor)
+    const cookieStore = await cookies()
+    return createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
       },
     })
   } catch (error) {
-    console.error("[Server] Error al crear el cliente admin de Supabase:", error)
+    console.error("[Server] Error al crear el cliente de Supabase:", error)
     return createDummyClient()
   }
 }
