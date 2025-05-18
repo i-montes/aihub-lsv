@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/select"
 import { ApiKeyService, type ApiKeyProvider } from "@/lib/services/api-key-service"
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
+import { getSupabaseClient } from "@/lib/supabase/client"
+import { useAuth } from "@/hooks/use-auth"
 
 interface AddApiKeyModalProps {
   open: boolean
@@ -35,6 +37,7 @@ interface AddApiKeyModalProps {
 
 export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvider }: AddApiKeyModalProps) {
   const [provider, setProvider] = useState<ApiKeyProvider | "">((preselectedProvider as ApiKeyProvider) || "")
+  const { user, profile } = useAuth()
 
   // Actualizar el proveedor cuando cambie el preseleccionado
   useEffect(() => {
@@ -63,6 +66,13 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
       return
     }
 
+    console.log("PERFIL: ", profile)
+
+    if (!user?.organizationId) {
+      setError("No se pudo determinar la organización del usuario")
+      return
+    }
+
     setError(null)
     setIsSubmitting(true)
 
@@ -79,25 +89,40 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
         return
       }
 
-      // Si la clave es válida, la guardamos
-      const result = await ApiKeyService.createApiKey({
-        key: apiKey,
-        provider: provider as ApiKeyProvider,
-        models: verifyResult.models,
-      })
+      // Si la clave es válida, la guardamos directamente con Supabase
+      const supabase = getSupabaseClient()
 
-      if (result.success) {
-        setSuccess(true)
-        setApiKey("")
-        setProvider("")
+      const { data, error: insertError } = await supabase
+        .from("api_key_table")
+        .insert({
+          key: apiKey,
+          provider: provider as ApiKeyProvider,
+          models: verifyResult.models,
+          organizationId: user.organizationId,
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .select()
+        .single()
 
-        // Después de 1.5 segundos, cerramos el modal y notificamos el éxito
-        setTimeout(() => {
-          onOpenChange(false)
-          setSuccess(false)
-          if (onSuccess) onSuccess()
-        }, 1500)
+      if (insertError) {
+        console.error("Error al insertar clave API:", insertError)
+        setError(insertError.message || "Error al guardar la clave API")
+        setIsSubmitting(false)
+        return
       }
+
+      setSuccess(true)
+      setApiKey("")
+      setProvider("")
+
+      // Después de 1.5 segundos, cerramos el modal y notificamos el éxito
+      setTimeout(() => {
+        onOpenChange(false)
+        setSuccess(false)
+        if (onSuccess) onSuccess()
+      }, 1500)
     } catch (err) {
       console.error("Error al agregar clave API:", err)
       setError(err instanceof Error ? err.message : "Error al agregar la clave API")

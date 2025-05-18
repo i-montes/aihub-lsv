@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSupabaseRouteHandler } from "@/lib/supabase/server"
+import { getSupabaseRouteHandler, getSupabaseServer } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/supabase/database.types"
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await getSupabaseRouteHandler()
+    const supabase = await getSupabaseServer()
     const { data: session } = await supabase.auth.getSession()
 
     if (!session.session) {
