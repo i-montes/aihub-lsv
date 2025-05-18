@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/supabase/database.types"
 
@@ -9,7 +9,7 @@ import type { Database } from "@/lib/supabase/database.types"
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = await getSupabaseRouteHandler()
     const { data: session } = await supabase.auth.getSession()
 
     if (!session.session) {

@@ -43,7 +43,7 @@ export const ApiKeyService = {
   }): Promise<{ success: boolean; apiKey: ApiKey | null }> {
     try {
       const response = await api.post("/integrations", data)
-      return response.data
+      return response
     } catch (error) {
       console.error("Error al crear clave API:", error)
       throw error
@@ -56,7 +56,7 @@ export const ApiKeyService = {
   async updateApiKeyStatus(id: string, status: ApiKeyStatus): Promise<{ success: boolean; message: string }> {
     try {
       const response = await api.patch(`/integrations/${id}/status`, { status })
-      return response.data
+      return response
     } catch (error) {
       console.error("Error al actualizar estado de clave API:", error)
       throw error
@@ -69,7 +69,7 @@ export const ApiKeyService = {
   async deleteApiKey(id: string): Promise<{ success: boolean }> {
     try {
       const response = await api.delete(`/integrations/${id}`)
-      return response.data
+      return response
     } catch (error) {
       console.error("Error al eliminar clave API:", error)
       throw error
@@ -85,7 +85,7 @@ export const ApiKeyService = {
   }): Promise<{ valid: boolean; models?: string[] }> {
     try {
       const response = await api.post("/integrations/verify", data)
-      return response.data
+      return response
     } catch (error) {
       console.error("Error al verificar clave API:", error)
       return { valid: false }
