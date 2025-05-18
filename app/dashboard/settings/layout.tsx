@@ -9,13 +9,13 @@ import {
   User,
   Shield,
   CreditCard,
-  MessageSquare,
   Users,
   LogOut,
   ChevronRight,
   Building,
   Globe,
   FileText,
+  Sparkles,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { toast } from "sonner"
@@ -109,7 +109,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         indented
                       />
                       <SettingsMenuItem
-                        icon={<MessageSquare size={18} />}
+                        icon={<Sparkles size={18} />}
                         title="Integrations"
                         active={pathname === "/dashboard/settings/integrations"}
                         onClick={() => router.push("/dashboard/settings/integrations")}

@@ -1,5 +1,5 @@
 import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 
 export const POST = createApiHandler(async (req: NextRequest) => {
@@ -10,7 +10,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     return errorResponse("Email and password are required", 400)
   }
 
-  const supabase = await getSupabaseServer()
+  const supabase = await getSupabaseRouteHandler()
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({

@@ -64,6 +64,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return errorResponse("El usuario no pertenece a tu organización", 403)
     }
 
+    // Verificar que el usuario invitado tenga una invitación pendiente
+    if (user.user_metadata?.email_confirmed_at) {
+      return errorResponse("Este usuario ya ha aceptado su invitación", 400)
+    }
+
     // Eliminar el usuario de Auth
     const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(invitationId)
 
