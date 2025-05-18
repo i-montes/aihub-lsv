@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select"
 import { ApiKeyService, type ApiKeyProvider } from "@/lib/services/api-key-service"
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
-import { Constants } from "@/lib/supabase/database.types"
 
 interface AddApiKeyModalProps {
   open: boolean
@@ -146,7 +145,7 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess }: AddApiKeyModal
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Proveedores disponibles</SelectLabel>
-                    {Constants.public.Enums.provider_ai.map((provider) => (
+                    {["OPENAI", "GOOGLE", "PERPLEXITY"].map((provider) => (
                       <SelectItem key={provider} value={provider}>
                         {provider === "OPENAI"
                           ? "OpenAI"

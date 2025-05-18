@@ -78,7 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
  */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const supabase = await getSupabaseRouteHandler()
+    const supabase = createRouteHandlerClient<Database>({ cookies })
     const { data: session } = await supabase.auth.getSession()
 
     if (!session.session) {
