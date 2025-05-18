@@ -12,7 +12,7 @@ import {
   CardContent,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { OrganizationService, type PendingInvitation } from "@/lib/services/organization-service"
+import { OrganizationService } from "@/lib/services/organization-service"
 import { useAuth } from "@/hooks/use-auth"
 import type { Profile } from "@/lib/services/auth-service"
 import {
@@ -45,7 +45,7 @@ export default function UserListSettingsPage() {
     lastname: "",
   })
 
-  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([])
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(true)
 
   const fetchMembers = async () => {
@@ -54,16 +54,22 @@ export default function UserListSettingsPage() {
       setIsLoadingInvitations(true)
 
       // Obtener miembros
-      const { members } = await OrganizationService.getMembers()
-      setMembers(members)
+      const membersResponse = await OrganizationService.getMembers()
+      setMembers(membersResponse?.members || [])
 
-      // Obtener invitaciones pendientes
-      const { invitations } = await OrganizationService.getPendingInvitations()
-      setPendingInvitations(invitations)
+      try {
+        // Obtener invitaciones pendientes en un bloque try/catch separado
+        const invitationsResponse = await api.get("/organization/invitations")
+        setPendingInvitations(invitationsResponse?.invitations || [])
+      } catch (invitationError) {
+        console.error("Error fetching invitations:", invitationError)
+        // No establecemos error global aquí, solo para invitaciones
+        setPendingInvitations([])
+      }
     } catch (err) {
-      console.error("Error fetching data:", err)
-      setError("No se pudieron cargar los datos de la organización")
-      toast.error("No se pudieron cargar los miembros o invitaciones")
+      console.error("Error fetching members:", err)
+      setError("No se pudieron cargar los miembros de la organización")
+      toast.error("No se pudieron cargar los miembros de la organización")
     } finally {
       setIsLoading(false)
       setIsLoadingInvitations(false)
@@ -123,7 +129,7 @@ export default function UserListSettingsPage() {
 
   const handleResendInvitation = async (invitationId: string) => {
     try {
-      await OrganizationService.resendInvitation(invitationId)
+      await api.post(`/organization/invitations/${invitationId}/resend`)
       toast.success("La invitación ha sido reenviada exitosamente")
       // Refrescar la lista de invitaciones
       fetchMembers()
@@ -135,7 +141,7 @@ export default function UserListSettingsPage() {
 
   const handleCancelInvitation = async (invitationId: string) => {
     try {
-      await OrganizationService.cancelInvitation(invitationId)
+      await api.delete(`/organization/invitations/${invitationId}`)
       // Actualizar la lista de invitaciones pendientes
       setPendingInvitations(pendingInvitations.filter((inv) => inv.id !== invitationId))
       toast.success("La invitación ha sido cancelada exitosamente")
@@ -245,36 +251,52 @@ export default function UserListSettingsPage() {
             ) : members.length === 0 ? (
               <div className="text-center py-4">No hay miembros en esta organización</div>
             ) : (
-              members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                      {member.avatar ? (
-                        <img
-                          src={member.avatar || "/placeholder.svg"}
-                          alt={`${member.name || ""} ${member.lastname || ""}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-sidebar text-white">
-                          {(member.name?.[0] || "") + (member.lastname?.[0] || "")}
-                        </div>
-                      )}
+              // Filtramos los miembros para excluir aquellos con invitaciones pendientes
+              (() => {
+                const filteredMembers = members.filter((member) => {
+                  // Verificamos si el miembro tiene una invitación pendiente
+                  const hasPendingInvitation = pendingInvitations.some(
+                    (invitation) => invitation.email === member.email,
+                  )
+                  // Solo mostramos miembros sin invitaciones pendientes
+                  return !hasPendingInvitation
+                })
+
+                if (filteredMembers.length === 0) {
+                  return <div className="text-center py-4">Todos los usuarios tienen invitaciones pendientes</div>
+                }
+
+                return filteredMembers.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                        {member.avatar ? (
+                          <img
+                            src={member.avatar || "/placeholder.svg"}
+                            alt={`${member.name || ""} ${member.lastname || ""}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-sidebar text-white">
+                            {(member.name?.[0] || "") + (member.lastname?.[0] || "")}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">{`${member.name || ""} ${member.lastname || ""}`}</p>
+                        <p className="text-sm text-gray-500">{`${member.email} • ${member.role || "Usuario"}`}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{`${member.name || ""} ${member.lastname || ""}`}</p>
-                      <p className="text-sm text-gray-500">{`${member.email} • ${member.role || "Usuario"}`}</p>
-                    </div>
+                    {currentUserProfile?.id === member.id ? (
+                      <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
+                    ) : (
+                      <Button variant="outline" size="sm">
+                        Gestionar
+                      </Button>
+                    )}
                   </div>
-                  {currentUserProfile?.id === member.id ? (
-                    <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
-                  ) : (
-                    <Button variant="outline" size="sm">
-                      Gestionar
-                    </Button>
-                  )}
-                </div>
-              ))
+                ))
+              })()
             )}
           </div>
         </CardContent2>

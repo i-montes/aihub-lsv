@@ -15,15 +15,16 @@ export async function GET() {
     // Obtener el perfil del usuario actual para verificar si es administrador
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("role, organization_id")
+      .select("role, organizationId")
       .eq("id", sessionData.session.user.id)
       .single()
 
-    if (!profileData || profileData.role !== "admin") {
+    if (!profileData || ["OWNER", "ADMIN"].includes(profileData.role) === false) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 })
     }
 
-    const organizationId = profileData.organization_id
+    const organizationId = profileData.organizationId
+
 
     // Obtener todos los usuarios de la organización
     const {
@@ -38,13 +39,13 @@ export async function GET() {
     // Obtener todos los perfiles para poder filtrar por organización
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, organization_id, email, full_name, role")
-      .eq("organization_id", organizationId)
+      .select("id, organizationId, email, name, lastname, role")
+      .eq("organizationId", organizationId)
 
     if (profilesError) {
       return errorResponse("Error al obtener perfiles", 400, profilesError)
     }
-
+    
     // Crear un mapa de perfiles por ID para búsqueda rápida
     const profileMap = new Map()
     profiles.forEach((profile) => {
@@ -65,14 +66,16 @@ export async function GET() {
         return {
           id: user.id,
           email: user.email,
-          full_name: profile?.full_name || "Usuario Invitado",
+          name: profile?.name || "",
+          lastname: profile?.lastname || "",
+          full_name: `${profile?.name || ""} ${profile?.lastname || ""}`.trim(),
           role: profile?.role || "member",
           created_at: user.created_at,
           last_sign_in_at: user.last_sign_in_at,
           email_confirmed_at: user.email_confirmed_at,
         }
       })
-
+    
     return NextResponse.json({ invitations: pendingInvitations })
   } catch (error: any) {
     console.error("Error fetching pending invitations:", error)
