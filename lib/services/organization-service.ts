@@ -16,6 +16,16 @@ export interface Organization {
   updatedAt: string
 }
 
+export interface PendingInvitation {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  created_at: string
+  last_sign_in_at: string | null
+  email_confirmed_at: string | null
+}
+
 export const OrganizationService = {
   async getOrganization(): Promise<{ organization: Organization | null }> {
     const response = await api.get("/organization")
@@ -37,6 +47,21 @@ export const OrganizationService = {
 
   async getMembers(): Promise<{ members: Profile[] }> {
     const response = await api.get("/organization/members")
+    return response.data
+  },
+
+  async getPendingInvitations(): Promise<{ invitations: PendingInvitation[] }> {
+    const response = await api.get("/organization/invitations")
+    return response.data
+  },
+
+  async resendInvitation(invitationId: string): Promise<{ success: boolean }> {
+    const response = await api.post(`/organization/invitations/${invitationId}/resend`)
+    return response.data
+  },
+
+  async cancelInvitation(invitationId: string): Promise<{ success: boolean }> {
+    const response = await api.delete(`/organization/invitations/${invitationId}`)
     return response.data
   },
 }

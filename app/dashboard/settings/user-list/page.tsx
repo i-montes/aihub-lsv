@@ -3,9 +3,16 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent as CardContent2 } from "@/components/ui/card"
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent as CardContent2,
+  CardContent,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { OrganizationService } from "@/lib/services/organization-service"
+import { OrganizationService, type PendingInvitation } from "@/lib/services/organization-service"
 import { useAuth } from "@/hooks/use-auth"
 import type { Profile } from "@/lib/services/auth-service"
 import {
@@ -22,6 +29,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { api } from "@/lib/api-client"
+import { Loader2, RefreshCw, X } from "lucide-react"
 
 export default function UserListSettingsPage() {
   const { profile: currentUserProfile } = useAuth()
@@ -37,20 +45,32 @@ export default function UserListSettingsPage() {
     lastname: "",
   })
 
-  useEffect(() => {
-    async function fetchMembers() {
-      try {
-        setIsLoading(true)
-        const { members } = await OrganizationService.getMembers()
-        setMembers(members)
-      } catch (err) {
-        console.error("Error fetching members:", err)
-        setError("No se pudieron cargar los miembros de la organización")
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(true)
 
+  const fetchMembers = async () => {
+    try {
+      setIsLoading(true)
+      setIsLoadingInvitations(true)
+
+      // Obtener miembros
+      const { members } = await OrganizationService.getMembers()
+      setMembers(members)
+
+      // Obtener invitaciones pendientes
+      const { invitations } = await OrganizationService.getPendingInvitations()
+      setPendingInvitations(invitations)
+    } catch (err) {
+      console.error("Error fetching data:", err)
+      setError("No se pudieron cargar los datos de la organización")
+      toast.error("No se pudieron cargar los miembros o invitaciones")
+    } finally {
+      setIsLoading(false)
+      setIsLoadingInvitations(false)
+    }
+  }
+
+  useEffect(() => {
     fetchMembers()
   }, [])
 
@@ -92,13 +112,38 @@ export default function UserListSettingsPage() {
       setIsDialogOpen(false)
 
       // Refrescar la lista de miembros e invitaciones
-      const { members } = await OrganizationService.getMembers()
-      setMembers(members)
+      fetchMembers()
     } catch (err: any) {
       console.error("Error inviting user:", err)
       toast.error(err.message || "Error al invitar al usuario")
     } finally {
       setIsInviting(false)
+    }
+  }
+
+  const handleResendInvitation = async (invitationId: string) => {
+    try {
+      await OrganizationService.resendInvitation(invitationId)
+      toast.success("La invitación ha sido reenviada exitosamente")
+      // Refrescar la lista de invitaciones
+      fetchMembers()
+    } catch (error) {
+      console.error("Error resending invitation:", error)
+      toast.error("No se pudo reenviar la invitación")
+    }
+  }
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await OrganizationService.cancelInvitation(invitationId)
+      // Actualizar la lista de invitaciones pendientes
+      setPendingInvitations(pendingInvitations.filter((inv) => inv.id !== invitationId))
+      toast.success("La invitación ha sido cancelada exitosamente")
+      // Refrescar la lista de invitaciones
+      fetchMembers()
+    } catch (error) {
+      console.error("Error canceling invitation:", error)
+      toast.error("No se pudo cancelar la invitación")
     }
   }
 
@@ -240,24 +285,44 @@ export default function UserListSettingsPage() {
           <CardTitle>Invitaciones Pendientes</CardTitle>
           <CardDescription>Invitaciones enviadas que aún no han sido aceptadas</CardDescription>
         </CardHeader>
-        <CardContent2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">juan@example.com</p>
-                <p className="text-sm text-gray-500">Enviada hace 2 días • Editor</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  Reenviar
-                </Button>
-                <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50">
-                  Cancelar
-                </Button>
-              </div>
+        <CardContent>
+          {isLoadingInvitations ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
             </div>
-          </div>
-        </CardContent2>
+          ) : pendingInvitations.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">No hay invitaciones pendientes</div>
+          ) : (
+            <div className="space-y-4">
+              {pendingInvitations.map((invitation) => (
+                <div key={invitation.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="font-medium">{invitation.full_name || invitation.email}</div>
+                    <div className="text-sm text-gray-500">{invitation.email}</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Invitado el {new Date(invitation.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => handleResendInvitation(invitation.id)}>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Reenviar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => handleCancelInvitation(invitation.id)}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
     </div>
   )

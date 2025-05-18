@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   public: {
@@ -46,15 +52,7 @@ export type Database = {
           type?: string
           userId?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "account_userId_fkey"
-            columns: ["userId"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -90,22 +88,7 @@ export type Database = {
           role?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_organizationId_fkey"
-            columns: ["organizationId"]
-            isOneToOne: false
-            referencedRelation: "organization"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       organization: {
         Row: {
@@ -117,6 +100,10 @@ export type Database = {
           logo: string | null
           name: string
           updatedAt: string
+          description: string | null
+          website: string | null
+          contactemail: string | null
+          state: string | null
         }
         Insert: {
           address?: string | null
@@ -127,6 +114,10 @@ export type Database = {
           logo?: string | null
           name: string
           updatedAt: string
+          description?: string | null
+          website?: string | null
+          contactemail?: string | null
+          state?: string | null
         }
         Update: {
           address?: string | null
@@ -137,6 +128,10 @@ export type Database = {
           logo?: string | null
           name?: string
           updatedAt?: string
+          description?: string | null
+          website?: string | null
+          contactemail?: string | null
+          state?: string | null
         }
         Relationships: []
       }
@@ -148,16 +143,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      api_key_status: "ACTIVE" | "INACTIVE"
-      billing_cycle: "MONTHLY" | "YEARLY"
-      content_status: "DRAFT" | "GENERATING" | "ERROR" | "PUBLISHED" | "ARCHIVED"
-      content_type: "TWITTER_THREAD" | "NEWSLETTER" | "FRANBOT" | "ENVIBOT" | "WRITING_ASSISTANT" | "FACT_CHECKING"
-      invoice_status: "DRAFT" | "ISSUED" | "PAID" | "VOID"
-      provider_ai: "OPENAI" | "GOOGLE" | "PERPLEXITY"
-      resource_status: "ACTIVE" | "INACTIVE" | "ARCHIVED" | "DELETED"
-      resource_type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"
-      role: "OWNER" | "WORKSPACE_ADMIN" | "USER"
-      subscription_status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" | "EXPIRED"
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
