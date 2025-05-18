@@ -1,82 +1,95 @@
 "use client"
 
 import { useState } from "react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { ApiKeyService } from "@/lib/services/api-key-service"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, Loader2, Trash2 } from "lucide-react"
+import { ApiKeyService, type ApiKey } from "@/lib/services/api-key-service"
 
 interface DeleteApiKeyModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  apiKeyId: string
-  providerName: string
-  onSuccess?: () => void
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  apiKey: ApiKey | null
 }
 
-export function DeleteApiKeyModal({ open, onOpenChange, apiKeyId, providerName, onSuccess }: DeleteApiKeyModalProps) {
+export function DeleteApiKeyModal({ isOpen, onClose, onSuccess, apiKey }: DeleteApiKeyModalProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
+    if (!apiKey) return
+
     setIsDeleting(true)
     setError(null)
 
     try {
-      const result = await ApiKeyService.deleteApiKey(apiKeyId)
+      const result = await ApiKeyService.deleteApiKey(apiKey.id)
 
       if (result.success) {
-        onOpenChange(false)
-        if (onSuccess) {
-          onSuccess()
-        }
+        onSuccess()
+        onClose()
       } else {
-        setError("No se pudo eliminar la integración. Inténtalo de nuevo.")
+        setError("Error al eliminar la clave API")
       }
-    } catch (err) {
-      console.error("Error al eliminar la clave API:", err)
-      setError(err instanceof Error ? err.message : "Error al eliminar la integración")
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar la clave API")
     } finally {
       setIsDeleting(false)
     }
   }
 
+  const getProviderName = (provider: string) => {
+    switch (provider) {
+      case "OPENAI":
+        return "OpenAI"
+      case "GOOGLE":
+        return "Google AI / Anthropic"
+      case "PERPLEXITY":
+        return "Perplexity AI"
+      default:
+        return provider
+    }
+  }
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-[400px] rounded-xl">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Eliminar integración</AlertDialogTitle>
-          <AlertDialogDescription>
-            ¿Estás seguro de que deseas eliminar la integración con <strong>{providerName}</strong>? Esta acción no se
-            puede deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center text-red-600">
+            <Trash2 className="h-5 w-5 mr-2" />
+            Eliminar Integración
+          </DialogTitle>
+        </DialogHeader>
 
-        {error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-lg flex items-center gap-2 text-sm">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
+        <div className="py-4">
+          <p className="mb-4">
+            ¿Estás seguro de que deseas eliminar la integración con{" "}
+            <strong>{apiKey ? getProviderName(apiKey.provider) : "este proveedor"}</strong>?
+          </p>
+          <p className="text-sm text-gray-500">
+            Esta acción no se puede deshacer. Se eliminará la clave API y todas las configuraciones asociadas.
+          </p>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault()
-              handleDelete()
-            }}
-            disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
+          {error && (
+            <div className="mt-4 p-3 rounded-md bg-red-50 text-red-700">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex space-x-2 sm:justify-between">
+          <Button variant="outline" onClick={onClose} disabled={isDeleting}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
             {isDeleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -85,9 +98,9 @@ export function DeleteApiKeyModal({ open, onOpenChange, apiKeyId, providerName, 
             ) : (
               "Eliminar"
             )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

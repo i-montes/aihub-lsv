@@ -1,8 +1,9 @@
 import { api } from "@/lib/api-client"
-import type { Database } from "@/lib/supabase/database.types"
+import type { Database } from "@/lib/supabase/database.types.ts"
 
 export type ApiKey = Database["public"]["Tables"]["api_key_table"]["Row"]
 export type ApiKeyProvider = Database["public"]["Enums"]["provider_ai"]
+export type ApiKeyStatus = Database["public"]["Enums"]["api_key_status"]
 
 export const ApiKeyService = {
   /**
@@ -52,12 +53,9 @@ export const ApiKeyService = {
   /**
    * Actualiza el estado de una clave API
    */
-  async updateApiKeyStatus(
-    id: string,
-    status: Database["public"]["Enums"]["api_key_status"],
-  ): Promise<{ success: boolean }> {
+  async updateApiKeyStatus(id: string, status: ApiKeyStatus): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.patch(`/integrations/${id}`, { status })
+      const response = await api.patch(`/integrations/${id}/status`, { status })
       return response.data
     } catch (error) {
       console.error("Error al actualizar estado de clave API:", error)

@@ -1,212 +1,273 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { ApiKeyService, type ApiKeyProvider } from "@/lib/services/api-key-service"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
-import { Constants } from "@/lib/supabase/database.types"
+import { ApiKeyService, type ApiKeyProvider } from "@/lib/services/api-key-service"
+import { Constants } from "@/lib/supabase/database.types.ts"
 
 interface AddApiKeyModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  excludeProviders?: ApiKeyProvider[]
+  defaultProvider?: ApiKeyProvider
 }
 
-export function AddApiKeyModal({ open, onOpenChange, onSuccess }: AddApiKeyModalProps) {
-  const [provider, setProvider] = useState<ApiKeyProvider | "">("")
+export function AddApiKeyModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  excludeProviders = [],
+  defaultProvider,
+}: AddApiKeyModalProps) {
+  const [provider, setProvider] = useState<ApiKeyProvider | "">(defaultProvider || "")
   const [apiKey, setApiKey] = useState("")
+  const [isVerifying, setIsVerifying] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<{
+    valid: boolean
+    message: string
+    models?: string[]
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const availableProviders = Constants.public.Enums.provider_ai.filter(
+    (p) => !excludeProviders.includes(p as ApiKeyProvider),
+  ) as ApiKeyProvider[]
 
-    // Validación básica
-    if (!provider) {
-      setError("Selecciona un proveedor de IA")
-      return
-    }
-
-    if (!apiKey.trim()) {
-      setError("Ingresa una clave API válida")
-      return
-    }
-
+  const resetForm = () => {
+    setProvider(defaultProvider || "")
+    setApiKey("")
+    setVerificationResult(null)
     setError(null)
-    setIsSubmitting(true)
+  }
+
+  const handleClose = () => {
+    resetForm()
+    onClose()
+  }
+
+  const verifyApiKey = async () => {
+    if (!provider || !apiKey.trim()) {
+      setError("Por favor selecciona un proveedor e ingresa una clave API")
+      return
+    }
+
+    setIsVerifying(true)
+    setError(null)
+    setVerificationResult(null)
 
     try {
-      // Primero verificamos si la clave es válida
-      const verifyResult = await ApiKeyService.verifyApiKey({
+      const result = await ApiKeyService.verifyApiKey({
         key: apiKey,
         provider: provider as ApiKeyProvider,
       })
 
-      if (!verifyResult.valid) {
-        setError("La clave API no es válida o no se pudo verificar")
-        setIsSubmitting(false)
-        return
-      }
+      setVerificationResult(result)
+      return result.valid
+    } catch (err: any) {
+      setError(err.message || "Error al verificar la clave API")
+      return false
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
-      // Si la clave es válida, la guardamos
+  const handleSubmit = async () => {
+    // Verify first if not already verified or if verification failed
+    if (!verificationResult?.valid) {
+      const isValid = await verifyApiKey()
+      if (!isValid) return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
       const result = await ApiKeyService.createApiKey({
         key: apiKey,
         provider: provider as ApiKeyProvider,
-        models: verifyResult.models,
+        models: verificationResult?.models,
       })
 
       if (result.success) {
-        setSuccess(true)
-        setApiKey("")
-        setProvider("")
-
-        // Después de 1.5 segundos, cerramos el modal y notificamos el éxito
-        setTimeout(() => {
-          onOpenChange(false)
-          setSuccess(false)
-          if (onSuccess) onSuccess()
-        }, 1500)
+        onSuccess()
+        handleClose()
+      } else {
+        setError("Error al guardar la clave API")
       }
-    } catch (err) {
-      console.error("Error al agregar clave API:", err)
-      setError(err instanceof Error ? err.message : "Error al agregar la clave API")
+    } catch (err: any) {
+      setError(err.message || "Error al guardar la clave API")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const resetForm = () => {
-    setProvider("")
-    setApiKey("")
-    setError(null)
-    setSuccess(false)
+  const getProviderInstructions = (provider: ApiKeyProvider | "") => {
+    switch (provider) {
+      case "OPENAI":
+        return "Ingresa tu clave API de OpenAI. Puedes encontrarla en tu panel de OpenAI en https://platform.openai.com/api-keys"
+      case "GOOGLE":
+        return "Ingresa tu clave API de Google AI Studio. Puedes crearla en https://makersuite.google.com/app/apikeys"
+      case "PERPLEXITY":
+        return "Ingresa tu clave API de Perplexity. Puedes encontrarla en https://www.perplexity.ai/settings/api"
+      default:
+        return "Selecciona un proveedor de IA para continuar"
+    }
   }
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      resetForm()
+  const getProviderPlaceholder = (provider: ApiKeyProvider | "") => {
+    switch (provider) {
+      case "OPENAI":
+        return "sk-..."
+      case "GOOGLE":
+        return "AIza..."
+      case "PERPLEXITY":
+        return "pplx-..."
+      default:
+        return "Ingresa tu clave API"
     }
-    onOpenChange(newOpen)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="text-xl font-bold">Añadir nueva clave API</DialogTitle>
-          <DialogDescription>
-            Conecta tu cuenta con un proveedor de IA para utilizar sus modelos en la plataforma.
-          </DialogDescription>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Añadir Modelo de IA</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="px-6 py-4 space-y-4">
-            {error && (
-              <div className="bg-red-50 text-red-700 p-3 rounded-lg flex items-center gap-2 text-sm">
-                <AlertCircle size={16} />
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="bg-green-50 text-green-700 p-3 rounded-lg flex items-center gap-2 text-sm">
-                <CheckCircle2 size={16} />
-                ¡Clave API añadida correctamente!
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="provider">Proveedor de IA</Label>
-              <Select value={provider} onValueChange={(value) => setProvider(value as ApiKeyProvider)}>
-                <SelectTrigger id="provider" className="w-full">
-                  <SelectValue placeholder="Selecciona un proveedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Proveedores disponibles</SelectLabel>
-                    {Constants.public.Enums.provider_ai.map((provider) => (
-                      <SelectItem key={provider} value={provider}>
-                        {provider === "OPENAI"
-                          ? "OpenAI"
-                          : provider === "GOOGLE"
-                            ? "Google AI (Gemini)"
-                            : provider === "PERPLEXITY"
-                              ? "Perplexity AI"
-                              : provider}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">Clave API</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  provider === "OPENAI"
-                    ? "sk-..."
-                    : provider === "GOOGLE"
-                      ? "AIza..."
-                      : provider === "PERPLEXITY"
-                        ? "pplx-..."
-                        : "Ingresa tu clave API"
-                }
-                className="font-mono"
-              />
-              <p className="text-xs text-gray-500">
-                {provider === "OPENAI" &&
-                  "Encuentra tu clave API en el panel de OpenAI: https://platform.openai.com/api-keys"}
-                {provider === "GOOGLE" &&
-                  "Obtén tu clave API de Google AI Studio: https://makersuite.google.com/app/apikey"}
-                {provider === "PERPLEXITY" && "Genera tu clave API en: https://www.perplexity.ai/settings/api"}
-                {!provider && "Selecciona un proveedor para ver instrucciones específicas"}
-              </p>
-            </div>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="provider">Proveedor de IA</Label>
+            <Select
+              value={provider}
+              onValueChange={(value) => {
+                setProvider(value as ApiKeyProvider)
+                setVerificationResult(null)
+              }}
+              disabled={isVerifying || isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un proveedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableProviders.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    Todos los proveedores ya están conectados
+                  </SelectItem>
+                ) : (
+                  availableProviders.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p === "OPENAI" ? "OpenAI" : p === "GOOGLE" ? "Google AI / Anthropic" : "Perplexity AI"}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
-          <DialogFooter className="bg-gray-50 px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !provider || !apiKey.trim()}>
-              {isSubmitting ? (
+          <div className="space-y-2">
+            <Label htmlFor="apiKey">Clave API</Label>
+            <Input
+              id="apiKey"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value)
+                setVerificationResult(null)
+              }}
+              placeholder={getProviderPlaceholder(provider as ApiKeyProvider)}
+              disabled={isVerifying || isSubmitting || !provider}
+              type="password"
+            />
+            <p className="text-sm text-gray-500">{getProviderInstructions(provider as ApiKeyProvider)}</p>
+          </div>
+
+          {verificationResult && (
+            <div
+              className={`p-3 rounded-md ${
+                verificationResult.valid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mt-0.5">
+                  {verificationResult.valid ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                  )}
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{verificationResult.message}</p>
+                  {verificationResult.valid && verificationResult.models && (
+                    <div className="mt-1">
+                      <p className="text-sm font-medium">Modelos disponibles:</p>
+                      <ul className="mt-1 text-sm list-disc list-inside">
+                        {verificationResult.models.map((model) => (
+                          <li key={model}>{model}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-3 rounded-md bg-red-50 text-red-700">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex space-x-2 sm:justify-between">
+          <Button variant="outline" onClick={handleClose} disabled={isVerifying || isSubmitting}>
+            Cancelar
+          </Button>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={verifyApiKey}
+              disabled={!provider || !apiKey || isVerifying || isSubmitting}
+            >
+              {isVerifying ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Verificando...
                 </>
               ) : (
-                "Añadir clave API"
+                "Verificar"
               )}
             </Button>
-          </DialogFooter>
-        </form>
+            <Button
+              onClick={handleSubmit}
+              disabled={
+                !provider || !apiKey || isVerifying || isSubmitting || (verificationResult && !verificationResult.valid)
+              }
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar"
+              )}
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
