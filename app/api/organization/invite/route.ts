@@ -55,8 +55,41 @@ export const POST = createApiHandler(async (req) => {
       return NextResponse.json({ error: inviteError.message }, { status: 500 })
     }
 
+    // Verificar que el usuario se haya creado correctamente
+    if (!user || !user.user || !user.user.id) {
+      return NextResponse.json(
+        {
+          error: "Usuario invitado pero no se pudo obtener su ID para actualizar el perfil",
+        },
+        { status: 500 },
+      )
+    }
+
+    // Actualizar el perfil del usuario con el organizationId
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        organizationId,
+        role: role || "USER",
+        name: name || "",
+        lastname: lastname || "",
+      })
+      .eq("id", user.user.id)
+
+    if (updateError) {
+      console.error("Error updating user profile:", updateError)
+      return NextResponse.json(
+        {
+          message: "Invitación enviada pero hubo un error al actualizar el perfil",
+          error: updateError.message,
+          user,
+        },
+        { status: 200 },
+      ) // Devolvemos 200 porque la invitación fue exitosa
+    }
+
     return NextResponse.json({
-      message: "Invitación enviada correctamente",
+      message: "Invitación enviada y perfil actualizado correctamente",
       user,
     })
   } catch (error: any) {
