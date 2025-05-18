@@ -15,17 +15,20 @@ export const GET = createApiHandler(async (req: NextRequest) => {
     return errorResponse("Not authenticated", 401)
   }
 
-  // Use the user metadata instead of querying the profiles table directly
-  // This avoids the problematic RLS policy
-  const profile = {
-    id: user.id,
-    email: user.email,
-    name: user.user_metadata?.name || null,
-    lastname: user.user_metadata?.lastname || null,
-    avatar: user.user_metadata?.avatar || null,
-    role: user.user_metadata?.role || null,
-    organizationId: user.user_metadata?.organizationId || null,
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, email, name, lastname, avatar, role, organizationId")
+    .eq("id", user.id)
+    .single()
+
+  if (profileError) {
+    // If the profile is not found, return a 404 error
+    if (profileError.code === "PGRST116") {
+      return errorResponse("Profile not found", 404)
+    }
+    // If there is any other error, return a 500 error
+    return errorResponse("Internal server error", 500)
   }
 
-  return successResponse({ profile })
+  return successResponse({ profile: profileData })
 })

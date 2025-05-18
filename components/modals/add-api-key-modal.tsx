@@ -66,9 +66,8 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
       return
     }
 
-    console.log("PERFIL: ", profile)
 
-    if (!user?.organizationId) {
+    if (!profile?.organizationId) {
       setError("No se pudo determinar la organización del usuario")
       return
     }
@@ -98,7 +97,7 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
           key: apiKey,
           provider: provider as ApiKeyProvider,
           models: verifyResult.models,
-          organizationId: user.organizationId,
+          organizationId: profile.organizationId,
           status: "ACTIVE",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

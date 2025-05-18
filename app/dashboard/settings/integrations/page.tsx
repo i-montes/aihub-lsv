@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Trash2, Settings, Power, PowerOff } from "lucide-react"
 import { ApiKeyService, type ApiKey, type ApiKeyStatus } from "@/lib/services/api-key-service"
 import { AddApiKeyModal } from "@/components/modals/add-api-key-modal"
-import { DeleteApiKeyModal } from "@/components/modals/delete-api-key-modal"
 import { ToggleApiKeyStatusModal } from "@/components/modals/toggle-api-key-status-modal"
 import {
   DropdownMenu,
@@ -15,12 +14,16 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "@/components/ui/use-toast"
+import { getSupabaseClient } from "@/lib/supabase/client"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function IntegrationsSettingsPage() {
+  const { user } = useAuth()
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const openAddModal = (provider?: string) => {
     if (provider) {
@@ -62,6 +65,88 @@ export default function IntegrationsSettingsPage() {
     setIsDeleteModalOpen(true)
   }
 
+  const handleDeleteConfirm = async () => {
+    if (!selectedApiKey) return
+
+    setIsDeleting(true)
+    try {
+      const supabase = await getSupabaseClient()
+
+      // Verificar que el usuario tenga permisos para eliminar claves API
+      const { data: userData } = await supabase
+        .from("profiles")
+        .select("organizationId, role")
+        .eq("id", user?.id)
+        .single()
+
+      if (!userData?.organizationId) {
+        toast({
+          title: "Error",
+          description: "Usuario sin organización",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (userData.role !== "OWNER" && userData.role !== "ADMIN") {
+        toast({
+          title: "Error",
+          description: "No tienes permisos para eliminar integraciones",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Verificar que la clave API pertenece a la organización del usuario
+      const { data: apiKey } = await supabase
+        .from("api_key_table")
+        .select("*")
+        .eq("id", selectedApiKey.id)
+        .eq("organizationId", userData.organizationId)
+        .single()
+
+      if (!apiKey) {
+        toast({
+          title: "Error",
+          description: "Clave API no encontrada",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Eliminar la clave API
+      const { error } = await supabase.from("api_key_table").delete().eq("id", selectedApiKey.id)
+
+      if (error) {
+        console.error("Error al eliminar clave API:", error)
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la integración. Inténtalo de nuevo.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Éxito",
+        description: `La integración con ${getProviderDisplayName(selectedApiKey.provider)} ha sido eliminada.`,
+      })
+
+      // Cerrar el modal y actualizar la lista
+      setIsDeleteModalOpen(false)
+      fetchApiKeys()
+    } catch (error) {
+      console.error("Error al eliminar clave API:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la integración. Inténtalo de nuevo.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleToggleStatusClick = (id: string, provider: string, status: ApiKeyStatus) => {
     setSelectedApiKey({ id, provider, status })
     setIsToggleStatusModalOpen(true)
@@ -75,6 +160,8 @@ export default function IntegrationsSettingsPage() {
         return "Google AI"
       case "PERPLEXITY":
         return "Perplexity"
+      case "ANTHROPIC":
+        return "Anthropic"
       default:
         return provider
     }
@@ -127,6 +214,25 @@ export default function IntegrationsSettingsPage() {
             />
           </svg>
         )
+      case "ANTHROPIC":
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+              fill="currentColor"
+              fillOpacity="0.2"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M8 12H16M12 8V16"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )
       default:
         return <Sparkles size={24} />
     }
@@ -144,6 +250,8 @@ export default function IntegrationsSettingsPage() {
         return "from-purple-50 to-indigo-50 border-purple-100"
       case "PERPLEXITY":
         return "from-blue-50 to-sky-50 border-blue-100"
+      case "ANTHROPIC":
+        return "from-violet-50 to-purple-50 border-violet-100"
       default:
         return "from-gray-50 to-gray-100 border-gray-200"
     }
@@ -161,6 +269,8 @@ export default function IntegrationsSettingsPage() {
         return "from-purple-500 to-indigo-600"
       case "PERPLEXITY":
         return "from-blue-500 to-sky-600"
+      case "ANTHROPIC":
+        return "from-violet-500 to-purple-600"
       default:
         return "from-gray-500 to-gray-600"
     }
@@ -178,6 +288,8 @@ export default function IntegrationsSettingsPage() {
         return "bg-purple-100 text-purple-700"
       case "PERPLEXITY":
         return "bg-blue-100 text-blue-700"
+      case "ANTHROPIC":
+        return "bg-violet-100 text-violet-700"
       default:
         return "bg-gray-100 text-gray-700"
     }
@@ -195,6 +307,8 @@ export default function IntegrationsSettingsPage() {
         return "border-purple-200 text-purple-700 hover:bg-purple-50"
       case "PERPLEXITY":
         return "border-blue-200 text-blue-700 hover:bg-blue-50"
+      case "ANTHROPIC":
+        return "border-violet-200 text-violet-700 hover:bg-violet-50"
       default:
         return "border-gray-200 text-gray-700 hover:bg-gray-50"
     }
@@ -208,6 +322,8 @@ export default function IntegrationsSettingsPage() {
         return "Gemini Pro"
       case "PERPLEXITY":
         return "pplx-70b"
+      case "ANTHROPIC":
+        return "Claude 3"
       default:
         return "Modelo"
     }
@@ -221,6 +337,8 @@ export default function IntegrationsSettingsPage() {
         return ["Análisis de documentos", "Resúmenes"]
       case "PERPLEXITY":
         return ["Búsqueda en tiempo real", "Citaciones"]
+      case "ANTHROPIC":
+        return ["Razonamiento avanzado", "Instrucciones complejas"]
       default:
         return ["IA generativa"]
     }
@@ -249,10 +367,18 @@ export default function IntegrationsSettingsPage() {
                   }`}
                 >
                   {apiKey.status === "INACTIVE" && (
-                    <div className="absolute inset-0 bg-white bg-opacity-40 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-white bg-opacity-40 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-3">
                       <div className="bg-white bg-opacity-80 px-3 py-1.5 rounded-full text-gray-600 text-sm font-medium shadow-sm border border-gray-200">
                         Integración desactivada
                       </div>
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full px-4 py-1 text-sm flex items-center gap-1.5 shadow-sm"
+                        onClick={() => handleToggleStatusClick(apiKey.id, apiKey.provider, apiKey.status)}
+                      >
+                        <Power size={14} />
+                        Activar integración
+                      </Button>
                     </div>
                   )}
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-gray-400/10 to-gray-400/20 rounded-bl-[100px] -z-0"></div>
@@ -469,6 +595,46 @@ export default function IntegrationsSettingsPage() {
                 </div>
               </div>
             )}
+
+            {/* Anthropic */}
+            {!apiKeys.some((key) => key.provider === "ANTHROPIC") && (
+              <div className="group relative overflow-hidden bg-white rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md hover:border-violet-200">
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                          d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+                          fill="currentColor"
+                          fillOpacity="0.2"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                        <path
+                          d="M8 12H16M12 8V16"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold">Anthropic</p>
+                      <p className="text-xs text-gray-500">Claude 3 y otros modelos</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-lg"
+                    onClick={() => openAddModal("ANTHROPIC")}
+                  >
+                    Conectar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -486,13 +652,33 @@ export default function IntegrationsSettingsPage() {
 
       {/* Modal para eliminar clave API */}
       {selectedApiKey && (
-        <DeleteApiKeyModal
-          open={isDeleteModalOpen}
-          onOpenChange={setIsDeleteModalOpen}
-          apiKeyId={selectedApiKey.id}
-          providerName={getProviderDisplayName(selectedApiKey.provider)}
-          onSuccess={fetchApiKeys}
-        />
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          style={{ display: isDeleteModalOpen ? "flex" : "none" }}
+        >
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Eliminar integración</h3>
+            <p className="text-gray-600 mb-6">
+              ¿Estás seguro de que deseas eliminar la integración con {getProviderDisplayName(selectedApiKey.provider)}?
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)} disabled={isDeleting}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] mr-2"></span>
+                    Eliminando...
+                  </>
+                ) : (
+                  "Eliminar"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal para activar/desactivar clave API */}
