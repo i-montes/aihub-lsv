@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseRouteHandler } from "@/lib/supabase/server"
-import { handleApiError } from "@/app/api/base-handler"
+import { errorResponse } from "@/app/api/base-handler"
 
 export async function GET() {
   try {
@@ -32,7 +32,7 @@ export async function GET() {
     } = await supabase.auth.admin.listUsers()
 
     if (usersError) {
-      return handleApiError(usersError, "Error al obtener usuarios")
+      return errorResponse("Error al obtener usuarios", 400, usersError)
     }
 
     // Obtener todos los perfiles para poder filtrar por organización
@@ -42,7 +42,7 @@ export async function GET() {
       .eq("organization_id", organizationId)
 
     if (profilesError) {
-      return handleApiError(profilesError, "Error al obtener perfiles")
+      return errorResponse("Error al obtener perfiles", 400, profilesError)
     }
 
     // Crear un mapa de perfiles por ID para búsqueda rápida
@@ -74,8 +74,8 @@ export async function GET() {
       })
 
     return NextResponse.json({ invitations: pendingInvitations })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching pending invitations:", error)
-    return handleApiError(error)
+    return errorResponse(error.message || "Error al obtener invitaciones pendientes", 500)
   }
 }
