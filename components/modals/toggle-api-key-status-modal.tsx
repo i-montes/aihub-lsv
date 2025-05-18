@@ -1,115 +1,95 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { AlertCircle, Loader2, Power, PowerOff } from "lucide-react"
-import { ApiKeyService, type ApiKey, type ApiKeyStatus } from "@/lib/services/api-key-service"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ApiKeyService, type ApiKeyStatus } from "@/lib/services/api-key-service"
+import { Loader2, AlertCircle } from "lucide-react"
 
 interface ToggleApiKeyStatusModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSuccess: () => void
-  apiKey: ApiKey | null
-  newStatus: ApiKeyStatus
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  apiKeyId: string
+  providerName: string
+  currentStatus: ApiKeyStatus
+  onSuccess?: () => void
 }
 
 export function ToggleApiKeyStatusModal({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
+  apiKeyId,
+  providerName,
+  currentStatus,
   onSuccess,
-  apiKey,
-  newStatus,
 }: ToggleApiKeyStatusModalProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isActivating = newStatus === "ACTIVE"
+  const isActivating = currentStatus === "INACTIVE"
+  const newStatus: ApiKeyStatus = isActivating ? "ACTIVE" : "INACTIVE"
 
   const handleToggleStatus = async () => {
-    if (!apiKey) return
-
     setIsUpdating(true)
     setError(null)
 
     try {
-      const result = await ApiKeyService.updateApiKeyStatus(apiKey.id, newStatus)
+      const result = await ApiKeyService.updateApiKeyStatus(apiKeyId, newStatus)
 
       if (result.success) {
-        onSuccess()
-        onClose()
+        onOpenChange(false)
+        if (onSuccess) {
+          onSuccess()
+        }
       } else {
-        setError(`Error al ${isActivating ? "activar" : "desactivar"} la clave API`)
+        setError("No se pudo actualizar el estado de la integración. Inténtalo de nuevo.")
       }
-    } catch (err: any) {
-      setError(err.message || `Error al ${isActivating ? "activar" : "desactivar"} la clave API`)
+    } catch (err) {
+      console.error("Error al actualizar el estado de la clave API:", err)
+      setError(err instanceof Error ? err.message : "Error al actualizar el estado de la integración")
     } finally {
       setIsUpdating(false)
     }
   }
 
-  const getProviderName = (provider: string) => {
-    switch (provider) {
-      case "OPENAI":
-        return "OpenAI"
-      case "GOOGLE":
-        return "Google AI / Anthropic"
-      case "PERPLEXITY":
-        return "Perplexity AI"
-      default:
-        return provider
-    }
-  }
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className={`flex items-center ${isActivating ? "text-green-600" : "text-amber-600"}`}>
-            {isActivating ? <Power className="h-5 w-5 mr-2" /> : <PowerOff className="h-5 w-5 mr-2" />}
-            {isActivating ? "Activar Integración" : "Desactivar Integración"}
-          </DialogTitle>
-        </DialogHeader>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-[400px] rounded-xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{isActivating ? "Activar integración" : "Desactivar integración"}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {isActivating
+              ? `¿Estás seguro de que deseas activar la integración con ${providerName}? Esto permitirá que tu aplicación utilice esta integración.`
+              : `¿Estás seguro de que deseas desactivar la integración con ${providerName}? Tu aplicación no podrá utilizar esta integración mientras esté desactivada.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-        <div className="py-4">
-          <p className="mb-4">
-            ¿Estás seguro de que deseas {isActivating ? "activar" : "desactivar"} la integración con{" "}
-            <strong>{apiKey ? getProviderName(apiKey.provider) : "este proveedor"}</strong>?
-          </p>
-          {isActivating ? (
-            <p className="text-sm text-gray-500">
-              Al activar esta integración, se podrán utilizar los modelos de IA de este proveedor en la plataforma.
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Al desactivar esta integración, no se podrán utilizar los modelos de IA de este proveedor hasta que se
-              vuelva a activar. La configuración se mantendrá guardada.
-            </p>
-          )}
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-lg flex items-center gap-2 text-sm">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
 
-          {error && (
-            <div className="mt-4 p-3 rounded-md bg-red-50 text-red-700">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="flex space-x-2 sm:justify-between">
-          <Button variant="outline" onClick={onClose} disabled={isUpdating}>
-            Cancelar
-          </Button>
-          <Button
-            variant={isActivating ? "default" : "secondary"}
-            onClick={handleToggleStatus}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isUpdating}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault()
+              handleToggleStatus()
+            }}
             disabled={isUpdating}
-            className={isActivating ? "bg-green-600 hover:bg-green-700" : "bg-amber-600 hover:bg-amber-700 text-white"}
+            className={
+              isActivating ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"
+            }
           >
             {isUpdating ? (
               <>
@@ -121,9 +101,9 @@ export function ToggleApiKeyStatusModal({
             ) : (
               "Desactivar"
             )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import type { Database } from "@/lib/supabase/database.types.ts"
+import type { Database } from "@/lib/supabase/database.types"
 
 // Variable para almacenar la instancia del cliente
 let supabaseClient: ReturnType<typeof createClientComponentClient<Database>> | null = null

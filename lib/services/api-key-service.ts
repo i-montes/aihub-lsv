@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client"
-import type { Database } from "@/lib/supabase/database.types.ts"
+import type { Database } from "@/lib/supabase/database.types"
 
 export type ApiKey = Database["public"]["Tables"]["api_key_table"]["Row"]
 export type ApiKeyProvider = Database["public"]["Enums"]["provider_ai"]

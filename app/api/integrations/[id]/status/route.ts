@@ -1,105 +1,90 @@
-import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseServer } from "@/lib/supabase/server"
-import type { NextRequest } from "next/server"
-import type { Database } from "@/lib/supabase/database.types.ts"
+import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
+import type { Database } from "@/lib/supabase/database.types"
 
-type ApiKeyStatus = Database["public"]["Enums"]["api_key_status"]
+/**
+ * PATCH /api/integrations/[id]/status
+ * Actualiza el estado de una clave API (activar/desactivar)
+ */
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await getSupabaseRouteHandler()
+    const { data: session } = await supabase.auth.getSession()
 
-export const PATCH = createApiHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
-  const id = params.id
-  const body = await req.json()
-  const { status } = body as { status: ApiKeyStatus }
+    if (!session.session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
 
-  if (!status || !["ACTIVE", "INACTIVE"].includes(status)) {
-    return errorResponse("Valid status (ACTIVE or INACTIVE) is required", 400)
-  }
+    // Obtener el ID de la organización del usuario actual
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("organizationId, role")
+      .eq("id", session.session.user.id)
+      .single()
 
-  const supabase = await getSupabaseServer()
+    if (!userData?.organizationId) {
+      return NextResponse.json({ error: "Usuario sin organización" }, { status: 400 })
+    }
 
-  // Get the current session
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    // Verificar si el usuario tiene permisos para actualizar claves API
+    if (userData.role !== "OWNER" && userData.role !== "ADMIN") {
+      return NextResponse.json({ error: "Permisos insuficientes" }, { status: 403 })
+    }
 
-  if (sessionError || !session) {
-    return errorResponse("Not authenticated", 401)
-  }
+    const body = await request.json()
+    const { status } = body
 
-  // Get the profile to find organizationId and role
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organizationId, role")
-    .eq("id", session.user.id)
-    .single()
+    if (!status || !["ACTIVE", "INACTIVE"].includes(status)) {
+      return NextResponse.json({ error: "Estado no válido" }, { status: 400 })
+    }
 
-  if (profileError) {
-    return errorResponse(profileError.message, 400)
-  }
+    // Verificar que la clave API pertenece a la organización del usuario
+    const { data: apiKey } = await supabase
+      .from("api_key_table")
+      .select("*")
+      .eq("id", params.id)
+      .eq("organizationId", userData.organizationId)
+      .single()
 
-  if (!profile?.organizationId) {
-    return errorResponse("User is not part of an organization", 400)
-  }
+    if (!apiKey) {
+      return NextResponse.json({ error: "Clave API no encontrada" }, { status: 404 })
+    }
 
-  // Check if user has permission to update API keys
-  if (profile.role !== "OWNER" && profile.role !== "ADMIN") {
-    return errorResponse("Only organization owners or admins can update API keys", 403)
-  }
+    // Actualizar el estado de la clave API
+    const { error } = await supabase
+      .from("api_key_table")
+      .update({
+        status: status as Database["public"]["Enums"]["api_key_status"],
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", params.id)
 
-  // Get the API key to check if it belongs to the user's organization
-  const { data: apiKey, error: apiKeyError } = await supabase
-    .from("api_key_table")
-    .select("organizationId, provider, status")
-    .eq("id", id)
-    .single()
+    if (error) {
+      console.error("Error al actualizar estado de clave API:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
-  if (apiKeyError) {
-    return errorResponse(apiKeyError.message, 400)
-  }
+    // Registrar la actividad
+    await supabase.from("activity").insert({
+      id: crypto.randomUUID(),
+      action: status === "ACTIVE" ? "INTEGRATION_ACTIVATED" : "INTEGRATION_DEACTIVATED",
+      userId: session.session.user.id,
+      details: {
+        integrationId: params.id,
+        provider: apiKey.provider,
+        status,
+      },
+      createdAt: new Date().toISOString(),
+      ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      userAgent: request.headers.get("user-agent") || "unknown",
+    })
 
-  if (apiKey.organizationId !== profile.organizationId) {
-    return errorResponse("You don't have permission to update this API key", 403)
-  }
-
-  // If the status is already what we want to set it to, return early
-  if (apiKey.status === status) {
-    return successResponse({
+    return NextResponse.json({
       success: true,
-      message: `API key is already ${status === "ACTIVE" ? "active" : "inactive"}`,
+      message: status === "ACTIVE" ? "Integración activada correctamente" : "Integración desactivada correctamente",
     })
+  } catch (error) {
+    console.error(`Error en la ruta PATCH /api/integrations/${params.id}/status:`, error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
-
-  // Update the API key status
-  const { error: updateError } = await supabase
-    .from("api_key_table")
-    .update({
-      status,
-      updatedAt: new Date().toISOString(),
-    })
-    .eq("id", id)
-
-  if (updateError) {
-    return errorResponse(updateError.message, 400)
-  }
-
-  // Log the activity
-  await supabase.from("activity").insert({
-    action: status === "ACTIVE" ? "API_KEY_ACTIVATED" : "API_KEY_DEACTIVATED",
-    userId: session.user.id,
-    details: {
-      provider: apiKey.provider,
-      timestamp: new Date().toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
-    userAgent: req.headers.get("user-agent") || "unknown",
-  })
-
-  return successResponse({
-    success: true,
-    message:
-      status === "ACTIVE"
-        ? "API key activated successfully"
-        : "API key deactivated successfully. You can reactivate it later if needed.",
-  })
-})
+}

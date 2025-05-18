@@ -1,79 +1,129 @@
-import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseServer } from "@/lib/supabase/server"
-import type { NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
+import type { Database } from "@/lib/supabase/database.types"
 
-export const DELETE = createApiHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
-  const id = params.id
+/**
+ * PATCH /api/integrations/[id]
+ * Actualiza el estado de una clave API
+ */
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await getSupabaseRouteHandler()
+    const { data: session } = await supabase.auth.getSession()
 
-  const supabase = await getSupabaseServer()
+    if (!session.session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
 
-  // Get the current session
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    // Obtener el ID de la organización del usuario actual
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("organizationId, role")
+      .eq("id", session.session.user.id)
+      .single()
 
-  if (sessionError || !session) {
-    return errorResponse("Not authenticated", 401)
+    if (!userData?.organizationId) {
+      return NextResponse.json({ error: "Usuario sin organización" }, { status: 400 })
+    }
+
+    // Verificar si el usuario tiene permisos para actualizar claves API
+    if (userData.role !== "OWNER" && userData.role !== "ADMIN") {
+      return NextResponse.json({ error: "Permisos insuficientes" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { status } = body
+
+    if (!status) {
+      return NextResponse.json({ error: "Falta el campo status" }, { status: 400 })
+    }
+
+    // Verificar que la clave API pertenece a la organización del usuario
+    const { data: apiKey } = await supabase
+      .from("api_key_table")
+      .select("*")
+      .eq("id", params.id)
+      .eq("organizationId", userData.organizationId)
+      .single()
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "Clave API no encontrada" }, { status: 404 })
+    }
+
+    // Actualizar el estado de la clave API
+    const { error } = await supabase
+      .from("api_key_table")
+      .update({
+        status,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", params.id)
+
+    if (error) {
+      console.error("Error al actualizar clave API:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error(`Error en la ruta PATCH /api/integrations/${params.id}:`, error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
+}
 
-  // Get the profile to find organizationId and role
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organizationId, role")
-    .eq("id", session.user.id)
-    .single()
+/**
+ * DELETE /api/integrations/[id]
+ * Elimina una clave API
+ */
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await getSupabaseRouteHandler()
+    const { data: session } = await supabase.auth.getSession()
 
-  if (profileError) {
-    return errorResponse(profileError.message, 400)
+    if (!session.session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    // Obtener el ID de la organización del usuario actual
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("organizationId, role")
+      .eq("id", session.session.user.id)
+      .single()
+
+    if (!userData?.organizationId) {
+      return NextResponse.json({ error: "Usuario sin organización" }, { status: 400 })
+    }
+
+    // Verificar si el usuario tiene permisos para eliminar claves API
+    if (userData.role !== "OWNER" && userData.role !== "ADMIN") {
+      return NextResponse.json({ error: "Permisos insuficientes" }, { status: 403 })
+    }
+
+    // Verificar que la clave API pertenece a la organización del usuario
+    const { data: apiKey } = await supabase
+      .from("api_key_table")
+      .select("*")
+      .eq("id", params.id)
+      .eq("organizationId", userData.organizationId)
+      .single()
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "Clave API no encontrada" }, { status: 404 })
+    }
+
+    // Eliminar la clave API
+    const { error } = await supabase.from("api_key_table").delete().eq("id", params.id)
+
+    if (error) {
+      console.error("Error al eliminar clave API:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error(`Error en la ruta DELETE /api/integrations/${params.id}:`, error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
-
-  if (!profile?.organizationId) {
-    return errorResponse("User is not part of an organization", 400)
-  }
-
-  // Check if user has permission to delete API keys
-  if (profile.role !== "OWNER" && profile.role !== "ADMIN") {
-    return errorResponse("Only organization owners or admins can delete API keys", 403)
-  }
-
-  // Get the API key to check if it belongs to the user's organization
-  const { data: apiKey, error: apiKeyError } = await supabase
-    .from("api_key_table")
-    .select("organizationId, provider")
-    .eq("id", id)
-    .single()
-
-  if (apiKeyError) {
-    return errorResponse(apiKeyError.message, 400)
-  }
-
-  if (apiKey.organizationId !== profile.organizationId) {
-    return errorResponse("You don't have permission to delete this API key", 403)
-  }
-
-  // Delete the API key
-  const { error: deleteError } = await supabase.from("api_key_table").delete().eq("id", id)
-
-  if (deleteError) {
-    return errorResponse(deleteError.message, 400)
-  }
-
-  // Log the activity
-  await supabase.from("activity").insert({
-    action: "API_KEY_DELETED",
-    userId: session.user.id,
-    details: {
-      provider: apiKey.provider,
-      timestamp: new Date().toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
-    userAgent: req.headers.get("user-agent") || "unknown",
-  })
-
-  return successResponse({
-    success: true,
-    message: "API key deleted successfully",
-  })
-})
+}

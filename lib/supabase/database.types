@@ -34,3 +34,20 @@ export type Database = {
     }
   }
 }
+
+export const Constants = {
+  public: {
+    Enums: {
+      api_key_status: ["ACTIVE", "INACTIVE"],
+      billing_cycle: ["MONTHLY", "YEARLY"],
+      content_status: ["DRAFT", "GENERATING", "ERROR", "PUBLISHED", "ARCHIVED"],
+      content_type: ["TWITTER_THREAD", "NEWSLETTER", "FRANBOT", "ENVIBOT", "WRITING_ASSISTANT", "FACT_CHECKING"],
+      invoice_status: ["DRAFT", "ISSUED", "PAID", "VOID"],
+      provider_ai: ["OPENAI", "GOOGLE", "PERPLEXITY"],
+      resource_status: ["ACTIVE", "INACTIVE", "ARCHIVED", "DELETED"],
+      resource_type: ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT"],
+      role: ["OWNER", "ADMIN", "USER"],
+      subscription_status: ["ACTIVE", "PAST_DUE", "CANCELED", "TRIALING", "EXPIRED"],
+    },
+  },
+} as const

@@ -1,53 +1,52 @@
-import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import type { NextRequest } from "next/server"
-import type { Database } from "@/lib/supabase/database.types.ts"
+import { type NextRequest, NextResponse } from "next/server"
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
+import type { Database } from "@/lib/supabase/database.types"
 
-type ApiKeyProvider = Database["public"]["Enums"]["provider_ai"]
-
-export const POST = createApiHandler(async (req: NextRequest) => {
-  const body = await req.json()
-  const { key, provider } = body as { key: string; provider: ApiKeyProvider }
-
-  if (!key || !provider) {
-    return errorResponse("Key and provider are required", 400)
-  }
-
+/**
+ * POST /api/integrations/verify
+ * Verifica si una clave API es válida
+ */
+export async function POST(request: NextRequest) {
   try {
-    // Simulate API key verification
-    // In a real implementation, you would call the provider's API to verify the key
-    await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate network delay
+    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const { data: session } = await supabase.auth.getSession()
 
-    let valid = false
-    let models: string[] = []
-
-    // Simple validation based on key format and length
-    // In a real implementation, you would make an actual API call to verify
-    switch (provider) {
-      case "OPENAI":
-        valid = key.startsWith("sk-") && key.length > 20
-        models = valid ? ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"] : []
-        break
-      case "GOOGLE":
-        valid = key.length > 15
-        models = valid ? ["gemini-pro", "gemini-pro-vision", "claude-3-opus"] : []
-        break
-      case "PERPLEXITY":
-        valid = key.startsWith("pplx-") && key.length > 20
-        models = valid ? ["llama-3-70b", "mixtral-8x7b", "sonar-small-online"] : []
-        break
-      default:
-        return errorResponse(`Unsupported provider: ${provider}`, 400)
+    if (!session.session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    return successResponse({
-      valid,
-      models: valid ? models : undefined,
-      message: valid
-        ? `${provider} API key is valid`
-        : `Invalid ${provider} API key format. Please check and try again.`,
-    })
-  } catch (error: any) {
-    console.error(`Error verifying ${provider} API key:`, error)
-    return errorResponse(error.message || `Error verifying ${provider} API key`, 500)
+    const body = await request.json()
+    const { key, provider } = body
+
+    if (!key || !provider) {
+      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    }
+
+    // Aquí implementaríamos la lógica para verificar la clave API con el proveedor correspondiente
+    // Por ahora, simulamos una verificación básica
+
+    let isValid = false
+    let models: string[] = []
+
+    // Verificación simulada basada en el formato de la clave
+    if (provider === "OPENAI" && key.startsWith("sk-")) {
+      isValid = true
+      models = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+    } else if (provider === "GOOGLE" && key.startsWith("AIza")) {
+      isValid = true
+      models = ["gemini-pro", "gemini-pro-vision"]
+    } else if (provider === "PERPLEXITY" && key.startsWith("pplx-")) {
+      isValid = true
+      models = ["pplx-7b-online", "pplx-70b-online", "pplx-7b-chat", "pplx-70b-chat"]
+    }
+
+    // En una implementación real, aquí haríamos una llamada a la API del proveedor
+    // para verificar que la clave es válida y obtener los modelos disponibles
+
+    return NextResponse.json({ valid: isValid, models: isValid ? models : undefined })
+  } catch (error) {
+    console.error("Error en la ruta /api/integrations/verify:", error)
+    return NextResponse.json({ error: "Error interno del servidor", valid: false }, { status: 500 })
   }
-})
+}
