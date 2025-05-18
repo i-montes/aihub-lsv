@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -30,10 +30,20 @@ interface AddApiKeyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  preselectedProvider?: string | null
 }
 
-export function AddApiKeyModal({ open, onOpenChange, onSuccess }: AddApiKeyModalProps) {
-  const [provider, setProvider] = useState<ApiKeyProvider | "">("")
+export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvider }: AddApiKeyModalProps) {
+  const [provider, setProvider] = useState<ApiKeyProvider | "">((preselectedProvider as ApiKeyProvider) || "")
+
+  // Actualizar el proveedor cuando cambie el preseleccionado
+  useEffect(() => {
+    if (preselectedProvider) {
+      setProvider(preselectedProvider as ApiKeyProvider)
+    } else {
+      setProvider("")
+    }
+  }, [preselectedProvider])
   const [apiKey, setApiKey] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -138,27 +148,44 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess }: AddApiKeyModal
 
             <div className="space-y-2">
               <Label htmlFor="provider">Proveedor de IA</Label>
-              <Select value={provider} onValueChange={(value) => setProvider(value as ApiKeyProvider)}>
-                <SelectTrigger id="provider" className="w-full">
-                  <SelectValue placeholder="Selecciona un proveedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Proveedores disponibles</SelectLabel>
-                    {["OPENAI", "GOOGLE", "PERPLEXITY"].map((provider) => (
-                      <SelectItem key={provider} value={provider}>
-                        {provider === "OPENAI"
-                          ? "OpenAI"
-                          : provider === "GOOGLE"
-                            ? "Google AI (Gemini)"
-                            : provider === "PERPLEXITY"
-                              ? "Perplexity AI"
-                              : provider}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              {preselectedProvider ? (
+                <Input
+                  id="provider"
+                  value={
+                    provider === "OPENAI"
+                      ? "OpenAI"
+                      : provider === "GOOGLE"
+                        ? "Google AI (Gemini)"
+                        : provider === "PERPLEXITY"
+                          ? "Perplexity AI"
+                          : provider
+                  }
+                  disabled
+                  className="bg-gray-50"
+                />
+              ) : (
+                <Select value={provider} onValueChange={(value) => setProvider(value as ApiKeyProvider)}>
+                  <SelectTrigger id="provider" className="w-full">
+                    <SelectValue placeholder="Selecciona un proveedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Proveedores disponibles</SelectLabel>
+                      {["OPENAI", "GOOGLE", "PERPLEXITY"].map((provider) => (
+                        <SelectItem key={provider} value={provider}>
+                          {provider === "OPENAI"
+                            ? "OpenAI"
+                            : provider === "GOOGLE"
+                              ? "Google AI (Gemini)"
+                              : provider === "PERPLEXITY"
+                                ? "Perplexity AI"
+                                : provider}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -180,11 +207,45 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess }: AddApiKeyModal
                 className="font-mono"
               />
               <p className="text-xs text-gray-500">
-                {provider === "OPENAI" &&
-                  "Encuentra tu clave API en el panel de OpenAI: https://platform.openai.com/api-keys"}
-                {provider === "GOOGLE" &&
-                  "Obtén tu clave API de Google AI Studio: https://makersuite.google.com/app/apikey"}
-                {provider === "PERPLEXITY" && "Genera tu clave API en: https://www.perplexity.ai/settings/api"}
+                {provider === "OPENAI" && (
+                  <>
+                    Encuentra tu clave API en el panel de OpenAI:{" "}
+                    <a
+                      href="https://platform.openai.com/api-keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sidebar hover:underline"
+                    >
+                      platform.openai.com/api-keys
+                    </a>
+                  </>
+                )}
+                {provider === "GOOGLE" && (
+                  <>
+                    Obtén tu clave API de Google AI Studio:{" "}
+                    <a
+                      href="https://makersuite.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sidebar hover:underline"
+                    >
+                      makersuite.google.com/app/apikey
+                    </a>
+                  </>
+                )}
+                {provider === "PERPLEXITY" && (
+                  <>
+                    Genera tu clave API en:{" "}
+                    <a
+                      href="https://www.perplexity.ai/settings/api"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sidebar hover:underline"
+                    >
+                      perplexity.ai/settings/api
+                    </a>
+                  </>
+                )}
                 {!provider && "Selecciona un proveedor para ver instrucciones específicas"}
               </p>
             </div>

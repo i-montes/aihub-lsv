@@ -12,7 +12,7 @@ export const ApiKeyService = {
   async getApiKeys(): Promise<{ apiKeys: ApiKey[] }> {
     try {
       const response = await api.get("/integrations")
-      return response.data
+      return response
     } catch (error) {
       console.error("Error al obtener claves API:", error)
       return { apiKeys: [] }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Sparkles, Plus, Trash2, Settings, Power, PowerOff } from "lucide-react"
+import { Sparkles, Trash2, Settings, Power, PowerOff } from "lucide-react"
 import { ApiKeyService, type ApiKey, type ApiKeyStatus } from "@/lib/services/api-key-service"
 import { AddApiKeyModal } from "@/components/modals/add-api-key-modal"
 import { DeleteApiKeyModal } from "@/components/modals/delete-api-key-modal"
@@ -20,6 +20,16 @@ export default function IntegrationsSettingsPage() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+
+  const openAddModal = (provider?: string) => {
+    if (provider) {
+      setSelectedProvider(provider)
+    } else {
+      setSelectedProvider(null)
+    }
+    setIsAddModalOpen(true)
+  }
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isToggleStatusModalOpen, setIsToggleStatusModalOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<{ id: string; provider: string; status: ApiKeyStatus } | null>(
@@ -218,18 +228,9 @@ export default function IntegrationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold">Integraciones de IA</h2>
-          <Sparkles className="text-amber-500" size={20} />
-        </div>
-        <Button
-          className="bg-gradient-to-r from-sidebar to-sidebar/80 text-white hover:opacity-90 rounded-xl gap-1.5"
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          <Plus size={18} />
-          Añadir Modelo de IA
-        </Button>
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-bold">Integraciones de IA</h2>
+        <Sparkles className="text-amber-500" size={20} />
       </div>
 
       <div className="space-y-8">
@@ -356,13 +357,6 @@ export default function IntegrationsSettingsPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">No hay integraciones configuradas</h3>
             <p className="text-gray-500 mb-4">Conecta tus modelos de IA favoritos para comenzar a usarlos</p>
-            <Button
-              className="bg-gradient-to-r from-sidebar to-sidebar/80 text-white hover:opacity-90 rounded-xl gap-1.5"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus size={18} />
-              Añadir Modelo de IA
-            </Button>
           </div>
         )}
 
@@ -394,7 +388,7 @@ export default function IntegrationsSettingsPage() {
                     variant="outline"
                     size="sm"
                     className="w-full rounded-lg"
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => openAddModal("GOOGLE")}
                   >
                     Conectar
                   </Button>
@@ -428,7 +422,7 @@ export default function IntegrationsSettingsPage() {
                     variant="outline"
                     size="sm"
                     className="w-full rounded-lg"
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => openAddModal("OPENAI")}
                   >
                     Conectar
                   </Button>
@@ -468,42 +462,9 @@ export default function IntegrationsSettingsPage() {
                     variant="outline"
                     size="sm"
                     className="w-full rounded-lg"
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => openAddModal("PERPLEXITY")}
                   >
                     Conectar
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Mistral AI - Solo si no están todos los proveedores conectados */}
-            {apiKeys.length < 3 && (
-              <div className="group relative overflow-hidden bg-white rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md hover:border-amber-200">
-                <div className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center text-white">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                          d="M12 3V21M18 7L6 17M6 7L18 17"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-bold">Mistral AI</p>
-                      <p className="text-xs text-gray-500">Modelos eficientes y potentes</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full rounded-lg"
-                    onClick={() => setIsAddModalOpen(true)}
-                    disabled
-                  >
-                    Próximamente
                   </Button>
                 </div>
               </div>
@@ -513,7 +474,15 @@ export default function IntegrationsSettingsPage() {
       </div>
 
       {/* Modal para añadir nueva clave API */}
-      <AddApiKeyModal open={isAddModalOpen} onOpenChange={setIsAddModalOpen} onSuccess={fetchApiKeys} />
+      <AddApiKeyModal
+        open={isAddModalOpen}
+        onOpenChange={(open) => {
+          setIsAddModalOpen(open)
+          if (!open) setSelectedProvider(null)
+        }}
+        onSuccess={fetchApiKeys}
+        preselectedProvider={selectedProvider}
+      />
 
       {/* Modal para eliminar clave API */}
       {selectedApiKey && (
