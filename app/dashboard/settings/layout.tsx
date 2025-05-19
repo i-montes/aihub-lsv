@@ -14,8 +14,8 @@ import {
   ChevronRight,
   Building,
   Globe,
-  FileText,
   Sparkles,
+  PenToolIcon as Tool,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { toast } from "sonner"
@@ -116,10 +116,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         indented
                       />
                       <SettingsMenuItem
-                        icon={<FileText size={18} />}
-                        title="Prompts"
-                        active={pathname === "/dashboard/settings/prompts"}
-                        onClick={() => router.push("/dashboard/settings/prompts")}
+                        icon={<Tool size={18} />}
+                        title="Herramientas"
+                        active={pathname === "/dashboard/settings/tools"}
+                        onClick={() => router.push("/dashboard/settings/tools")}
                         indented
                       />
                       <SettingsMenuItem

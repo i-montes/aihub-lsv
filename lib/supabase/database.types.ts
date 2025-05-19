@@ -108,7 +108,7 @@ export type Database = {
         }
         Insert: {
           createdAt?: string
-          id: string
+          id?: string
           id_channel?: string | null
           key: string
           models?: string[] | null
@@ -261,6 +261,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      default_tools: {
+        Row: {
+          created_at: string | null
+          id: string
+          prompts: Json
+          schema: Json
+          temperature: number | null
+          title: string
+          top_p: number | null
+          updated_at: string | null
+          usage: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          prompts: Json
+          schema: Json
+          temperature?: number | null
+          title: string
+          top_p?: number | null
+          updated_at?: string | null
+          usage?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          prompts?: Json
+          schema?: Json
+          temperature?: number | null
+          title?: string
+          top_p?: number | null
+          updated_at?: string | null
+          usage?: number | null
+        }
+        Relationships: []
       }
       invoice: {
         Row: {
@@ -613,6 +649,53 @@ export type Database = {
           },
         ]
       }
+      tools: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          prompts: Json
+          schema: Json
+          temperature: number | null
+          title: string
+          top_p: number | null
+          updated_at: string | null
+          usage: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          prompts: Json
+          schema: Json
+          temperature?: number | null
+          title: string
+          top_p?: number | null
+          updated_at?: string | null
+          usage?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          prompts?: Json
+          schema?: Json
+          temperature?: number | null
+          title?: string
+          top_p?: number | null
+          updated_at?: string | null
+          usage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tools_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organization"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preference: {
         Row: {
           createdAt: string
@@ -787,7 +870,7 @@ export type Database = {
       content_status: "DRAFT" | "GENERATING" | "ERROR" | "PUBLISHED" | "ARCHIVED"
       content_type: "TWITTER_THREAD" | "NEWSLETTER" | "FRANBOT" | "ENVIBOT" | "WRITING_ASSISTANT" | "FACT_CHECKING"
       invoice_status: "DRAFT" | "ISSUED" | "PAID" | "VOID"
-      provider_ai: "OPENAI" | "GOOGLE" | "PERPLEXITY"
+      provider_ai: "OPENAI" | "GOOGLE" | "PERPLEXITY" | "ANTHROPIC"
       resource_status: "ACTIVE" | "INACTIVE" | "ARCHIVED" | "DELETED"
       resource_type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"
       role: "OWNER" | "ADMIN" | "USER"
@@ -902,7 +985,7 @@ export const Constants = {
       content_status: ["DRAFT", "GENERATING", "ERROR", "PUBLISHED", "ARCHIVED"],
       content_type: ["TWITTER_THREAD", "NEWSLETTER", "FRANBOT", "ENVIBOT", "WRITING_ASSISTANT", "FACT_CHECKING"],
       invoice_status: ["DRAFT", "ISSUED", "PAID", "VOID"],
-      provider_ai: ["OPENAI", "GOOGLE", "PERPLEXITY"],
+      provider_ai: ["OPENAI", "GOOGLE", "PERPLEXITY", "ANTHROPIC"],
       resource_status: ["ACTIVE", "INACTIVE", "ARCHIVED", "DELETED"],
       resource_type: ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT"],
       role: ["OWNER", "ADMIN", "USER"],
