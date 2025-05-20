@@ -1,10 +1,8 @@
-"use server"
-
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { anthropic } from "@ai-sdk/anthropic"
-import { gemini } from "@ai-sdk/google"
+import { createOpenAI } from "@ai-sdk/openai"
+import { createAnthropic } from "@ai-sdk/anthropic"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { z } from "zod"
 
 // Schema para la respuesta del modelo
@@ -13,7 +11,9 @@ const ProofreaderResponseSchema = z.object({
     z.object({
       original: z.string().describe("Fragmento del texto original con error"),
       suggestion: z.string().describe("Corrección sugerida para el error"),
-      type: z.enum(["spelling", "grammar", "style"]).describe("Tipo de error: spelling | grammar | style"),
+      type: z
+        .enum(["spelling", "grammar", "style", "punctuation"])
+        .describe("Tipo de error: spelling | grammar | style | punctuation"),
       explanation: z.string().describe("Explicación de la corrección"),
     }),
   ),
@@ -21,14 +21,37 @@ const ProofreaderResponseSchema = z.object({
 
 type ProofreaderResponse = z.infer<typeof ProofreaderResponseSchema>
 
-export async function analyzeText(
-  text: string,
-  selectedModel: { model: string; provider: string },
-  organizationId: string,
-) {
+export async function analyzeText(text: string, selectedModel: { model: string; provider: string }) {
   try {
-    // 1. Obtener la API key según el proveedor y modelo
+    // 1. Obtener la información del usuario autenticado de forma segura
     const supabase = getSupabaseClient()
+
+    // Usar getUser() en lugar de getSession() para mayor seguridad
+    const {
+      data: { user },
+      error: userAuthError,
+    } = await supabase.auth.getUser()
+
+    if (userAuthError || !user) {
+      console.error("Error de autenticación:", userAuthError)
+      throw new Error("No hay usuario autenticado")
+    }
+
+    // Obtener el ID de la organización
+    const { data: userData, error: userError } = await supabase
+      .from("profiles")
+      .select("organizationId, role")
+      .eq("id", user.id)
+      .single()
+
+    if (userError || !userData?.organizationId) {
+      console.error("Error al obtener el perfil del usuario:", userError)
+      throw new Error("No se pudo obtener el ID de la organización")
+    }
+
+    const organizationId = userData.organizationId
+
+    // 2. Obtener la API key para el proveedor seleccionado
     const { data: apiKeyData, error: apiKeyError } = await supabase
       .from("api_key_table")
       .select("key, provider")
@@ -46,7 +69,17 @@ export async function analyzeText(
       }
     }
 
-    // 2. Obtener la configuración de la herramienta "proofreader"
+    // Verificar que la clave API no esté vacía
+    if (!apiKeyData.key || apiKeyData.key.trim() === "") {
+      console.error("La API key está vacía o no es válida")
+      return {
+        success: false,
+        error: "La API key está vacía o no es válida",
+        correcciones: [],
+      }
+    }
+
+    // 3. Obtener la configuración de la herramienta "proofreader"
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
       .select("prompts, temperature, top_p, schema")
@@ -55,6 +88,7 @@ export async function analyzeText(
       .single()
 
     // Si no existe, obtener la configuración por defecto
+    let tool
     if (toolError) {
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
@@ -71,31 +105,12 @@ export async function analyzeText(
         }
       }
 
-      // Usar la configuración por defecto
-      const tool = defaultToolData
-      return await processText(text, selectedModel, apiKeyData.key, tool)
+      tool = defaultToolData
+    } else {
+      tool = toolData
     }
 
-    // Usar la configuración personalizada
-    return await processText(text, selectedModel, apiKeyData.key, toolData)
-  } catch (error) {
-    console.error("Error en el análisis de texto:", error)
-    return {
-      success: false,
-      error: "Error en el análisis de texto",
-      correcciones: [],
-    }
-  }
-}
-
-async function processText(
-  text: string,
-  selectedModel: { model: string; provider: string },
-  apiKey: string,
-  tool: any,
-) {
-  try {
-    // 3. Combinar los prompts "Principal" y "Guía de estilo"
+    // 4. Combinar los prompts "Principal" y "Guía de estilo"
     const prompts = tool.prompts || []
     let principalPrompt = ""
     let styleGuidePrompt = ""
@@ -126,38 +141,56 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     {
       "original": "fragmento con error",
       "suggestion": "corrección sugerida",
-      "type": "spelling|grammar|style",
+      "type": "spelling|grammar|style|punctuation",
       "explanation": "explicación de la corrección"
     }
   ]
 }
+
+IMPORTANTE: El campo "type" SOLO puede tener uno de estos valores: "spelling", "grammar", "style" o "punctuation".
 `
 
-    // 4. Crear la conexión con el proveedor adecuado
+    // 5. Crear la conexión con el proveedor adecuado
     let result
     const temperature = tool.temperature || 0.7
     const top_p = tool.top_p || 0.95
+    const apiKey = apiKeyData.key
 
     switch (selectedModel.provider.toLowerCase()) {
       case "openai":
+        // Crear una instancia de OpenAI con la API key
+        const openai = createOpenAI({
+          apiKey: apiKey,
+        })
+
         result = await generateText({
-          model: openai(selectedModel.model, { apiKey }),
+          model: openai(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
           top_p,
         })
         break
       case "anthropic":
+        // Crear una instancia de Anthropic con la API key
+        const anthropic = createAnthropic({
+          apiKey: apiKey,
+        })
+
         result = await generateText({
-          model: anthropic(selectedModel.model, { apiKey }),
+          model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
           top_p,
         })
         break
       case "google":
+        // Crear una instancia de Google con la API key
+        const google = createGoogleGenerativeAI({
+          apiKey: apiKey,
+        })
+
         result = await generateText({
-          model: gemini(selectedModel.model, { apiKey }),
+          model: google(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
           top_p,
@@ -167,7 +200,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         throw new Error(`Proveedor no soportado: ${selectedModel.provider}`)
     }
 
-    // 5. Parsear la respuesta
+    // 6. Parsear la respuesta
     try {
       // Intentar extraer el JSON de la respuesta
       const textResponse = result.text
@@ -178,6 +211,27 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       }
 
       const jsonResponse = JSON.parse(jsonMatch[0])
+
+      // Intentar normalizar los tipos antes de validar
+      if (jsonResponse.correcciones && Array.isArray(jsonResponse.correcciones)) {
+        jsonResponse.correcciones = jsonResponse.correcciones.map((correccion) => {
+          // Normalizar el tipo si no es uno de los permitidos
+          if (correccion.type && !["spelling", "grammar", "style", "punctuation"].includes(correccion.type)) {
+            // Asignar un tipo por defecto basado en heurísticas simples
+            if (correccion.type.includes("punt") || correccion.type.includes("punct")) {
+              correccion.type = "punctuation"
+            } else if (correccion.type.includes("gram")) {
+              correccion.type = "grammar"
+            } else if (correccion.type.includes("spell") || correccion.type.includes("ort")) {
+              correccion.type = "spelling"
+            } else {
+              correccion.type = "style"
+            }
+          }
+          return correccion
+        })
+      }
+
       const validatedResponse = ProofreaderResponseSchema.parse(jsonResponse)
 
       // Añadir IDs a las correcciones para facilitar su manejo en el frontend
@@ -220,6 +274,8 @@ function getSeverity(type: string): number {
       return 2
     case "style":
       return 3
+    case "punctuation":
+      return 2 // Asignamos la misma severidad que grammar
     default:
       return 1
   }

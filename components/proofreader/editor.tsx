@@ -237,26 +237,27 @@ export function ProofreaderEditor({
         `}</style>
       </div>
 
-      {suggestions.length > 0 && (
         <div className="absolute bottom-4 right-4 flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
-            onClick={() => navigateSuggestions("prev")}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Anterior</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
-            onClick={() => navigateSuggestions("next")}
-          >
-            <ChevronRight className="h-4 w-4" />
-            <span className="sr-only">Siguiente</span>
-          </Button>
+          {suggestions.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
+              onClick={() => navigateSuggestions("prev")}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Anterior</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
+              onClick={() => navigateSuggestions("next")}
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span className="sr-only">Siguiente</span>
+            </Button>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -285,7 +286,6 @@ export function ProofreaderEditor({
             )}
           </Button>
         </div>
-      )}
     </div>
   )
 }
