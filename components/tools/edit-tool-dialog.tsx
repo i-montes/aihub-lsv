@@ -1,13 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { BarChart2, Edit2 } from "lucide-react"
+import { BarChart2, Edit2, AlertCircle, Copy, Check } from "lucide-react"
 import { ToolEditor } from "@/components/tools/tool-editor"
 import { ToolConfig } from "@/components/tools/tool-config"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { Tool } from "@/types/tool"
+
+interface PromptItem {
+  title: string
+  content: string
+}
 
 interface EditToolDialogProps {
   isOpen: boolean
@@ -17,71 +22,247 @@ interface EditToolDialogProps {
 }
 
 /**
- * Dialog for editing an existing tool
+ * Dialog for editing an existing tool with a two-column layout
  */
 export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolDialogProps) {
-  const [activeTab, setActiveTab] = useState("editor")
-  const [toolText, setToolText] = useState(
-    tool?.description ||
-      "Analiza esta noticia y proporciona un resumen de los puntos clave, posibles sesgos y contexto histórico relevante.",
-  )
+  const [prompts, setPrompts] = useState<PromptItem[]>([])
+  const [activePromptIndex, setActivePromptIndex] = useState(0)
+  const [toolSchema, setToolSchema] = useState<any>(null)
+  const [toolTemperature, setToolTemperature] = useState<number>(0.7)
+  const [toolTopP, setToolTopP] = useState<number>(1)
+  const [hasChanges, setHasChanges] = useState<boolean>(false)
+  const [isCopied, setIsCopied] = useState<boolean>(false)
+
+  // Initialize form when tool changes
+  useEffect(() => {
+    if (tool) {
+      let promptsArray: PromptItem[] = []
+
+      // Parse prompts from tool
+      if (typeof tool.prompts === "string") {
+        try {
+          // Try to parse as JSON
+          const parsed = JSON.parse(tool.prompts)
+          if (Array.isArray(parsed)) {
+            promptsArray = parsed
+          } else {
+            // If not an array, create a default prompt
+            promptsArray = [{ title: "Principal", content: tool.prompts }]
+          }
+        } catch (e) {
+          // If parsing fails, create a default prompt
+          promptsArray = [{ title: "Principal", content: tool.prompts }]
+        }
+      } else if (Array.isArray(tool.prompts)) {
+        promptsArray = tool.prompts as PromptItem[]
+      } else if (typeof tool.prompts === "object" && tool.prompts !== null) {
+        promptsArray = [{ title: "Principal", content: JSON.stringify(tool.prompts, null, 2) }]
+      }
+
+      // Ensure we have at least one prompt
+      if (promptsArray.length === 0) {
+        promptsArray = [{ title: "Principal", content: "" }]
+      }
+
+      setPrompts(promptsArray)
+      setActivePromptIndex(0)
+      setToolSchema(tool.schema || {})
+      setToolTemperature(tool.temperature || 0.7)
+      setToolTopP(tool.topP || 1)
+      setHasChanges(false)
+    }
+  }, [tool])
+
+  // Track changes
+  useEffect(() => {
+    if (tool) {
+      let originalPrompts: PromptItem[] = []
+
+      // Parse original prompts for comparison
+      if (typeof tool.prompts === "string") {
+        try {
+          const parsed = JSON.parse(tool.prompts)
+          if (Array.isArray(parsed)) {
+            originalPrompts = parsed
+          } else {
+            originalPrompts = [{ title: "Principal", content: tool.prompts }]
+          }
+        } catch (e) {
+          originalPrompts = [{ title: "Principal", content: tool.prompts }]
+        }
+      } else if (Array.isArray(tool.prompts)) {
+        originalPrompts = tool.prompts as PromptItem[]
+      } else if (typeof tool.prompts === "object" && tool.prompts !== null) {
+        originalPrompts = [{ title: "Principal", content: JSON.stringify(tool.prompts, null, 2) }]
+      }
+
+      // Compare current prompts with original
+      const promptsChanged = JSON.stringify(prompts) !== JSON.stringify(originalPrompts)
+
+      const hasChanged =
+        promptsChanged ||
+        toolTemperature !== (tool.temperature || 0.7) ||
+        toolTopP !== (tool.topP || 1) ||
+        JSON.stringify(toolSchema) !== JSON.stringify(tool.schema || {})
+
+      setHasChanges(hasChanged)
+    }
+  }, [tool, prompts, toolSchema, toolTemperature, toolTopP])
+
+  // Reset copied state after 2 seconds
+  useEffect(() => {
+    if (isCopied) {
+      const timer = setTimeout(() => {
+        setIsCopied(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [isCopied])
 
   if (!tool) return null
+
+  const handlePromptChange = (content: string) => {
+    const newPrompts = [...prompts]
+    newPrompts[activePromptIndex].content = content
+    setPrompts(newPrompts)
+  }
+
+  const handleCopyPrompt = async () => {
+    if (prompts[activePromptIndex]) {
+      try {
+        await navigator.clipboard.writeText(prompts[activePromptIndex].content)
+        setIsCopied(true)
+      } catch (err) {
+        console.error("Failed to copy text: ", err)
+      }
+    }
+  }
 
   const handleSave = () => {
     if (tool) {
       onSave({
         ...tool,
-        description: toolText,
+        prompts: prompts,
+        schema: toolSchema,
+        temperature: toolTemperature,
+        topP: toolTopP,
       })
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] lg:max-w-[900px] w-[90vw] max-h-[85vh] overflow-hidden">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="flex items-center gap-2">
-            <Edit2 className="h-5 w-5 text-sidebar" />
-            <div>
-              <span className="text-sidebar font-medium">{tool.title}</span>
-              <span className="text-xs text-gray-500 block">Última edición: hace 2 días</span>
-            </div>
-          </DialogTitle>
+      <DialogContent className="sm:max-w-[900px] lg:max-w-[1000px] w-[95vw] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5 text-sidebar" />
+              <div>
+                <span className="text-sidebar font-medium">{tool.title}</span>
+                <span className="text-xs text-gray-500 block">Última edición: {tool.lastUsed}</span>
+              </div>
+            </DialogTitle>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
-              <BarChart2 className="h-4 w-4 text-sidebar" />
-              <span className="text-sm font-medium">{tool.usageCount}</span>
+            <div className="flex items-center gap-2">
+              {tool.isDefault && (
+                <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs font-medium">
+                  Herramienta predeterminada
+                </div>
+              )}
+              <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+                <BarChart2 className="h-4 w-4 text-sidebar" />
+                <span className="text-sm font-medium">{tool.usageCount}</span>
+              </div>
             </div>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="editor" value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="editor">Editor</TabsTrigger>
-            <TabsTrigger value="config">Configuración</TabsTrigger>
-          </TabsList>
+        {tool.isDefault && (
+          <div className="bg-amber-50 border-y border-amber-200 px-6 py-3 flex items-start gap-2 flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-amber-800">
+                Estás editando una herramienta predeterminada. Al guardar los cambios, se creará una copia personalizada
+                para tu organización.
+              </p>
+            </div>
+          </div>
+        )}
 
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="editor" className="h-full mt-0 data-[state=active]:flex-1">
-              <ToolEditor promptText={toolText} onPromptChange={setToolText} lastEdited="hace 2 días" />
-            </TabsContent>
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          {/* Left column - Prompt Editor */}
+          <div className="flex-1 border-r overflow-hidden flex flex-col">
+            <div className="p-4 flex-1 overflow-hidden flex flex-col">
+              <Tabs
+                value={activePromptIndex.toString()}
+                onValueChange={(value) => setActivePromptIndex(Number.parseInt(value))}
+                className="flex flex-col h-full overflow-hidden"
+              >
+                <div className="flex items-center justify-between border-b pb-2 mb-4 flex-shrink-0">
+                  <TabsList className="h-9">
+                    {prompts.map((prompt, index) => (
+                      <TabsTrigger key={index} value={index.toString()} className="px-3 py-1.5 text-sm">
+                        {prompt.title}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <div className="flex items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 flex items-center gap-1"
+                      onClick={handleCopyPrompt}
+                    >
+                      {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      <span>{isCopied ? "Copiado" : "Copiar"}</span>
+                    </Button>
+                  </div>
+                </div>
 
-            <TabsContent value="config" className="h-full mt-0 data-[state=active]:flex-1">
-              <div className="h-full overflow-y-auto pr-2">
-                <ToolConfig />
-              </div>
-            </TabsContent>
+                <div className="flex-1 overflow-hidden">
+                  {prompts.map((prompt, index) => (
+                    <TabsContent
+                      key={index}
+                      value={index.toString()}
+                      className="mt-0 h-full overflow-auto data-[state=active]:flex data-[state=active]:flex-col"
+                      style={{ paddingBottom: "1rem" }}
+                    >
+                      <ToolEditor
+                        promptText={prompt.content}
+                        onPromptChange={handlePromptChange}
+                        lastEdited={tool.lastUsed}
+                      />
+                    </TabsContent>
+                  ))}
+                </div>
+              </Tabs>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>Guardar cambios</Button>
+          {/* Right column - Configuration */}
+          <div className="w-full md:w-[350px] lg:w-[400px] overflow-y-auto">
+            <div className="p-4">
+              <h3 className="text-sm font-medium mb-3 text-gray-700">Configuración</h3>
+              <ToolConfig
+                schema={toolSchema}
+                onSchemaChange={(schema) => setToolSchema(schema)}
+                temperature={toolTemperature}
+                onTemperatureChange={(temp) => setToolTemperature(temp)}
+                topP={toolTopP}
+                onTopPChange={(topP) => setToolTopP(topP)}
+              />
+            </div>
           </div>
-        </Tabs>
+        </div>
+
+        <div className="flex justify-end gap-2 p-4 border-t bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.05)] z-10 flex-shrink-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={!hasChanges}>
+            {tool.isDefault ? "Crear copia personalizada" : "Guardar cambios"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

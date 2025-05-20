@@ -52,6 +52,20 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
+  // Función para obtener los modelos predeterminados según el proveedor
+  const getDefaultModels = (provider: ApiKeyProvider): string[] => {
+    switch (provider) {
+      case "OPENAI":
+        return ["gpt-4o"]
+      case "GOOGLE":
+        return ["Gemini 2.0"]
+      case "ANTHROPIC":
+        return ["claude 3.7 sonnet"]
+      default:
+        return []
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -65,7 +79,6 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
       setError("Ingresa una clave API válida")
       return
     }
-
 
     if (!profile?.organizationId) {
       setError("No se pudo determinar la organización del usuario")
@@ -88,6 +101,9 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
         return
       }
 
+      // Obtener los modelos predeterminados para este proveedor
+      const defaultModels = getDefaultModels(provider as ApiKeyProvider)
+
       // Si la clave es válida, la guardamos directamente con Supabase
       const supabase = getSupabaseClient()
 
@@ -96,7 +112,7 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
         .insert({
           key: apiKey,
           provider: provider as ApiKeyProvider,
-          models: verifyResult.models,
+          models: defaultModels, // Usar los modelos predeterminados en lugar de los verificados
           organizationId: profile.organizationId,
           status: "ACTIVE",
           createdAt: new Date().toISOString(),
@@ -180,8 +196,8 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
                       ? "OpenAI"
                       : provider === "GOOGLE"
                         ? "Google AI (Gemini)"
-                        : provider === "PERPLEXITY"
-                          ? "Perplexity AI"
+                        : provider === "ANTHROPIC"
+                          ? "Anthropic"
                           : provider
                   }
                   disabled
@@ -195,14 +211,14 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
                   <SelectContent>
                     <SelectGroup>
                       <SelectLabel>Proveedores disponibles</SelectLabel>
-                      {["OPENAI", "GOOGLE", "PERPLEXITY"].map((provider) => (
+                      {["OPENAI", "GOOGLE", "ANTHROPIC"].map((provider) => (
                         <SelectItem key={provider} value={provider}>
                           {provider === "OPENAI"
                             ? "OpenAI"
                             : provider === "GOOGLE"
                               ? "Google AI (Gemini)"
-                              : provider === "PERPLEXITY"
-                                ? "Perplexity AI"
+                              : provider === "ANTHROPIC"
+                                ? "Anthropic"
                                 : provider}
                         </SelectItem>
                       ))}
@@ -224,8 +240,8 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
                     ? "sk-..."
                     : provider === "GOOGLE"
                       ? "AIza..."
-                      : provider === "PERPLEXITY"
-                        ? "pplx-..."
+                      : provider === "ANTHROPIC"
+                        ? "sk-ant-..."
                         : "Ingresa tu clave API"
                 }
                 className="font-mono"
@@ -257,16 +273,16 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
                     </a>
                   </>
                 )}
-                {provider === "PERPLEXITY" && (
+                {provider === "ANTHROPIC" && (
                   <>
                     Genera tu clave API en:{" "}
                     <a
-                      href="https://www.perplexity.ai/settings/api"
+                      href="https://console.anthropic.com/settings/keys"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sidebar hover:underline"
                     >
-                      perplexity.ai/settings/api
+                      console.anthropic.com/settings/keys
                     </a>
                   </>
                 )}

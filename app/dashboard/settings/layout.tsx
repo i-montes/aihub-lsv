@@ -157,7 +157,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       {/* Contenido de configuración */}
       <div className="w-full md:w-3/4">
         <Card className="bg-white rounded-3xl shadow-sm">
-          <CardContent className="p-6">{children}</CardContent>
+          <CardContent className="p-6 bg-gradient-to-br from-white to-blue-50/30">{children}</CardContent>
         </Card>
       </div>
     </div>

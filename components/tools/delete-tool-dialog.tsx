@@ -1,15 +1,7 @@
 "use client"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
 import type { Tool } from "@/types/tool"
 
@@ -27,25 +19,31 @@ export function DeleteToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Dele
   if (!tool) return null
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
             <span>Eliminar herramienta</span>
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            ¿Estás seguro de que deseas eliminar la herramienta <strong>"{tool.title}"</strong>? Esta acción no se puede
-            deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-red-500 hover:bg-red-600">
-            Eliminar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </DialogTitle>
+          <DialogDescription>
+            {tool.isDefault
+              ? "No es posible eliminar una herramienta predeterminada. Estas herramientas son parte del sistema y no pueden ser eliminadas."
+              : `¿Estás seguro de que deseas eliminar la herramienta "${tool.title}"? Esta acción no se puede deshacer.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          {!tool.isDefault && (
+            <Button variant="destructive" onClick={onConfirm}>
+              Eliminar
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

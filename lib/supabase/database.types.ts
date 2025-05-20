@@ -266,6 +266,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          identity: string
           prompts: Json
           schema: Json
           temperature: number | null
@@ -277,6 +278,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          identity: string
           prompts: Json
           schema: Json
           temperature?: number | null
@@ -288,6 +290,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          identity?: string
           prompts?: Json
           schema?: Json
           temperature?: number | null
@@ -653,6 +656,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          identity: string
           organization_id: string
           prompts: Json
           schema: Json
@@ -665,6 +669,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          identity: string
           organization_id: string
           prompts: Json
           schema: Json
@@ -677,6 +682,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          identity?: string
           organization_id?: string
           prompts?: Json
           schema?: Json

@@ -158,8 +158,6 @@ export default function IntegrationsSettingsPage() {
         return "OpenAI"
       case "GOOGLE":
         return "Google AI"
-      case "PERPLEXITY":
-        return "Perplexity"
       case "ANTHROPIC":
         return "Anthropic"
       default:
@@ -193,25 +191,6 @@ export default function IntegrationsSettingsPage() {
               strokeWidth="2"
             />
             <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        )
-      case "PERPLEXITY":
-        return (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-              fill="currentColor"
-              fillOpacity="0.2"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <path
-              d="M8 12L11 15L16 10"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
           </svg>
         )
       case "ANTHROPIC":
@@ -248,8 +227,6 @@ export default function IntegrationsSettingsPage() {
         return "from-emerald-50 to-teal-50 border-emerald-100"
       case "GOOGLE":
         return "from-purple-50 to-indigo-50 border-purple-100"
-      case "PERPLEXITY":
-        return "from-blue-50 to-sky-50 border-blue-100"
       case "ANTHROPIC":
         return "from-violet-50 to-purple-50 border-violet-100"
       default:
@@ -267,8 +244,6 @@ export default function IntegrationsSettingsPage() {
         return "from-emerald-500 to-teal-600"
       case "GOOGLE":
         return "from-purple-500 to-indigo-600"
-      case "PERPLEXITY":
-        return "from-blue-500 to-sky-600"
       case "ANTHROPIC":
         return "from-violet-500 to-purple-600"
       default:
@@ -286,8 +261,6 @@ export default function IntegrationsSettingsPage() {
         return "bg-emerald-100 text-emerald-700"
       case "GOOGLE":
         return "bg-purple-100 text-purple-700"
-      case "PERPLEXITY":
-        return "bg-blue-100 text-blue-700"
       case "ANTHROPIC":
         return "bg-violet-100 text-violet-700"
       default:
@@ -305,8 +278,6 @@ export default function IntegrationsSettingsPage() {
         return "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
       case "GOOGLE":
         return "border-purple-200 text-purple-700 hover:bg-purple-50"
-      case "PERPLEXITY":
-        return "border-blue-200 text-blue-700 hover:bg-blue-50"
       case "ANTHROPIC":
         return "border-violet-200 text-violet-700 hover:bg-violet-50"
       default:
@@ -317,15 +288,27 @@ export default function IntegrationsSettingsPage() {
   const getProviderModel = (provider: string): string => {
     switch (provider) {
       case "OPENAI":
-        return "GPT-4o"
+        return "gpt-4o"
       case "GOOGLE":
-        return "Gemini Pro"
-      case "PERPLEXITY":
-        return "pplx-70b"
+        return "Gemini 2.0"
       case "ANTHROPIC":
-        return "Claude 3"
+        return "claude 3.7 sonnet"
       default:
         return "Modelo"
+    }
+  }
+
+  // Función para obtener el modelo específico para cada proveedor (para inserción en BD)
+  const getProviderDefaultModel = (provider: string): string[] => {
+    switch (provider) {
+      case "OPENAI":
+        return ["gpt-4o"]
+      case "GOOGLE":
+        return ["Gemini 2.0"]
+      case "ANTHROPIC":
+        return ["claude 3.7 sonnet"]
+      default:
+        return []
     }
   }
 
@@ -335,8 +318,6 @@ export default function IntegrationsSettingsPage() {
         return ["Generación de texto", "Análisis de datos", "Multimodal"]
       case "GOOGLE":
         return ["Análisis de documentos", "Resúmenes"]
-      case "PERPLEXITY":
-        return ["Búsqueda en tiempo real", "Citaciones"]
       case "ANTHROPIC":
         return ["Razonamiento avanzado", "Instrucciones complejas"]
       default:
@@ -507,7 +488,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Google Gemini</p>
-                      <p className="text-xs text-gray-500">Modelo multimodal avanzado</p>
+                      <p className="text-xs text-gray-500">Gemini 2.0</p>
                     </div>
                   </div>
                   <Button
@@ -541,7 +522,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">OpenAI</p>
-                      <p className="text-xs text-gray-500">GPT-4o y otros modelos</p>
+                      <p className="text-xs text-gray-500">gpt-4o</p>
                     </div>
                   </div>
                   <Button
@@ -549,46 +530,6 @@ export default function IntegrationsSettingsPage() {
                     size="sm"
                     className="w-full rounded-lg"
                     onClick={() => openAddModal("OPENAI")}
-                  >
-                    Conectar
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Perplexity */}
-            {!apiKeys.some((key) => key.provider === "PERPLEXITY") && (
-              <div className="group relative overflow-hidden bg-white rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
-                <div className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-sky-500 rounded-lg flex items-center justify-center text-white">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                          d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-                          fill="currentColor"
-                          fillOpacity="0.2"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        />
-                        <path
-                          d="M8 12L11 15L16 10"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-bold">Perplexity</p>
-                      <p className="text-xs text-gray-500">Búsqueda aumentada por IA</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full rounded-lg"
-                    onClick={() => openAddModal("PERPLEXITY")}
                   >
                     Conectar
                   </Button>
@@ -621,7 +562,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Anthropic</p>
-                      <p className="text-xs text-gray-500">Claude 3 y otros modelos</p>
+                      <p className="text-xs text-gray-500">claude 3.7 sonnet</p>
                     </div>
                   </div>
                   <Button
