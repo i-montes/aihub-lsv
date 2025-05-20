@@ -165,12 +165,15 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 }
 
 function SettingsMenuGroup({ title, expanded, onToggle }: { title: string; expanded: boolean; onToggle: () => void }) {
+  // Traducir el título si es necesario
+  const translatedTitle = title === "Account" ? "Cuenta" : title === "Organization" ? "Organización" : title
+
   return (
     <button
       className="w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors hover:bg-gray-100"
       onClick={onToggle}
     >
-      <span className="font-medium">{title}</span>
+      <span className="font-medium">{translatedTitle}</span>
       <ChevronRight size={16} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
     </button>
   )
@@ -191,6 +194,20 @@ function SettingsMenuItem({
   className?: string
   indented?: boolean
 }) {
+  const translatedTitle =
+    title === "Profile"
+      ? "Perfil"
+      : title === "Security"
+        ? "Seguridad"
+        : title === "General Information"
+          ? "Información General"
+          : title === "User List"
+            ? "Lista de Usuarios"
+            : title === "Integrations"
+              ? "Integraciones"
+              : title === "Billing & Usage"
+                ? "Facturación y Uso"
+                : title
   return (
     <button
       className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
@@ -199,7 +216,7 @@ function SettingsMenuItem({
       onClick={onClick}
     >
       {icon}
-      <span>{title}</span>
+      <span>{translatedTitle}</span>
       {active && <ChevronRight size={16} className="ml-auto" />}
     </button>
   )

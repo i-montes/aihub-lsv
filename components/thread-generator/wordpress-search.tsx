@@ -1,199 +1,184 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { Search, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
-import Image from "next/image"
-import { toast } from "sonner"
-
-interface WordPressPost {
-  id: number
-  title: { rendered: string }
-  excerpt: { rendered: string }
-  link: string
-  date: string
-  content: { rendered: string }
-}
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog"
+import type { WordPressPost, WordPressConnection } from "@/types/proofreader"
 
 interface WordPressSearchProps {
-  onSelectContent: (content: string, title: string) => void
+  onSelectContent: (title: string, content: string) => void
 }
 
 export function WordPressSearch({ onSelectContent }: WordPressSearchProps) {
-  const [open, setOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isSearching, setIsSearching] = useState(false)
+  const router = useRouter()
   const [searchResults, setSearchResults] = useState<WordPressPost[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [wordpressConnection, setWordpressConnection] = useState<{
+    exists: boolean
+    isLoading: boolean
+    userRole?: string
+    connectionData?: WordPressConnection
+  }>({
+    exists: false,
+    isLoading: true,
+  })
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
-
-    setIsSearching(true)
+  // Función para verificar la conexión a WordPress
+  const checkWordPressConnection = async () => {
     try {
-      // Aquí iría la llamada real a la API de WordPress
-      const response = await fetch(`https://example.com/wp-json/wp/v2/posts?search=${encodeURIComponent(searchQuery)}`)
+      // Verificar si la respuesta es JSON válido antes de analizarla
+      const response = await fetch("/api/wordpress/test-connection")
 
-      if (!response.ok) {
-        throw new Error("Error al buscar en WordPress")
+      // Verificar el tipo de contenido
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.warn("La respuesta no es JSON:", await response.text())
+        setWordpressConnection({
+          exists: false,
+          isLoading: false,
+          userRole: "unknown",
+        })
+        return
       }
 
       const data = await response.json()
-      setSearchResults(data)
+
+      if (response.ok) {
+        setWordpressConnection({
+          exists: data.connected,
+          isLoading: false,
+          userRole: data.userRole,
+          connectionData: data.connectionData,
+        })
+      } else {
+        setWordpressConnection({
+          exists: false,
+          isLoading: false,
+          userRole: data.userRole,
+        })
+      }
     } catch (error) {
-      console.error("Error:", error)
-      toast.error("Error al buscar en WordPress")
-      // Datos de ejemplo para mostrar la interfaz
-      setSearchResults([
-        {
-          id: 1,
-          title: { rendered: "Cómo mejorar tu estrategia de contenido" },
-          excerpt: {
-            rendered:
-              "Descubre las mejores prácticas para optimizar tu estrategia de contenido y aumentar el engagement...",
-          },
-          link: "https://example.com/post-1",
-          date: "2023-05-15T14:30:00",
-          content: {
-            rendered:
-              "<h2>Cómo mejorar tu estrategia de contenido</h2><p>El contenido es el rey en el mundo digital actual. Para destacar entre la multitud, necesitas una estrategia sólida.</p><h3>1. Conoce a tu audiencia</h3><p>Antes de crear contenido, debes entender a quién le hablas. Investiga a tu público objetivo, sus intereses, problemas y necesidades.</p><h3>2. Establece objetivos claros</h3><p>¿Quieres aumentar el tráfico, generar leads o mejorar la conversión? Tus objetivos determinarán el tipo de contenido que creas.</p><h3>3. Crea un calendario editorial</h3><p>La consistencia es clave. Planifica tu contenido con anticipación para mantener un flujo constante.</p>",
-          },
+      console.error("Error al verificar la conexión a WordPress:", error)
+      // Establecer un estado predeterminado en caso de error
+      setWordpressConnection({
+        exists: false,
+        isLoading: false,
+      })
+    }
+  }
+
+  // Verificar la conexión a WordPress al montar el componente
+  useEffect(() => {
+    checkWordPressConnection()
+  }, [])
+
+  // Función para simular resultados de búsqueda (para desarrollo)
+  const getSimulatedResults = (query: string): WordPressPost[] => {
+    return [
+      {
+        id: 1,
+        title: { rendered: `Artículo sobre ${query}` },
+        excerpt: {
+          rendered: `Este es un resumen de ejemplo para la búsqueda "${query}"...`,
         },
-        {
-          id: 2,
-          title: { rendered: "Las tendencias de marketing digital para 2023" },
-          excerpt: {
-            rendered: "Explora las tendencias emergentes en marketing digital que dominarán el panorama en 2023...",
-          },
-          link: "https://example.com/post-2",
-          date: "2023-05-10T09:15:00",
-          content: {
-            rendered:
-              "<h2>Las tendencias de marketing digital para 2023</h2><p>El marketing digital evoluciona constantemente. Estas son las tendencias que debes conocer este año.</p><h3>1. Contenido generado por IA</h3><p>La inteligencia artificial está revolucionando la creación de contenido, permitiendo mayor personalización y eficiencia.</p><h3>2. Marketing conversacional</h3><p>Los chatbots y asistentes virtuales están transformando la manera en que las marcas interactúan con sus clientes.</p><h3>3. Video marketing</h3><p>El contenido en video sigue dominando, especialmente los formatos cortos y verticales para móviles.</p>",
-          },
+        link: "https://example.com/post-1",
+        date: new Date().toISOString(),
+        content: {
+          rendered: `<h2>Artículo sobre ${query}</h2><p>Este es un contenido de ejemplo generado para la búsqueda "${query}". Puedes usar este texto para probar la funcionalidad de generación de hilos.</p><h3>Sección 1</h3><p>Aquí va más contenido de ejemplo. Esta es la primera sección del artículo.</p><h3>Sección 2</h3><p>Esta es la segunda sección con más información relevante sobre ${query}.</p>`,
         },
-      ])
+      },
+      {
+        id: 2,
+        title: { rendered: `Guía completa de ${query}` },
+        excerpt: {
+          rendered: `Una guía detallada sobre todo lo que necesitas saber acerca de ${query}...`,
+        },
+        link: "https://example.com/post-2",
+        date: new Date(Date.now() - 86400000).toISOString(), // Ayer
+        content: {
+          rendered: `<h2>Guía completa de ${query}</h2><p>En esta guía detallada, exploraremos todo lo que necesitas saber sobre ${query}.</p><h3>Orígenes</h3><p>Historia y orígenes de ${query} en el contexto actual.</p><h3>Aplicaciones prácticas</h3><p>Cómo puedes aplicar ${query} en situaciones cotidianas y profesionales.</p>`,
+        },
+      },
+    ]
+  }
+
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      return
+    }
+
+    setIsSearching(true)
+    setSearchError(null)
+
+    try {
+      // Intentar hacer la búsqueda real
+      const response = await fetch(`/api/wordpress/search?query=${encodeURIComponent(query)}`)
+
+      // Verificar el tipo de contenido
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.warn("La respuesta de búsqueda no es JSON:", await response.text())
+        // Usar resultados simulados en caso de error
+        setSearchResults(getSimulatedResults(query))
+        setHasSearched(true)
+        return
+      }
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setSearchResults(data.posts || [])
+      } else {
+        console.warn("Error en la búsqueda, usando resultados simulados:", data.message)
+        // Usar resultados simulados en caso de error
+        setSearchResults(getSimulatedResults(query))
+      }
+    } catch (error) {
+      console.error("Error al buscar en WordPress:", error)
+      setSearchError("Error de conexión al buscar en WordPress")
+      // Usar resultados simulados en caso de error
+      setSearchResults(getSimulatedResults(query))
     } finally {
       setIsSearching(false)
+      setHasSearched(true)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch()
+  // Función para manejar la selección de contenido
+  const handleInsertContent = (post: WordPressPost) => {
+    if (post.title.rendered && post.content.rendered) {
+      // Limpiar el HTML para obtener texto plano
+      const title = post.title.rendered.replace(/<[^>]*>?/gm, "")
+
+      // Mantener el HTML para el contenido
+      const content = post.content.rendered
+
+      // Llamar a la función de callback con el título y contenido
+      onSelectContent(title, content)
     }
   }
 
-  const insertPostContent = (post: WordPressPost) => {
-    const tempDiv = document.createElement("div")
-    tempDiv.innerHTML = post.content.rendered
-    const textContent = tempDiv.textContent || tempDiv.innerText
-
-    onSelectContent(textContent, post.title.rendered)
-    setOpen(false)
-    toast.success("Contenido importado correctamente")
-  }
-
-  const stripHtml = (html: string) => {
-    const tempDiv = document.createElement("div")
-    tempDiv.innerHTML = html
-    return tempDiv.textContent || tempDiv.innerText
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(date)
+  // Función para navegar a la configuración de WordPress
+  const handleNavigateToSettings = () => {
+    router.push("/dashboard/settings/wordpress")
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Image src="/wordpress-logo.png" alt="WordPress" width={20} height={20} />
-          Buscar en WordPress
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Image src="/wordpress-logo.png" alt="WordPress" width={24} height={24} />
-            Buscar contenido en WordPress
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex items-center space-x-2 my-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar artículos..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyPress}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <Button onClick={handleSearch} disabled={isSearching}>
-            Buscar
-          </Button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 pr-2">
-          {isSearching ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex flex-col space-y-2 p-4 border rounded-md">
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <div className="flex justify-between items-center mt-2">
-                    <Skeleton className="h-4 w-1/4" />
-                    <Skeleton className="h-8 w-24" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : searchResults.length > 0 ? (
-            <div className="space-y-4">
-              {searchResults.map((post) => (
-                <div key={post.id} className="p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                  <h3 className="font-medium">{post.title.rendered}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{stripHtml(post.excerpt.rendered)}</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-muted-foreground">{formatDate(post.date)}</span>
-                    <Button size="sm" onClick={() => insertPostContent(post)}>
-                      Seleccionar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : searchQuery ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No se encontraron resultados para "{searchQuery}"</p>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Busca artículos de WordPress para generar hilos</p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <WordPressSearchDialog
+      wordpressConnection={wordpressConnection}
+      onSearch={handleSearch}
+      onNavigateToSettings={handleNavigateToSettings}
+      onInsertContent={handleInsertContent}
+      searchResults={searchResults}
+      isSearching={isSearching}
+      searchError={searchError}
+      hasSearched={hasSearched}
+      buttonLabel="WordPress"
+      buttonClassName="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"
+      dialogTitle="Buscar en WordPress"
+      dialogDescription="Selecciona un artículo para generar un hilo"
+    />
   )
 }

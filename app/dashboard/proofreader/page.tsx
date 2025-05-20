@@ -7,11 +7,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import type { Suggestion, WordPressPost, WordPressConnection } from "@/types/proofreader"
+import type { Suggestion, WordPressPost } from "@/types/proofreader"
 import { ProofreaderEditor } from "@/components/proofreader/editor"
 import { Statistics } from "@/components/proofreader/statistics"
 import { SuggestionsPanel } from "@/components/proofreader/suggestions-panel"
-import { WordPressSearchDialog } from "@/components/proofreader/wordpress-search-dialog"
+import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog"
 import { ProofreaderHeader } from "@/components/proofreader/header"
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -37,33 +37,17 @@ export default function ProofreaderPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [activeSuggestion, setActiveSuggestion] = useState<Suggestion | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [searchResults, setSearchResults] = useState<WordPressPost[]>([])
-  const [hasSearched, setHasSearched] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const [stats, setStats] = useState({
-    readabilityScore: 85,
-    grammarScore: 92,
-    styleScore: 78,
-  })
-  const [wordpressConnection, setWordpressConnection] = useState<{
-    exists: boolean
-    isLoading: boolean
-    userRole?: string
-    connectionData?: WordPressConnection
-  }>({
-    exists: false,
-    isLoading: true,
-    userRole: undefined,
-    connectionData: undefined,
-  })
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [connectionVerified, setConnectionVerified] = useState(false)
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [selectedModel, setSelectedModel] = useState<{ model: string; provider: string }>({ model: "", provider: "" })
   const [modelProviderMap, setModelProviderMap] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState("original")
   const [appliedSuggestions, setAppliedSuggestions] = useState<Suggestion[]>([])
+  const [stats, setStats] = useState<{ readabilityScore: number; grammarScore: number; styleScore: number }>({
+    readabilityScore: 0,
+    grammarScore: 0,
+    styleScore: 0,
+  })
 
   // Estado para el modal de API key requerida
   const [apiKeyStatus, setApiKeyStatus] = useState<{
@@ -87,17 +71,6 @@ export default function ProofreaderPage() {
 
   // Hooks
   const router = useRouter()
-
-  // Effects
-  useEffect(() => {
-    if (dialogOpen && !connectionVerified) {
-      checkWordPressConnection()
-    }
-  }, [dialogOpen, connectionVerified])
-
-  useEffect(() => {
-    setHasSearched(false)
-  }, [])
 
   // Verificar si existe alguna API key al cargar la página
   useEffect(() => {
@@ -256,35 +229,33 @@ export default function ProofreaderPage() {
       const supabase = getSupabaseClient()
 
       // Obtener la sesión del usuario actual
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const { data: userData } = await supabase.auth.getUser()
 
-      if (!session) {
+      if (!userData?.user) {
         setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false })
         return
       }
 
       // Obtener el ID de la organización y el rol del usuario
-      const { data: userData, error: userError } = await supabase
+      const { data: profileData, error: userError } = await supabase
         .from("profiles")
         .select("organizationId, role")
-        .eq("id", session.user.id)
+        .eq("id", userData.user.id)
         .single()
 
-      if (userError || !userData?.organizationId) {
+      if (userError || !profileData?.organizationId) {
         setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false })
         return
       }
 
       // Verificar si el usuario es admin o propietario
-      const isAdmin = userData.role === "OWNER" || userData.role === "ADMIN"
+      const isAdmin = profileData.role === "OWNER" || profileData.role === "ADMIN"
 
       // Verificar si existe alguna API key para esta organización y obtener sus modelos
       const { data: apiKeys, error: apiKeyError } = await supabase
         .from("api_key_table")
         .select("id, models, provider")
-        .eq("organizationId", userData.organizationId)
+        .eq("organizationId", profileData.organizationId)
         .eq("status", "ACTIVE")
 
       if (apiKeyError) {
@@ -327,64 +298,6 @@ export default function ProofreaderPage() {
     } catch (error) {
       console.error("Error al verificar API keys:", error)
       setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false })
-    }
-  }
-
-  const checkWordPressConnection = async () => {
-    try {
-      setWordpressConnection((prev) => ({ ...prev, isLoading: true }))
-      const supabase = getSupabaseClient()
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session) {
-        setWordpressConnection({ exists: false, isLoading: false })
-        setConnectionVerified(true)
-        return
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from("profiles")
-        .select("organizationId, role")
-        .eq("id", session.user.id)
-        .single()
-
-      if (userError || !userData?.organizationId) {
-        setWordpressConnection({ exists: false, isLoading: false })
-        setConnectionVerified(true)
-        return
-      }
-
-      const { data: wpConnection, error: wpError } = await supabase
-        .from("wordpress_integration_table")
-        .select("*")
-        .eq("organizationId", userData.organizationId)
-        .eq("active", true)
-        .single()
-
-      if (wpError || !wpConnection || !wpConnection.site_url) {
-        setWordpressConnection({
-          exists: false,
-          isLoading: false,
-          userRole: userData.role,
-        })
-        setConnectionVerified(true)
-        return
-      }
-
-      setWordpressConnection({
-        exists: true,
-        isLoading: false,
-        userRole: userData.role,
-        connectionData: wpConnection as WordPressConnection,
-      })
-      setConnectionVerified(true)
-    } catch (error) {
-      console.error("Error al verificar la conexión a WordPress:", error)
-      setWordpressConnection({ exists: false, isLoading: false })
-      setConnectionVerified(true)
     }
   }
 
@@ -473,53 +386,6 @@ export default function ProofreaderPage() {
     } finally {
       setIsAnalyzing(false)
     }
-  }
-
-  const handleSearch = async (query: string) => {
-    if (!query.trim() || !wordpressConnection.exists || !wordpressConnection.connectionData?.site_url) {
-      setSearchError("No se pudo acceder a la URL de WordPress. Por favor, verifica la configuración de integración.")
-      return
-    }
-
-    setIsSearching(true)
-    setSearchError(null)
-    setSearchResults([])
-    setHasSearched(true)
-
-    try {
-      const { site_url: url } = wordpressConnection.connectionData
-
-      const baseUrl = url.endsWith("/") ? url : `${url}/`
-      const searchUrl = `${baseUrl}wp-json/wp/v2/posts?search=${encodeURIComponent(query)}&_embed&_fields=id,title,excerpt,content,link,date`
-
-      const response = await fetch(searchUrl)
-
-      if (!response.ok) {
-        throw new Error(`Error al buscar en WordPress: ${response.status} ${response.statusText}`)
-      }
-
-      const posts = await response.json()
-      const formattedResults = posts.map((post: any) => ({
-        id: post.id,
-        title: post.title,
-        excerpt: post.excerpt,
-        content: post.content,
-        link: post.link,
-        date: post.date,
-      }))
-
-      setSearchResults(formattedResults)
-    } catch (error) {
-      console.error("Error al buscar en WordPress:", error)
-      setSearchError(error instanceof Error ? error.message : "Error desconocido al buscar en WordPress")
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const navigateToWordPressSettings = () => {
-    router.push("/dashboard/settings/wordpress")
-    setDialogOpen(false)
   }
 
   const copyText = async () => {
@@ -719,19 +585,14 @@ export default function ProofreaderPage() {
   }
 
   const insertPostContent = (post: WordPressPost) => {
-    console.log("Intentando insertar contenido de WordPress:", post)
+    console.log("Insertando contenido de WordPress:", post)
 
     if (editorRef.current) {
-      console.log("Editor ref encontrada, insertando contenido...")
-
-      // Obtener el título y contenido con formato HTML
-      const title = post.title.rendered
-      const content = post.content.rendered
-
-      console.log("Título:", title)
-      console.log("Contenido (primeros 100 caracteres):", content.substring(0, 100))
-
       try {
+        // Obtener el título y contenido con formato HTML
+        const title = post.title.rendered
+        const content = post.content.rendered
+
         // Crear el contenido HTML completo
         const fullContent = `<h1>${title}</h1>\n${content}`
 
@@ -741,8 +602,6 @@ export default function ProofreaderPage() {
         // Actualizar el estado del texto original
         setOriginalText(fullContent)
         editorContentRef.current = fullContent
-
-        console.log("Contenido insertado en el editor")
 
         // Cerrar el modal
         setDialogOpen(false)
@@ -798,14 +657,12 @@ export default function ProofreaderPage() {
           <WordPressSearchDialog
             open={dialogOpen}
             onOpenChange={setDialogOpen}
-            wordpressConnection={wordpressConnection}
-            onSearch={handleSearch}
-            onNavigateToSettings={navigateToWordPressSettings}
             onInsertContent={insertPostContent}
-            searchResults={searchResults}
-            isSearching={isSearching}
-            searchError={searchError}
-            hasSearched={hasSearched}
+            buttonLabel="Importar de WordPress"
+            dialogTitle="Importar contenido de WordPress"
+            dialogDescription="Busca y selecciona un artículo de tu sitio WordPress para corregirlo"
+            placeholder="Buscar artículos..."
+            noResultsMessage="No se encontraron artículos para"
           />
         </div>
 

@@ -51,35 +51,35 @@ export function Sidebar() {
           <div className="flex flex-col items-center gap-4 mt-4">
             <NavItem
               icon={<Home className="size-5" />}
-              label="Home"
+              label="Inicio"
               href="/dashboard"
               isActive={pathname === "/dashboard"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<FileCheck className="size-5" />}
-              label="Proofreader"
+              label="Corrector"
               href="/dashboard/proofreader"
               isActive={pathname === "/dashboard/proofreader"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<XIcon className="size-5" />}
-              label="Threads"
+              label="Hilos"
               href="/dashboard/thread-generator"
               isActive={pathname === "/dashboard/thread-generator"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<FileText className="size-5" />}
-              label="Newsletter"
+              label="Boletín"
               href="/dashboard/newsletter-generator"
               isActive={pathname === "/dashboard/newsletter-generator"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<BarChart className="size-5" />}
-              label="Analytics"
+              label="Analítica"
               href="/dashboard/analytics"
               isActive={pathname === "/dashboard/analytics"}
               isExpanded={isExpanded}
@@ -91,7 +91,7 @@ export function Sidebar() {
         <div className="mt-4">
           <NavItem
             icon={<Settings className="size-5" />}
-            label="Settings"
+            label="Ajustes"
             href="/dashboard/settings"
             isActive={pathname.startsWith("/dashboard/settings")}
             isExpanded={isExpanded}

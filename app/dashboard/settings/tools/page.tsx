@@ -487,7 +487,7 @@ export default function ToolsSettingsPage() {
                   <div className="h-2 w-2 rounded-sm bg-current"></div>
                   <div className="h-2 w-2 rounded-sm bg-current"></div>
                 </div>
-                <span className="sr-only sm:not-sr-only sm:ml-1">Grid</span>
+                <span className="sr-only sm:not-sr-only sm:ml-1">Cuadrícula</span>
               </TabsTrigger>
               <TabsTrigger value="list" className="gap-1.5">
                 <div className="flex flex-col gap-0.5">
