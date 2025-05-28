@@ -35,11 +35,6 @@ export type RegisterData = {
   lastname: string
 }
 
-export type AuthError = {
-  message: string
-  code: string
-}
-
 export const AuthService = {
   async signIn(
     credentials: LoginCredentials,
@@ -47,49 +42,15 @@ export const AuthService = {
     try {
       const response = await api.post("/auth/login", credentials)
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error in AuthService.signIn:", error)
-
-      // Si el error tiene un mensaje específico, usarlo
-      if (error.message) {
-        throw error
-      }
-
-      // Si no, lanzar un error genérico
-      throw new Error("Error al iniciar sesión")
+      throw error
     }
   },
 
-  async signUp(data: RegisterData): Promise<{ user: User; session: Session | null } | { error: AuthError }> {
-    try {
-      // Volver a usar la implementación original con api.post
-      const response = await api.post("/auth/register", data)
-
-      // Verificar que la respuesta tenga datos
-      if (!response || !response.data) {
-        return {
-          error: {
-            message: "No se recibió respuesta del servidor",
-            code: "EMPTY_RESPONSE",
-          },
-        }
-      }
-
-      return response.data
-    } catch (error: any) {
-      console.error("Error in AuthService.signUp:", error)
-
-      // Extraer el código de error y el mensaje si están disponibles
-      const errorMessage = error.response?.data?.error || error.message || "Error al crear la cuenta"
-      const errorCode = error.response?.data?.errorCode || "UNKNOWN_ERROR"
-
-      return {
-        error: {
-          message: errorMessage,
-          code: errorCode,
-        },
-      }
-    }
+  async signUp(data: RegisterData): Promise<{ user: User; session: Session | null }> {
+    const response = await api.post("/auth/register", data)
+    return response.data
   },
 
   async signOut(): Promise<void> {

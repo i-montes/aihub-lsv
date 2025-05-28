@@ -53,9 +53,7 @@ export default function LandingPage() {
               Sign In
             </Button>
           </Link>
-          <Link href="/register">
-            <Button className="bg-primary-600 text-white hover:bg-primary-700 rounded-md">Start Free Trial</Button>
-          </Link>
+          <Button className="bg-primary-600 text-white hover:bg-primary-700 rounded-md">Start Free Trial</Button>
         </div>
       </nav>
 
@@ -392,9 +390,7 @@ export default function LandingPage() {
               placeholder="Enter your email"
               className="w-full bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-white"
             />
-            <Link href="/register">
-              <Button className="bg-white text-primary-600 hover:bg-gray-100">Start Free Trial</Button>
-            </Link>
+            <Button className="bg-white text-primary-600 hover:bg-gray-100">Start Free Trial</Button>
           </div>
           <p className="mt-4 text-sm text-primary-200">No credit card required. 14-day free trial.</p>
         </div>

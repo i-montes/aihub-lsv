@@ -237,57 +237,57 @@ export function ProofreaderEditor({
         `}</style>
       </div>
 
-      <div className="absolute bottom-4 right-4 flex space-x-2">
-        {suggestions.length > 0 && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
-              onClick={() => navigateSuggestions("prev")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Anterior</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
-              onClick={() => navigateSuggestions("next")}
-            >
-              <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Siguiente</span>
-            </Button>
-          </>
-        )}
-        <Button
-          size="sm"
-          variant="secondary"
-          className="shadow-sm hover:shadow-md transition-all"
-          onClick={copyTextWithFormat}
-        >
-          <Copy className="h-4 w-4 mr-2" />
-          Copiar texto
-        </Button>
-        <Button
-          size="sm"
-          className="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"
-          onClick={onAnalyzeText}
-          disabled={isAnalyzing}
-        >
-          {isAnalyzing ? (
+        <div className="absolute bottom-4 right-4 flex space-x-2">
+          {suggestions.length > 0 && (
             <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Analizando...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Analizar texto
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
+                onClick={() => navigateSuggestions("prev")}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Anterior</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 rounded-full shadow-sm hover:shadow-md transition-all"
+                onClick={() => navigateSuggestions("next")}
+              >
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Siguiente</span>
+              </Button>
             </>
           )}
-        </Button>
-      </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="shadow-sm hover:shadow-md transition-all"
+            onClick={copyTextWithFormat}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Copiar texto
+          </Button>
+          <Button
+            size="sm"
+            className="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"
+            onClick={onAnalyzeText}
+            disabled={isAnalyzing}
+          >
+            {isAnalyzing ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Analizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Analizar texto
+              </>
+            )}
+          </Button>
+        </div>
     </div>
   )
 }

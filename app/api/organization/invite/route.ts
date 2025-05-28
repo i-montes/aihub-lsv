@@ -37,7 +37,7 @@ export const POST = createApiHandler(async (req) => {
     }
 
     // Crear la URL de redirección
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite?email=${email}&organization=${organizationId}`
 
     // Invitar al usuario usando la API de administrador de Supabase
     const { data: user, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {

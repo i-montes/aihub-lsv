@@ -50,17 +50,11 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
     }
 
     // Parse JSON response
-    let data
-    try {
-      data = await response.json()
-    } catch (jsonError) {
-      console.error("Error parsing JSON response:", jsonError)
-      throw new Error(`Invalid JSON response from ${endpoint}`)
-    }
+    const data = await response.json()
 
     // Handle API errors
     if (!response.ok) {
-      const error = new Error(data.error || data.message || response.statusText)
+      const error = new Error(data.error || response.statusText)
       // Añadir información adicional al error
       ;(error as any).status = response.status
       ;(error as any).data = data

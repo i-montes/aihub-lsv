@@ -1,67 +1,65 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import {
+  createApiHandler,
+  errorResponse,
+  successResponse,
+} from "@/app/api/base-handler";
+import { getSupabaseRouteHandler } from "@/lib/supabase/server";
+import type { NextRequest } from "next/server";
 
-export async function POST(request: NextRequest) {
+export const POST = createApiHandler(async (req: NextRequest) => {
+  const body = await req.json();
+  const { email, password } = body;
+
+  if (!email || !password) {
+    return errorResponse("Email and password are required", 400);
+  }
+
+  const supabase = await getSupabaseRouteHandler();
+
   try {
-    const body = await request.json()
-    const { email, password } = body
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
-    }
-
-    // Crear cliente de Supabase con las cookies
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-    // Intentar iniciar sesión
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
+    });
 
     if (error) {
-      console.error("Supabase signIn error:", error)
+      console.error("Supabase auth error:", error);
+      return errorResponse(error.message, 401);
+    }
 
-      // Manejar específicamente el error de email no confirmado
-      if (error.message.includes("Email not confirmed")) {
-        return NextResponse.json({ error: "Email not confirmed" }, { status: 400 })
+    if (!data.session) {
+      console.error("No session returned from Supabase");
+      return errorResponse("No se pudo establecer la sesión", 500);
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, email, name, lastname, avatar, role, organizationId")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError) {
+      // If the profile is not found, return a 404 error
+      if (profileError.code === "PGRST116") {
+        return errorResponse("Profile not found", 404);
       }
-
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      // If there is any other error, return a 500 error
+      return errorResponse("Internal server error", 500);
     }
 
-    if (!data.user) {
-      return NextResponse.json({ error: "No se pudo obtener información del usuario" }, { status: 400 })
-    }
+    const profile = profileData
 
-    // Obtener perfil del usuario
-    let profile = null
-    try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .single()
-
-      if (!profileError && profileData) {
-        profile = profileData
-      }
-    } catch (profileError) {
-      console.error("Error fetching profile:", profileError)
-    }
-
-    // Retornar respuesta exitosa
-    return NextResponse.json({
-      data: {
-        user: data.user,
-        session: data.session,
-        profile,
-      },
-    })
-  } catch (error) {
-    console.error("Unexpected error in login route:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    // Devolver la sesión completa
+    return successResponse({
+      user: data.user,
+      profile,
+      session: data.session,
+    });
+  } catch (error: any) {
+    console.error("Unexpected error during login:", error);
+    return errorResponse(
+      error.message || "Error durante el inicio de sesión",
+      500
+    );
   }
-}
+});
