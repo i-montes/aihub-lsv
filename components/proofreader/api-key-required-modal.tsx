@@ -23,27 +23,27 @@ export function ApiKeyRequiredModal({ isOpen, isAdmin }: ApiKeyRequiredModalProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <AlertCircle className="h-5 w-5 text-amber-500" />
-            Configuración requerida
+            Required configuration
           </DialogTitle>
           <DialogDescription>
-            Para utilizar el corrector de textos, es necesario configurar una clave API de inteligencia artificial.
+            To use the text editor, you need to configure an artificial intelligence API key.
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-4 space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-medium">No se encontró ninguna clave API configurada para tu organización.</p>
+            <p className="font-medium">No API key configured for your organization was found.</p>
             <p className="mt-2">
               {isAdmin
-                ? "Como administrador, puedes configurar una clave API en la sección de integraciones."
-                : "Por favor, contacta al administrador de tu organización para configurar una clave API."}
+                ? "As an administrator, you can configure an API key in the integrations section."
+                : "Please contact your organization's administrator to configure an API key."}
             </p>
           </div>
 
           {isAdmin && (
             <div className="flex justify-end">
               <Button onClick={handleNavigateToSettings} className="bg-blue-600 hover:bg-blue-700">
-                Ir a configuración de integraciones
+                Go to integrations settings
               </Button>
             </div>
           )}
