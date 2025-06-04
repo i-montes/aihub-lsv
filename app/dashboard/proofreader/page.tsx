@@ -663,6 +663,7 @@ export default function ProofreaderPage() {
             dialogDescription="Busca y selecciona un artículo de tu sitio WordPress para corregirlo"
             placeholder="Buscar artículos..."
             noResultsMessage="No se encontraron artículos para"
+            hideButton={true}
           />
         </div>
 

@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.className} overflow-hidden`}>
+      <body className={inter.className}>
         <AuthProvider>
           {children}
           <Toaster position="bottom-right" richColors />
