@@ -36,6 +36,7 @@ interface WordPressSearchDialogProps {
   placeholder?: string
   noConnectionMessage?: string
   noResultsMessage?: string
+  hideButton?: boolean
 }
 
 // Función para limpiar el HTML de los excerpts de WordPress
@@ -65,6 +66,7 @@ export function WordPressSearchDialog({
   placeholder = "Escribe tu búsqueda...",
   noConnectionMessage = "No hay conexión a WordPress",
   noResultsMessage = "No se encontraron resultados para",
+  hideButton = false,
 }: WordPressSearchDialogProps) {
   // Estado interno para la conexión a WordPress
   const [wordpressConnection, setWordpressConnection] = useState<{
@@ -224,14 +226,16 @@ export function WordPressSearchDialog({
 
   return (
     <Dialog open={open !== undefined ? open : dialogOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size={buttonSize} className={buttonClassName}>
-          <div className="flex items-center">
-            <Image src="/wordpress-logo.png" alt="WordPress Logo" width={20} height={20} className="mr-2" />
-            Buscar en WordPress
-          </div>
-        </Button>
-      </DialogTrigger>
+      {!hideButton && (
+        <DialogTrigger asChild>
+          <Button size={buttonSize} className={buttonClassName}>
+            <div className="flex items-center">
+              <Image src="/wordpress-logo.png" alt="WordPress Logo" width={20} height={20} className="mr-2" />
+              {buttonLabel}
+            </div>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle className="flex items-center">

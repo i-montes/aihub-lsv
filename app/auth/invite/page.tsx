@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
@@ -26,7 +25,12 @@ export default function InvitePage() {
     name: string | null
     lastname: string | null
     organizationName: string | null
-  } | null>(null)
+  } | null>({
+    email: "",
+    name: null,
+    lastname: null,
+    organizationName: null,
+  })
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -35,14 +39,45 @@ export default function InvitePage() {
   useEffect(() => {
     async function verifyInvitation() {
       if (!id) {
-        setError("ID de invitación no proporcionado")
+        setError("ID de usuario no proporcionado")
         setIsLoading(false)
         return
       }
 
       try {
         const data = await api.get(`/auth/verify-invitation?id=${id}`)
-        setInvitation(data.invitation)
+
+        // Verificar si el usuario existe y su estado
+        if (!data.user) {
+          setError("Usuario no encontrado")
+          setIsLoading(false)
+          return
+        }
+
+        // Verificar si el usuario ya ha establecido una contraseña
+        if (data.user.last_sign_in_at) {
+          setError("Esta invitación ya ha sido utilizada")
+          setIsLoading(false)
+          return
+        }
+
+        // Si el email no está confirmado, confirmarlo automáticamente
+        if (!data.user.email_confirmed_at) {
+          try {
+            await api.post("/auth/resend-confirmation", { userId: id })
+            // El email se confirmará automáticamente en el backend
+          } catch (confirmError) {
+            console.error("Error al confirmar email:", confirmError)
+            // Continuamos aunque falle la confirmación automática
+          }
+        }
+
+        setInvitation({
+          email: data.user.email,
+          name: data.user.user_metadata?.name || null,
+          lastname: data.user.user_metadata?.lastname || null,
+          organizationName: data.organizationName || null,
+        })
         setIsLoading(false)
       } catch (error: any) {
         console.error("Error al verificar la invitación:", error)

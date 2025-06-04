@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, createContext, useContext } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AuthService, type User, type Profile, type Session } from "@/lib/services/auth-service"
+import { AuthService, type User, type Profile, type Session, type AuthError } from "@/lib/services/auth-service"
 
 // Definir el tipo para el contexto de autenticación
 type AuthContextType = {
@@ -14,8 +14,13 @@ type AuthContextType = {
   session: Session | null
   loading: boolean
   isAuthenticated: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, name: string, lastname: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void | { success: boolean; error?: string }>
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    lastname: string,
+  ) => Promise<{ success: boolean; error?: AuthError }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
@@ -30,7 +35,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isAuthenticated: false,
   signIn: async () => {},
-  signUp: async () => {},
+  signUp: async () => ({ success: false }),
   signOut: async () => {},
   resetPassword: async () => {},
   updatePassword: async () => {},
@@ -122,9 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         router.push("/dashboard")
       }, 300) // Aumentamos el tiempo de espera a 300ms
+
+      return { success: true }
     } catch (error: any) {
       console.error("Error signing in:", error)
       toast.error(error.message || "Error al iniciar sesión")
+      return { success: false, error: error.message || "Error al iniciar sesión" }
     } finally {
       setIsLoading(false)
     }
@@ -133,7 +141,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string, lastname: string) => {
     setIsLoading(true)
     try {
-      const { user, session } = await AuthService.signUp({ email, password, name, lastname })
+      const result = await AuthService.signUp({ email, password, name, lastname })
+      console.log("Signup result:", result) // Añadir para depuración
+
+      // Verificar si hay un error en la respuesta
+      if (!result) {
+        // Si result es undefined, devolver un error genérico
+        return {
+          success: false,
+          error: {
+            message: "Error en el servidor. Por favor, inténtalo de nuevo más tarde.",
+            code: "SERVER_ERROR",
+          },
+        }
+      }
+
+      if ("error" in result) {
+        // No mostramos toast aquí para permitir que el componente lo maneje
+        return {
+          success: false,
+          error: result.error,
+        }
+      }
+
+      // Si llegamos aquí, tenemos un resultado exitoso
+      const { user, session } = result
 
       if (!session) {
         toast.info("Por favor revisa tu correo para confirmar tu cuenta")
@@ -162,9 +194,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       toast.success("Cuenta creada exitosamente")
+      return { success: true }
     } catch (error: any) {
       console.error("Error signing up:", error)
-      toast.error(error.message || "Error al crear la cuenta")
+
+      // Crear un objeto de error con código genérico
+      const authError: AuthError = {
+        message: error.message || "Error al crear la cuenta",
+        code: "UNKNOWN_ERROR",
+      }
+
+      return {
+        success: false,
+        error: authError,
+      }
     } finally {
       setIsLoading(false)
     }
