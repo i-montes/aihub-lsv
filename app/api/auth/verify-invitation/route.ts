@@ -20,9 +20,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Usuario no encontrado o invitación inválida" }, { status: 404 })
     }
 
-    // Verificar si el usuario ya ha establecido una contraseña
-    if (userData.user.last_sign_in_at) {
-      return NextResponse.json({ error: "Esta invitación ya ha sido utilizada" }, { status: 400 })
+    // reviricar correo electrónico
+    if (!userData.user.email) {
+      return NextResponse.json({ error: "El usuario no tiene un correo electrónico asociado" }, { status: 400 })
+    }
+
+    //actualizar la confirmacion del correo electrónico con supabase
+    const { error: emailError } = await supabase.auth.admin.updateUserById(id, {
+      email_confirmed_at: new Date().toISOString(),
+    })
+
+    if (emailError) {
+      console.error("Error al confirmar el correo electrónico:", emailError)
+      return NextResponse.json({ error: "Error al confirmar el correo electrónico" }, { status: 500 })
     }
 
     // Obtener datos del perfil
@@ -47,6 +57,10 @@ export async function GET(request: Request) {
 
       organizationName = orgData?.name || null
     }
+
+    
+
+    
 
     return NextResponse.json({
       invitation: {

@@ -126,7 +126,7 @@ export async function analyzeText(text: string, selectedModel: { model: string; 
 
     // Combinar los prompts
     const combinedPrompt = `
-${principalPrompt}
+${principalPrompt}j
 
 GUÍA DE ESTILO:
 ${styleGuidePrompt}
@@ -146,8 +146,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     }
   ]
 }
-
-IMPORTANTE: El campo "type" SOLO puede tener uno de estos valores: "spelling", "grammar", "style" o "punctuation".
 `
 
     // 5. Crear la conexión con el proveedor adecuado
