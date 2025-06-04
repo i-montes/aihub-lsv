@@ -16,11 +16,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Verificar que el usuario esté autenticado
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
-    if (sessionError || !session) {
+    if (userError || !user) {
       return errorResponse("No autorizado", 401)
     }
 
@@ -28,7 +28,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const { data: currentUserProfile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (profileError || !currentUserProfile) {

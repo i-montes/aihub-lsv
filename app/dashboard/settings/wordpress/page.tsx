@@ -49,10 +49,10 @@ export default function WordpressSettingsPage() {
 
         // Obtener el ID de la organización del usuario actual
         const {
-          data: { session },
-        } = await supabase.auth.getSession()
+          data: { user },
+        } = await supabase.auth.getUser()
 
-        if (!session) {
+        if (!user) {
           setIsLoading(false)
           return
         }
@@ -60,7 +60,7 @@ export default function WordpressSettingsPage() {
         const { data: userData, error: userError } = await supabase
           .from("profiles")
           .select("organizationId")
-          .eq("id", session.user.id)
+          .eq("id", user.id)
           .single()
 
         if (userError || !userData?.organizationId) {
@@ -174,17 +174,17 @@ export default function WordpressSettingsPage() {
 
       // Obtener el ID de la organización del usuario actual
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      if (!session) {
+      if (!user) {
         throw new Error("No hay sesión activa")
       }
 
       const { data: userData, error: userError } = await supabase
         .from("profiles")
         .select("organizationId")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single()
 
       if (userError || !userData?.organizationId) {

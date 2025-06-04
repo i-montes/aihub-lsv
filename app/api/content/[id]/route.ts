@@ -7,13 +7,13 @@ export const GET = createApiHandler(async (req: NextRequest, { params }: { param
 
   const supabase = getSupabaseServer()
 
-  // Get the current session
+  // Authenticate the user by verifying with Supabase
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -38,13 +38,12 @@ export const PUT = createApiHandler(async (req: NextRequest, { params }: { param
 
   const supabase = getSupabaseServer()
 
-  // Get the current session
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -70,13 +69,12 @@ export const DELETE = createApiHandler(async (req: NextRequest, { params }: { pa
 
   const supabase = getSupabaseServer()
 
-  // Get the current session
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 

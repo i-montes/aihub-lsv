@@ -5,13 +5,13 @@ import type { NextRequest } from "next/server"
 export const GET = createApiHandler(async (req: NextRequest) => {
   const supabase = await getSupabaseServer()
 
-  // Get the current session
+  // Authenticate the user by verifying with Supabase
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -19,7 +19,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("organizationId")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   if (profileError) {

@@ -6,9 +6,11 @@ export async function GET() {
   try {
     const supabase = await getSupabaseRouteHandler()
 
-    // Obtener la sesión actual para verificar permisos
-    const { data: sessionData } = await supabase.auth.getSession()
-    if (!sessionData.session) {
+    // Obtener el usuario actual para verificar permisos
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -16,7 +18,7 @@ export async function GET() {
     const { data: profileData } = await supabase
       .from("profiles")
       .select("role, organizationId")
-      .eq("id", sessionData.session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (!profileData || ["OWNER", "ADMIN"].includes(profileData.role) === false) {

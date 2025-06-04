@@ -11,9 +11,11 @@ import type { Database } from "@/lib/supabase/database.types"
 export async function GET(request: NextRequest) {
   try {
     const supabase = await getSupabaseRouteHandler()
-    const { data: session } = await supabase.auth.getSession()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session.session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { data: userData } = await supabase
       .from("profiles")
       .select("organizationId")
-      .eq("id", session.session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (!userData?.organizationId) {
@@ -66,9 +68,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await getSupabaseServer()
-    const { data: session } = await supabase.auth.getSession()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session.session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
     const { data: userData } = await supabase
       .from("profiles")
       .select("organizationId, role")
-      .eq("id", session.session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (!userData?.organizationId) {
