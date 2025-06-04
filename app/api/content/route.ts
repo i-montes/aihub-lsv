@@ -8,13 +8,13 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
   const supabase = getSupabaseServer()
 
-  // Get the current session
+  // Authenticate the user by verifying with Supabase
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -23,7 +23,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
   // Apply filters
   if (filter === "mine") {
-    query = query.eq("userId", session.user.id)
+    query = query.eq("userId", user.id)
   } else if (filter === "published") {
     query = query.eq("status", "PUBLISHED")
   } else if (filter === "draft") {
@@ -51,22 +51,22 @@ export const POST = createApiHandler(async (req: NextRequest) => {
 
   // Get the current session
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
   // Get user profile for organizationId
-  const { data: profile } = await supabase.from("profiles").select("organizationId").eq("id", session.user.id).single()
+  const { data: profile } = await supabase.from("profiles").select("organizationId").eq("id", user.id).single()
 
   // Create new content
   const { data, error } = await supabase.from("content").insert({
     title,
     description,
-    userId: session.user.id,
+    userId: user.id,
     organizationId: profile?.organizationId,
     status: "DRAFT",
     createdAt: new Date().toISOString(),

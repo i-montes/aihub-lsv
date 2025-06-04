@@ -3,20 +3,25 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import type { NextRequest } from "next/server"
 
+// Determine cookie names dynamically using the Supabase project ref
+const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//, "").split(".")[0]
+const accessTokenCookie = projectRef ? `sb-${projectRef}-auth-token` : "sb-access-token"
+const refreshTokenCookie = projectRef ? `sb-${projectRef}-refresh-token` : "sb-refresh-token"
+
 export const POST = createApiHandler(async (req: NextRequest) => {
   try {
     const supabase = getSupabaseServer()
 
-    // Verificar si hay una sesión activa antes de intentar cerrarla
+    // Verificar si hay un usuario activo antes de intentar cerrar sesión
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session) {
-      // Si no hay sesión, simplemente limpiar las cookies y retornar éxito
+    if (!user) {
+      // Si no hay usuario, simplemente limpiar las cookies y retornar éxito
       const cookieStore = cookies()
-      cookieStore.delete("sb-access-token")
-      cookieStore.delete("sb-refresh-token")
+      cookieStore.delete(accessTokenCookie)
+      cookieStore.delete(refreshTokenCookie)
 
       return successResponse({ success: true, message: "No active session" })
     }
@@ -28,16 +33,16 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       console.error("Supabase signOut error:", error)
       // Incluso si hay un error, intentar limpiar las cookies
       const cookieStore = cookies()
-      cookieStore.delete("sb-access-token")
-      cookieStore.delete("sb-refresh-token")
+      cookieStore.delete(accessTokenCookie)
+      cookieStore.delete(refreshTokenCookie)
 
       return errorResponse(`Error al cerrar sesión: ${error.message}`, 400)
     }
 
     // Limpiar las cookies manualmente para asegurar que se eliminen
     const cookieStore = cookies()
-    cookieStore.delete("sb-access-token")
-    cookieStore.delete("sb-refresh-token")
+    cookieStore.delete(accessTokenCookie)
+    cookieStore.delete(refreshTokenCookie)
 
     return successResponse({ success: true, message: "Sesión cerrada exitosamente" })
   } catch (error: any) {
@@ -46,8 +51,8 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     // En caso de cualquier error, intentar limpiar las cookies
     try {
       const cookieStore = cookies()
-      cookieStore.delete("sb-access-token")
-      cookieStore.delete("sb-refresh-token")
+      cookieStore.delete(accessTokenCookie)
+      cookieStore.delete(refreshTokenCookie)
     } catch (cookieError) {
       console.error("Error clearing cookies:", cookieError)
     }

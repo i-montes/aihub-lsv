@@ -10,9 +10,11 @@ import type { Database } from "@/lib/supabase/database.types"
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = await getSupabaseRouteHandler()
-    const { data: session } = await supabase.auth.getSession()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session.session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -20,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const { data: userData } = await supabase
       .from("profiles")
       .select("organizationId, role")
-      .eq("id", session.session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (!userData?.organizationId) {
@@ -79,9 +81,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = await getSupabaseRouteHandler()
-    const { data: session } = await supabase.auth.getSession()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session.session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -89,7 +93,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const { data: userData } = await supabase
       .from("profiles")
       .select("organizationId, role")
-      .eq("id", session.session.user.id)
+      .eq("id", user.id)
       .single()
 
     if (!userData?.organizationId) {

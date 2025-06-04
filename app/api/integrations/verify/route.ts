@@ -10,9 +10,11 @@ import type { Database } from "@/lib/supabase/database.types"
 export async function POST(request: NextRequest) {
   try {
     const supabase = await getSupabaseRouteHandler()
-    const { data: session } = await supabase.auth.getSession()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session.session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 

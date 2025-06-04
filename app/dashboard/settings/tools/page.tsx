@@ -58,15 +58,15 @@ export default function ToolsSettingsPage() {
 
       // Get the current user's organization ID
       const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-      if (sessionError) {
-        throw new Error("Error al obtener la sesión: " + sessionError.message)
+      if (userError) {
+        throw new Error("Error al obtener la sesión: " + userError.message)
       }
 
-      if (!session?.user) {
+      if (!user) {
         throw new Error("Usuario no autenticado")
       }
 
@@ -74,7 +74,7 @@ export default function ToolsSettingsPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("organizationId")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single()
 
       if (profileError) {
@@ -219,15 +219,15 @@ export default function ToolsSettingsPage() {
 
       // Get the current user's organization ID
       const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-      if (sessionError) {
-        throw new Error("Error al obtener la sesión: " + sessionError.message)
+      if (userError) {
+        throw new Error("Error al obtener la sesión: " + userError.message)
       }
 
-      if (!session?.user) {
+      if (!user) {
         throw new Error("Usuario no autenticado")
       }
 
@@ -235,7 +235,7 @@ export default function ToolsSettingsPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("organizationId")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single()
 
       if (profileError) {
@@ -297,15 +297,15 @@ export default function ToolsSettingsPage() {
 
       // Get the current user's organization ID
       const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-      if (sessionError) {
-        throw new Error("Error al obtener la sesión: " + sessionError.message)
+      if (userError) {
+        throw new Error("Error al obtener la sesión: " + userError.message)
       }
 
-      if (!session?.user) {
+      if (!user) {
         throw new Error("Usuario no autenticado")
       }
 
@@ -313,7 +313,7 @@ export default function ToolsSettingsPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("organizationId")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single()
 
       if (profileError) {
