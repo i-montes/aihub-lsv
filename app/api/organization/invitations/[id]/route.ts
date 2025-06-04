@@ -16,11 +16,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Verificar que el usuario esté autenticado
     const {
-      data: { user },
-      error: userError,
+      data: { user: verifiedUser },
+      error: verifyUserError,
     } = await supabase.auth.getUser()
 
-    if (userError || !user) {
+    if (verifyUserError || !verifiedUser) {
       return errorResponse("No autorizado", 401)
     }
 
@@ -28,7 +28,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const { data: currentUserProfile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", verifiedUser.id)
       .single()
 
     if (profileError || !currentUserProfile) {
@@ -60,12 +60,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Verificar que el usuario invitado pertenezca a la misma organización que el usuario actual
-    if (invitedUserProfile.organization_id !== currentUserProfile.organization_id) {
+    if (invitedUserProfile.organizationId !== currentUserProfile.organizationId) {
       return errorResponse("El usuario no pertenece a tu organización", 403)
     }
 
     // Verificar que el usuario invitado tenga una invitación pendiente
-    if (user.user_metadata?.email_confirmed_at) {
+    if (user?.user?.email_confirmed_at) {
       return errorResponse("Este usuario ya ha aceptado su invitación", 400)
     }
 

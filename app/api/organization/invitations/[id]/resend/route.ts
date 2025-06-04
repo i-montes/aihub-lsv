@@ -16,11 +16,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Verificar que el usuario esté autenticado
     const {
-      data: { user },
-      error: userError,
+      data: { user: verifiedUser },
+      error: verifiedUserError,
     } = await supabase.auth.getUser()
 
-    if (userError || !user) {
+    if (verifiedUserError || !verifiedUser) {
       return errorResponse("No autorizado", 401)
     }
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { data: currentUserProfile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", verifiedUser.id)
       .single()
 
     if (profileError || !currentUserProfile) {

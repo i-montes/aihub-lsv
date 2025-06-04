@@ -40,7 +40,7 @@ export const POST = createApiHandler(async (req) => {
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`
 
     // Invitar al usuario usando la API de administrador de Supabase
-    const { data: user, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+    const { data: invitedUserData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
       redirectTo,
       data: {
         role,
@@ -56,7 +56,7 @@ export const POST = createApiHandler(async (req) => {
     }
 
     // Verificar que el usuario se haya creado correctamente
-    if (!user || !user.user || !user.user.id) {
+    if (!invitedUserData || !invitedUserData.user || !invitedUserData.user.id) {
       return NextResponse.json(
         {
           error: "Usuario invitado pero no se pudo obtener su ID para actualizar el perfil",
@@ -74,7 +74,7 @@ export const POST = createApiHandler(async (req) => {
         name: name || "",
         lastname: lastname || "",
       })
-      .eq("id", user.user.id)
+      .eq("id", invitedUserData.user.id)
 
     if (updateError) {
       console.error("Error updating user profile:", updateError)
@@ -82,7 +82,7 @@ export const POST = createApiHandler(async (req) => {
         {
           message: "Invitación enviada pero hubo un error al actualizar el perfil",
           error: updateError.message,
-          user,
+          user: invitedUserData,
         },
         { status: 200 },
       ) // Devolvemos 200 porque la invitación fue exitosa
@@ -90,7 +90,7 @@ export const POST = createApiHandler(async (req) => {
 
     return NextResponse.json({
       message: "Invitación enviada y perfil actualizado correctamente",
-      user,
+      user: invitedUserData,
     })
   } catch (error: any) {
     console.error("Error in invite API:", error)
