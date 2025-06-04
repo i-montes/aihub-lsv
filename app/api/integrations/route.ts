@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Ocultar las claves completas por seguridad
-    const safeApiKeys = apiKeys.map((key) => ({
+    const safeApiKeys = apiKeys.map((key: { key: string }) => ({
       ...key,
       key: `${key.key.substring(0, 4)}...${key.key.substring(key.key.length - 4)}`,
     }))
