@@ -19,11 +19,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Usuario no encontrado o invitación inválida" }, { status: 404 })
     }
 
-    // Verificar si el usuario ya ha establecido una contraseña
-    if (userData.user.last_sign_in_at) {
-      return NextResponse.json({ error: "Esta invitación ya ha sido utilizada" }, { status: 400 })
-    }
-
     // Actualizar la contraseña del usuario
     const { error: updateError } = await supabase.auth.admin.updateUserById(id, { password })
 
