@@ -5,13 +5,13 @@ import type { NextRequest } from "next/server"
 export const GET = createApiHandler(async (req: NextRequest) => {
   const supabase = await getSupabaseServer()
 
-  // Get the current session
+  // Authenticate the user by verifying with Supabase
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -19,7 +19,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("id, email, name, lastname, avatar, role, organizationId")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   if (profileError) {
@@ -35,13 +35,13 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
 
   const supabase = await getSupabaseServer()
 
-  // Get the current session
+  // Authenticate the user by verifying with Supabase
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (sessionError || !session) {
+  if (userError || !user) {
     return errorResponse("Not authenticated", 401)
   }
 
@@ -54,7 +54,7 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
   if (avatar !== undefined) updates.avatar = avatar
 
   // Update profile in the database
-  const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", session.user.id)
+  const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", user.id)
 
   if (updateError) {
     return errorResponse(updateError.message, 400)
@@ -62,7 +62,7 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
 
   // If email is changing, update email in auth
   let emailUpdateResult = null
-  if (email && email !== session.user.email) {
+  if (email && email !== user.email) {
     const { data: emailData, error: emailError } = await supabase.auth.updateUser({
       email: email,
     })
@@ -74,7 +74,7 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
     emailUpdateResult = emailData
 
     // Also update email in profiles table
-    await supabase.from("profiles").update({ email }).eq("id", session.user.id)
+    await supabase.from("profiles").update({ email }).eq("id", user.id)
   }
 
   // Update auth metadata as well

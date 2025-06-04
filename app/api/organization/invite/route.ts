@@ -12,17 +12,17 @@ export const POST = createApiHandler(async (req) => {
 
     const supabase = await getSupabaseRouteHandler()
 
-    // Verificar la sesión del usuario actual
+    // Verificar el usuario actual de forma segura
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
     // Obtener el perfil del usuario actual para verificar permisos
-    const { data: currentUserProfile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+    const { data: currentUserProfile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
     // Verificar si el usuario tiene permisos para invitar (OWNER o ADMIN)
     if (!currentUserProfile || (currentUserProfile.role !== "OWNER" && currentUserProfile.role !== "ADMIN")) {

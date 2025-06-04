@@ -20,10 +20,12 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
     // Obtener el cliente de Supabase
     const supabase = await getSupabaseServer()
 
-    // Obtener la sesión actual
-    const { data: sessionData } = await supabase.auth.getSession()
+    // Verificar el usuario actual de manera segura
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!sessionData.session) {
+    if (!user) {
       return errorResponse("No hay sesión activa", 401)
     }
 
