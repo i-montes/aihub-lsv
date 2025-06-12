@@ -28,15 +28,15 @@ export async function POST(request: Request) {
     }
 
     // Iniciar sesión automáticamente
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userData.user.email!,
-      password,
-    })
+    // const { error: signInError } = await supabase.auth.signInWithPassword({
+    //   email: userData.user.email!,
+    //   password,
+    // })
 
-    if (signInError) {
-      console.error("Error al iniciar sesión:", signInError)
-      // No devolvemos error aquí, ya que la contraseña se estableció correctamente
-    }
+    // if (signInError) {
+    //   console.error("Error al iniciar sesión:", signInError)
+    //   // No devolvemos error aquí, ya que la contraseña se estableció correctamente
+    // }
 
     return NextResponse.json({
       message: "Invitación aceptada correctamente",
