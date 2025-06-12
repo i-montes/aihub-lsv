@@ -48,25 +48,6 @@ export async function GET(request: Request) {
     );
   }
 
-  //actualizar la confirmacion del correo electrónico con supabase
-  const { error: emailError } = await supabase.auth.admin.updateUserById(
-    userData.id,
-    {
-      email_confirm: true,
-      user_metadata: {
-        email_confirmed: true,
-      },
-    }
-  );
-
-  if (emailError) {
-    console.error("Error al confirmar el correo electrónico:", emailError);
-    return NextResponse.json(
-      { error: "Error al confirmar el correo electrónico" },
-      { status: 500 }
-    );
-  }
-
   // Obtener nombre de la organización si existe
   let organizationName = null;
   if (userData?.organizationId) {
