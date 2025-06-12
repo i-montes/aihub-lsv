@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
-import type { Database } from "@/lib/supabase/database.types"
 import { errorResponse } from "@/app/api/base-handler"
+import { getSupabaseServer } from "@/lib/supabase/server"
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
@@ -12,7 +10,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Crear cliente de Supabase con cookies para autenticación
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = await getSupabaseServer()
 
     // Verificar que el usuario esté autenticado
     const {

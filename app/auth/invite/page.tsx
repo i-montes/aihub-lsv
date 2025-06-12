@@ -14,18 +14,21 @@ import { AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 export default function InvitePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const id = searchParams.get("id")
+  const email = searchParams.get("email")
+  const organizationId = searchParams.get("organizationId")
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [invitation, setInvitation] = useState<{
+    id: string
     email: string
     name: string | null
     lastname: string | null
     organizationName: string | null
   } | null>({
+    id: "",
     email: "",
     name: null,
     lastname: null,
@@ -38,14 +41,14 @@ export default function InvitePage() {
   // Verificar la invitación al cargar la página
   useEffect(() => {
     async function verifyInvitation() {
-      if (!id) {
-        setError("ID de usuario no proporcionado")
+      if (!email) {
+        setError("Email no proporcionado")
         setIsLoading(false)
         return
       }
 
       try {
-        const data = await api.get(`/auth/verify-invitation?id=${id}`)
+        const data = await api.get(`/auth/verify-invitation?email=${email}&organizationId=${organizationId}`)
 
         // Verificar si el usuario existe y su estado
         if (!data.user) {
@@ -54,29 +57,12 @@ export default function InvitePage() {
           return
         }
 
-        // Verificar si el usuario ya ha establecido una contraseña
-        if (data.user.last_sign_in_at) {
-          setError("Esta invitación ya ha sido utilizada")
-          setIsLoading(false)
-          return
-        }
-
-        // Si el email no está confirmado, confirmarlo automáticamente
-        if (!data.user.email_confirmed_at) {
-          try {
-            await api.post("/auth/resend-confirmation", { userId: id })
-            // El email se confirmará automáticamente en el backend
-          } catch (confirmError) {
-            console.error("Error al confirmar email:", confirmError)
-            // Continuamos aunque falle la confirmación automática
-          }
-        }
-
         setInvitation({
+          id: data.user.id,
           email: data.user.email,
-          name: data.user.user_metadata?.name || null,
-          lastname: data.user.user_metadata?.lastname || null,
-          organizationName: data.organizationName || null,
+          name: data.user?.name || null,
+          lastname: data.user?.lastname || null,
+          organizationName: data.invitation?.organizationName || null,
         })
         setIsLoading(false)
       } catch (error: any) {
@@ -87,7 +73,7 @@ export default function InvitePage() {
     }
 
     verifyInvitation()
-  }, [id])
+  }, [email, organizationId])
 
   // Manejar el envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +93,7 @@ export default function InvitePage() {
 
     try {
       await api.post("/auth/accept-invitation", {
-        id,
+        id: invitation?.id,
         password,
       })
 

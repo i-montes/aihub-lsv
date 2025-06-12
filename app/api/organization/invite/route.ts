@@ -36,8 +36,8 @@ export const POST = createApiHandler(async (req) => {
       return NextResponse.json({ error: "No tienes una organización asignada" }, { status: 400 })
     }
 
-    // Crear la URL de redirección
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`
+    // Crear la URL de redirección con información adicional
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite?email=${encodeURIComponent(email)}&organizationId=${organizationId}`
 
     // Invitar al usuario usando la API de administrador de Supabase
     const { data: invitedUserData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {

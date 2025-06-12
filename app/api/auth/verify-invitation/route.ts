@@ -1,15 +1,15 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const id = requestUrl.searchParams.get("id");
-  const supabase = createRouteHandlerClient({ cookies });
+  const email = requestUrl.searchParams.get("email");
+  const organizationId = requestUrl.searchParams.get("organizationId");
+  const supabase = await getSupabaseServer();
 
-  if (!id) {
+  if (!email) {
     return NextResponse.json(
       { error: "ID de usuario no proporcionado" },
       { status: 400 }
@@ -17,10 +17,14 @@ export async function GET(request: Request) {
   }
 
   // En lugar de solo devolver la invitación, devolver también el usuario
-  const { data: userData, error: userError } =
-    await supabase.auth.admin.getUserById(id);
+  const { data: userData, error: userError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("email", email)
+    .eq("organizationId", organizationId as string)
+    .single();
 
-  if (userError || !userData.user) {
+  if (userError || !userData) {
     console.error("Error al obtener usuario:", userError);
     return NextResponse.json(
       { error: "Usuario no encontrado o invitación inválida" },
@@ -28,7 +32,7 @@ export async function GET(request: Request) {
     );
   }
 
-  if (userError || !userData.user) {
+  if (userError || !userData) {
     console.error("Error al obtener usuario:", userError);
     return NextResponse.json(
       { error: "Usuario no encontrado o invitación inválida" },
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
   }
 
   // reviricar correo electrónico
-  if (!userData.user.email) {
+  if (!userData.email) {
     return NextResponse.json(
       { error: "El usuario no tiene un correo electrónico asociado" },
       { status: 400 }
@@ -45,12 +49,15 @@ export async function GET(request: Request) {
   }
 
   //actualizar la confirmacion del correo electrónico con supabase
-  const { error: emailError } = await supabase.auth.admin.updateUserById(id, {
-    email_confirm: true,
-    user_metadata: {
-      email_confirmed: true,
-    },
-  });
+  const { error: emailError } = await supabase.auth.admin.updateUserById(
+    userData.id,
+    {
+      email_confirm: true,
+      user_metadata: {
+        email_confirmed: true,
+      },
+    }
+  );
 
   if (emailError) {
     console.error("Error al confirmar el correo electrónico:", emailError);
@@ -60,34 +67,31 @@ export async function GET(request: Request) {
     );
   }
 
-  // Obtener datos del perfil
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .select("name, lastname, organizationId")
-    .eq("id", id)
-    .single();
-
-  if (profileError) {
-    console.error("Error al obtener perfil:", profileError);
-  }
-
   // Obtener nombre de la organización si existe
   let organizationName = null;
-  if (profileData?.organizationId) {
+  if (userData?.organizationId) {
     const { data: orgData } = await supabase
       .from("organization")
       .select("name")
-      .eq("id", profileData.organizationId)
+      .eq("id", userData.organizationId)
       .single();
 
     organizationName = orgData?.name || null;
   }
 
   return NextResponse.json({
+    user: {
+      id: userData.id,
+      email: userData.email,
+      name: userData.name || null,
+      lastname: userData.lastname || null,
+      role: userData.role || "USER", // Asignar un rol por defecto si no existe
+      organizationId: userData.organizationId || null,
+    },
     invitation: {
-      email: userData.user.email,
-      name: profileData?.name || null,
-      lastname: profileData?.lastname || null,
+      email: userData.email,
+      name: userData.name || null,
+      lastname: userData.lastname || null,
       organizationName,
     },
   });
