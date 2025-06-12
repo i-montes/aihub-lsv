@@ -29,7 +29,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       .from("profiles")
       .select("*")
       .eq("id", verifiedUser.id)
-      .single()
+      .single() 
 
     if (profileError || !currentUserProfile) {
       return errorResponse("Error al obtener el perfil del usuario", 500)
