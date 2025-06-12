@@ -9,7 +9,7 @@ const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env
  * Obtiene el cliente de Supabase para componentes del servidor
  * Esta función es segura para usar en componentes del servidor de React
  */
-export async function getSupabaseServer() {
+export async function getSupabaseServer(): Promise<ReturnType<typeof createServerClient<Database>>> {
   try {
     // Si Supabase no está configurado, devolver un cliente simulado
     if (!isSupabaseConfigured) {

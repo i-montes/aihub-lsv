@@ -10,7 +10,17 @@ const refreshTokenCookie = projectRef ? `sb-${projectRef}-refresh-token` : "sb-r
 
 export const POST = createApiHandler(async (req: NextRequest) => {
   try {
-    const supabase = getSupabaseServer()
+    const supabase = await getSupabaseServer()
+
+    // Check if auth is available
+    if (!supabase || !supabase.auth) {
+      console.error("Supabase auth is not available")
+      // Still try to clear cookies
+      const cookieStore = await cookies()
+      cookieStore.delete(accessTokenCookie)
+      cookieStore.delete(refreshTokenCookie)
+      return successResponse({ success: true, message: "Session cleared" })
+    }
 
     // Verificar si hay un usuario activo antes de intentar cerrar sesión
     const {
@@ -19,7 +29,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
 
     if (!user) {
       // Si no hay usuario, simplemente limpiar las cookies y retornar éxito
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       cookieStore.delete(accessTokenCookie)
       cookieStore.delete(refreshTokenCookie)
 
@@ -32,7 +42,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     if (error) {
       console.error("Supabase signOut error:", error)
       // Incluso si hay un error, intentar limpiar las cookies
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       cookieStore.delete(accessTokenCookie)
       cookieStore.delete(refreshTokenCookie)
 
@@ -40,7 +50,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     }
 
     // Limpiar las cookies manualmente para asegurar que se eliminen
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     cookieStore.delete(accessTokenCookie)
     cookieStore.delete(refreshTokenCookie)
 
@@ -50,7 +60,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
 
     // En caso de cualquier error, intentar limpiar las cookies
     try {
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       cookieStore.delete(accessTokenCookie)
       cookieStore.delete(refreshTokenCookie)
     } catch (cookieError) {
