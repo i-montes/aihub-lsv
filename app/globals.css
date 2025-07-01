@@ -72,3 +72,8 @@
     position: fixed;
   }
 }
+
+.rendered-html-container h2 {
+  font-family: 'Manrope', sans-serif;
+  @apply text-2xl font-bold mb-4;
+}

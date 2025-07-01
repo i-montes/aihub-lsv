@@ -37,7 +37,7 @@ export function SuggestionItem({ suggestion, isActive, onApply, onIgnore, onClic
       className={`border rounded-xl p-4 transition-all cursor-pointer ${
         isActive ? "border-blue-400 bg-blue-50 shadow-md" : "border-gray-200 hover:border-blue-200 hover:shadow-sm"
       }`}
-      onClick={() => onClick(suggestion)}
+      onClick={(e) => {e.stopPropagation(); onClick(suggestion)}}
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">

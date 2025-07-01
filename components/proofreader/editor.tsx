@@ -260,15 +260,7 @@ export function ProofreaderEditor({
             </Button>
           </>
         )}
-        <Button
-          size="sm"
-          variant="secondary"
-          className="shadow-sm hover:shadow-md transition-all"
-          onClick={copyTextWithFormat}
-        >
-          <Copy className="h-4 w-4 mr-2" />
-          Copiar texto
-        </Button>
+        
         <Button
           size="sm"
           className="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"

@@ -20,7 +20,7 @@ function XIcon({ className }: { className?: string }) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded)

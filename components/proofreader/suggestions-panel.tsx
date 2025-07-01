@@ -26,9 +26,9 @@ export function SuggestionsPanel({
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <Check className="h-8 w-8 text-green-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-800">No suggestions!</h3>
+          <h3 className="text-lg font-medium text-gray-800">¡Sin sugerencias!</h3>
           <p className="text-gray-500 mt-2 max-w-xs">
-            Your text is error-free or you have applied all the corrections.
+            Tu texto no tiene errores o has aplicado todas las correcciones.
           </p>
         </div>
       ) : (

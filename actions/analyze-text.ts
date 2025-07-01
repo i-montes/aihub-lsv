@@ -126,7 +126,7 @@ export async function analyzeText(text: string, selectedModel: { model: string; 
 
     // Combinar los prompts
     const combinedPrompt = `
-${principalPrompt}j
+${principalPrompt}
 
 GUÍA DE ESTILO:
 ${styleGuidePrompt}
