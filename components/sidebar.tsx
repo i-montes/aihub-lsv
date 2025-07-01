@@ -70,7 +70,7 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/thread-generator"}
               isExpanded={isExpanded}
             />
-            <NavItem
+            {/* <NavItem
               icon={<FileText className="size-5" />}
               label="Boletín"
               href="/dashboard/newsletter-generator"
@@ -83,7 +83,7 @@ export function Sidebar() {
               href="/dashboard/analytics"
               isActive={pathname === "/dashboard/analytics"}
               isExpanded={isExpanded}
-            />
+            /> */}
           </div>
         </div>
 
