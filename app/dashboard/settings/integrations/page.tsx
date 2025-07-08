@@ -290,9 +290,9 @@ export default function IntegrationsSettingsPage() {
       case "OPENAI":
         return "gpt-4.1-2025-04-14"
       case "GOOGLE":
-        return "Gemini 2.0"
+        return "gemini-2.5-pro"
       case "ANTHROPIC":
-        return "claude 3.7 sonnet"
+        return "claude-opus-4-20250514"
       default:
         return "Modelo"
     }
@@ -304,9 +304,9 @@ export default function IntegrationsSettingsPage() {
       case "OPENAI":
         return ["gpt-4.1-2025-04-14"]
       case "GOOGLE":
-        return ["Gemini 2.0"]
+        return ["gemini-2.5-pro"]
       case "ANTHROPIC":
-        return ["claude 3.7 sonnet"]
+        return ["claude-opus-4-20250514"]
       default:
         return []
     }
@@ -488,7 +488,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Google Gemini</p>
-                      <p className="text-xs text-gray-500">Gemini 2.0</p>
+                      <p className="text-xs text-gray-500">gemini-2.5-pro</p>
                     </div>
                   </div>
                   <Button
@@ -562,7 +562,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Anthropic</p>
-                      <p className="text-xs text-gray-500">claude 3.7 sonnet</p>
+                      <p className="text-xs text-gray-500">claude-opus-4-20250514</p>
                     </div>
                   </div>
                   <Button
