@@ -179,7 +179,7 @@ Genera un hilo de Twitter/X siguiendo estrictamente las instrucciones. Incluye l
 El Maximo de len dell array hilo debe ser 15 elementos
 `;
 
-    logs.push(combinedPrompt);
+    
 
     // 5. Crear la conexión con el proveedor adecuado
     let result;
@@ -187,12 +187,16 @@ El Maximo de len dell array hilo debe ser 15 elementos
     const top_p = tool.top_p || 0.95;
     const apiKey = apiKeyData.key;
 
+    console.log(tool)
+
     logs.push(
       `Iniciando generación con modelo: ${selectedModel.model} (${selectedModel.provider})`
     );
     logs.push(
       `Parámetros - Temperature: ${temperature}, Top P: ${top_p}, Provider: ${selectedModel.provider}, Model: ${selectedModel.model}, Format: ${format}`
     );
+
+    logs.push(combinedPrompt);
 
     switch (selectedModel.provider.toLowerCase()) {
       case "openai":

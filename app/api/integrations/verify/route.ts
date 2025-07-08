@@ -96,27 +96,34 @@ export async function POST(request: NextRequest) {
           error = errorData.error?.message || "Error al verificar la clave de Google"
         }
       } else if (provider === "ANTHROPIC") {
-        // Verificar clave de Anthropic con una consulta simple
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
+        // Verificar clave de Anthropic consultando los modelos disponibles
+        const response = await fetch("https://api.anthropic.com/v1/models", {
+          method: "GET",
           headers: {
             "x-api-key": key,
             "Content-Type": "application/json",
             "anthropic-version": "2023-06-01",
           },
-          body: JSON.stringify({
-            model: "claude-opus-4-20250514",
-            max_tokens: 1,
-            messages: [{ role: "user", content: "Hello" }],
-          }),
         })
 
         if (response.ok) {
+          const data = await response.json()
           isValid = true
-          // Anthropic no tiene un endpoint público para listar modelos, así que usamos una lista predefinida
-          models = [
-            "claude-opus-4-20250514",
-          ]
+          // Extraer los nombres de los modelos disponibles
+          models = data.data
+            .filter((model: any) => model.id.includes("claude"))
+            .map((model: any) => model.id)
+
+          // Si no se encontraron modelos o la respuesta está vacía, usar lista predefinida
+          if (models.length === 0) {
+            models = [
+              "claude-3-5-sonnet-20241022",
+              "claude-3-5-haiku-20241022",
+              "claude-3-opus-20240229",
+              "claude-3-sonnet-20240229",
+              "claude-3-haiku-20240307",
+            ]
+          }
         } else {
           const errorData = await response.json()
           error = errorData.error?.message || "Error al verificar la clave de Anthropic"
