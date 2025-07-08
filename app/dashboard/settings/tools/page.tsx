@@ -107,7 +107,15 @@ export default function ToolsSettingsPage() {
       // Process and merge tools
       const processedTools: Tool[] = []
 
-      // If we have custom tools, use them
+      // Create a map of custom tools by identity for quick lookup
+      const customToolsMap = new Map<string, any>()
+      if (customTools) {
+        customTools.forEach(tool => {
+          customToolsMap.set(tool.identity, tool)
+        })
+      }
+
+      // Add all custom tools first
       if (customTools && customTools.length > 0) {
         customTools.forEach((tool) => {
           // Extract tags from the tool's schema if available
@@ -142,9 +150,12 @@ export default function ToolsSettingsPage() {
             topP: tool.top_p || 1,
           })
         })
-      } else {
-        // If no custom tools, use default tools
-        defaultTools.forEach((tool) => {
+      }
+
+      // Add default tools that don't have a custom counterpart
+      defaultTools.forEach((tool) => {
+        // Only add if there's no custom tool with the same identity
+        if (!customToolsMap.has(tool.identity)) {
           // Extract tags from the tool's schema if available
           let tags: string[] = []
           try {
@@ -176,8 +187,8 @@ export default function ToolsSettingsPage() {
             temperature: tool.temperature || 0.7,
             topP: tool.top_p || 1,
           })
-        })
-      }
+        }
+      })
 
       setTools(processedTools)
     } catch (err) {

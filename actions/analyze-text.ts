@@ -165,7 +165,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
-          top_p,
+          topP: top_p,
         })
         break
       case "anthropic":
@@ -178,7 +178,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
-          top_p,
+          topP: top_p,
         })
         break
       case "google":
@@ -191,7 +191,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           model: google(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
-          top_p,
+          topP: top_p,
         })
         break
       default:
@@ -212,7 +212,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
 
       // Intentar normalizar los tipos antes de validar
       if (jsonResponse.correcciones && Array.isArray(jsonResponse.correcciones)) {
-        jsonResponse.correcciones = jsonResponse.correcciones.map((correccion) => {
+        jsonResponse.correcciones = jsonResponse.correcciones.map((correccion: any) => {
           // Normalizar el tipo si no es uno de los permitidos
           if (correccion.type && !["spelling", "grammar", "style", "punctuation"].includes(correccion.type)) {
             // Asignar un tipo por defecto basado en heurísticas simples

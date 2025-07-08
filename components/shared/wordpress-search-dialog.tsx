@@ -37,6 +37,7 @@ interface WordPressSearchDialogProps {
   noConnectionMessage?: string
   noResultsMessage?: string
   hideButton?: boolean
+  fullWidth?: boolean
 }
 
 // Función para limpiar el HTML de los excerpts de WordPress
@@ -59,7 +60,7 @@ export function WordPressSearchDialog({
   searchError: externalSearchError,
   hasSearched: externalHasSearched,
   buttonLabel = "Buscar en WordPress",
-  buttonClassName = "shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90",
+  buttonClassName = "",
   buttonSize = "sm",
   dialogTitle = "Buscar en WordPress",
   dialogDescription = "Busca artículos y contenido en tu sitio de WordPress",
@@ -67,6 +68,8 @@ export function WordPressSearchDialog({
   noConnectionMessage = "No hay conexión a WordPress",
   noResultsMessage = "No se encontraron resultados para",
   hideButton = false,
+  fullWidth = false,
+
 }: WordPressSearchDialogProps) {
   // Estado interno para la conexión a WordPress
   const [wordpressConnection, setWordpressConnection] = useState<{
@@ -228,7 +231,7 @@ export function WordPressSearchDialog({
     <Dialog open={open !== undefined ? open : dialogOpen} onOpenChange={handleOpenChange}>
       {!hideButton && (
         <DialogTrigger asChild>
-          <Button size={buttonSize} className={buttonClassName}>
+          <Button size={buttonSize} className={`shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90 ${buttonClassName} ${fullWidth ? "w-full" : ""}`}>
             <div className="flex items-center">
               <Image src="/wordpress-logo.png" alt="WordPress Logo" width={20} height={20} className="mr-2" />
               {buttonLabel}

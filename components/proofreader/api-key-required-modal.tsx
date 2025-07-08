@@ -8,13 +8,18 @@ import { useRouter } from "next/navigation"
 interface ApiKeyRequiredModalProps {
   isOpen: boolean
   isAdmin: boolean
+  isLoading?: boolean
 }
 
-export function ApiKeyRequiredModal({ isOpen, isAdmin }: ApiKeyRequiredModalProps) {
+export function ApiKeyRequiredModal({ isOpen, isAdmin, isLoading }: ApiKeyRequiredModalProps) {
   const router = useRouter()
 
   const handleNavigateToSettings = () => {
     router.push("/dashboard/settings/integrations")
+  }
+
+  if (isLoading) {
+    return null
   }
 
   return (

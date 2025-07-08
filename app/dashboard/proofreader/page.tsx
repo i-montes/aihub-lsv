@@ -205,8 +205,7 @@ export default function ProofreaderPage() {
       }
       /* Estilos para el contenedor de HTML renderizado - copia los estilos del editor TipTap */
       .rendered-html-container {
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-        line-height: 1.6;
+        font-family: "Inter", sans-serif;
         color: rgb(55, 65, 81);
       }
       .rendered-html-container .prose {
@@ -320,7 +319,7 @@ export default function ProofreaderPage() {
         color: rgb(239, 68, 68);
         padding: 0.125rem 0.375rem;
         border-radius: 0.25rem;
-        font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+        font-family: "Fira Code", monospace;
         font-size: 0.875rem;
       }
       .rendered-html-container pre {
@@ -593,7 +592,7 @@ export default function ProofreaderPage() {
       <html>
         <head>
           <style>
-            body { font-family: 'Manrope', sans-serif; line-height: 1.6; }
+            body { font-family: 'Inter', sans-serif; line-height: 1.6; }
             h1 { font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }
             h2 { font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }
             h3 { font-size: 1.25rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }

@@ -74,6 +74,10 @@
 }
 
 .rendered-html-container h2 {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Inter', sans-serif;
   @apply text-2xl font-bold mb-4;
+}
+
+.ProseMirror {
+  font-family: 'Inter', sans-serif !important;
 }
