@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
     let models: string[] = []
     let error = null
 
+    console.log(`Verificando clave API para el proveedor: ${provider}`)
+
+    console.log(`Clave API: ${key}`)
+
     try {
       if (provider === "OPENAI") {
         // Verificar clave de OpenAI consultando la lista de modelos
@@ -91,35 +95,31 @@ export async function POST(request: NextRequest) {
           const errorData = await response.json()
           error = errorData.error?.message || "Error al verificar la clave de Google"
         }
-      } else if (provider === "PERPLEXITY") {
-        // Verificar clave de Perplexity con una consulta simple
-        const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      } else if (provider === "ANTHROPIC") {
+        // Verificar clave de Anthropic con una consulta simple
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${key}`,
+            "x-api-key": key,
             "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "pplx-7b-online",
-            messages: [{ role: "system", content: "Verify API key" }],
+            model: "claude-opus-4-20250514",
             max_tokens: 1,
+            messages: [{ role: "user", content: "Hello" }],
           }),
         })
 
         if (response.ok) {
           isValid = true
-          // Perplexity no tiene un endpoint para listar modelos, así que usamos una lista predefinida
+          // Anthropic no tiene un endpoint público para listar modelos, así que usamos una lista predefinida
           models = [
-            "pplx-7b-online",
-            "pplx-70b-online",
-            "pplx-7b-chat",
-            "pplx-70b-chat",
-            "llama-3-sonar-small-online",
-            "llama-3-sonar-medium-online",
+            "claude-opus-4-20250514",
           ]
         } else {
           const errorData = await response.json()
-          error = errorData.error?.message || "Error al verificar la clave de Perplexity"
+          error = errorData.error?.message || "Error al verificar la clave de Anthropic"
         }
       }
     } catch (err: any) {

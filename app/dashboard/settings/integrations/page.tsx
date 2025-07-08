@@ -312,19 +312,6 @@ export default function IntegrationsSettingsPage() {
     }
   }
 
-  const getProviderCapabilities = (provider: string): string[] => {
-    switch (provider) {
-      case "OPENAI":
-        return ["Generación de texto", "Análisis de datos", "Multimodal"]
-      case "GOOGLE":
-        return ["Análisis de documentos", "Resúmenes"]
-      case "ANTHROPIC":
-        return ["Razonamiento avanzado", "Instrucciones complejas"]
-      default:
-        return ["IA generativa"]
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -429,16 +416,6 @@ export default function IntegrationsSettingsPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {getProviderCapabilities(apiKey.provider).map((capability, index) => (
-                        <span
-                          key={index}
-                          className={`px-2 py-1 ${getProviderTagStyle(apiKey.provider, apiKey.status)} rounded-md text-xs font-medium`}
-                        >
-                          {capability}
-                        </span>
-                      ))}
                     </div>
                     {/* Mostrar la fecha de creación */}
                     <div className="mt-4 text-xs text-gray-500">

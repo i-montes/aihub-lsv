@@ -98,6 +98,10 @@ export default function ThreadGenerator() {
         }
         toast.success("Hilo generado exitosamente");
       } else {
+        // Store logs even when there's an error
+        if (result.logs && Array.isArray(result.logs)) {
+          setGenerationLogs(result.logs);
+        }
         toast.error(result.error || "Error al generar el hilo");
       }
     } catch (error) {
@@ -333,7 +337,7 @@ export default function ThreadGenerator() {
 
               <div className="p-6 space-y-4">
                 {/* Botones de acción */}
-                <div className="flex gap-2 mb-4">
+                {/* <div className="flex gap-2 mb-4">
                   <WordPressSearchDialog
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
@@ -345,7 +349,7 @@ export default function ThreadGenerator() {
                     noResultsMessage="No se encontraron artículos para"
                     fullWidth
                   />
-                </div>
+                </div> */}
 
                 {sourceTitle && (
                   <div className="p-3 bg-muted rounded-md flex items-center gap-2">
@@ -393,7 +397,7 @@ export default function ThreadGenerator() {
                 <h2 className="text-xl font-semibold">Vista previa del hilo</h2>
 
                 <div className="flex items-center gap-2">
-                  {generatedThread.length > 0 && (
+                  {(generatedThread.length > 0 || generationLogs.length > 0) && (
                     <>
                       <Dialog open={showLogsModal} onOpenChange={setShowLogsModal}>
                         <DialogTrigger asChild>
@@ -510,15 +514,17 @@ export default function ThreadGenerator() {
                         </DialogContent>
                       </Dialog>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyAll}
-                        className="gap-2"
-                      >
-                        <Copy className="h-4 w-4" />
-                        Copiar todo
-                      </Button>
+                      {generatedThread.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyAll}
+                          className="gap-2"
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copiar todo
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>

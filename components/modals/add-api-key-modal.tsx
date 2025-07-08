@@ -56,11 +56,11 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
   const getDefaultModels = (provider: ApiKeyProvider): string[] => {
     switch (provider) {
       case "OPENAI":
-        return ["gpt-4o"]
+        return ["gpt-4.1-2025-04-14"]
       case "GOOGLE":
-        return ["Gemini 2.0"]
+        return ["gemini-2.5-pro"]
       case "ANTHROPIC":
-        return ["claude 3.7 sonnet"]
+        return ["claude-opus-4-20250514"]
       default:
         return []
     }
