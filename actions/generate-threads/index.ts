@@ -13,6 +13,7 @@ const ThreadsSchema = z.object({
 });
 
 export async function threadsGenerator(
+  title: string,
   text: string,
   format: "tesis" | "investigacion" | "lista",
   selectedModel: { model: string; provider: string }
@@ -96,12 +97,12 @@ export async function threadsGenerator(
     logs.push("Obteniendo configuración de herramienta threads_generator");
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
-      .select("prompts", "temperature", "top_p", "schema")
+      .select("prompts, temperature, top_p, schema")
       .eq("organization_id", organizationId)
       .eq("identity", "threads_generator")
       .single();
 
-    console.log(toolError);
+    console.log(toolData)
 
     // Si no existe, obtener la configuración por defecto
     let tool;
@@ -111,7 +112,7 @@ export async function threadsGenerator(
       );
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
-        .select("prompts", "temperature", "top_p", "schema")
+        .select("prompts, temperature, top_p, schema")
         .eq("identity", "threads_generator")
         .single();
 
@@ -134,6 +135,8 @@ export async function threadsGenerator(
       logs.push("Configuración personalizada obtenida");
       tool = toolData;
     }
+
+    console.log(toolData)
 
     const prompts = tool.prompts;
     const principalPrompt =
@@ -161,6 +164,10 @@ EJEMPLOS DE HILOS SIMILARES:
 ${examples}
 
 CREA UN HILO DE TWITTER A PARTIR DEL SIGUIENTE TEXTO:
+TÍTULO: 
+${title}
+
+ARTÍCULO:
 ${text}
 
 FORMATO DE RESPUESTA:
@@ -174,9 +181,10 @@ Debes responder con un objeto JSON que contenga un array de hilos con el siguien
   ]
 }
 
-Cada elemento del array "hilo" debe ser un tweet individual del hilo, respetando el límite de caracteres por tweet.
-Genera un hilo de Twitter/X siguiendo estrictamente las instrucciones. Incluye la URL proporcionada en el hilo.
-El Maximo de len dell array hilo debe ser 15 elementos
+INSTRUCCIONES ADICIONALES:
+- Cada hilo debe ser breve y conciso, idealmente de 280 caracteres o menos.
+- Genera un hilo de Twitter/X siguiendo estrictamente las instrucciones. Incluye la URL proporcionada en el hilo.
+- No incluyas mas de 15 hilos. 
 `;
 
     
@@ -211,7 +219,7 @@ El Maximo de len dell array hilo debe ser 15 elementos
           prompt: combinedPrompt,
           schema: ThreadsSchema,
           temperature,
-          topP: top_p,
+          topP: top_p
         });
         break;
       case "anthropic":
@@ -227,6 +235,10 @@ El Maximo de len dell array hilo debe ser 15 elementos
           schema: ThreadsSchema,
           temperature,
           topP: top_p,
+          headers: {
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
+          },
         });
         break;
       case "google":

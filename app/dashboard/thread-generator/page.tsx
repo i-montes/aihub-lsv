@@ -63,10 +63,19 @@ export default function ThreadGenerator() {
   const [showLogsModal, setShowLogsModal] = useState(false);
 
   const generateThread = async () => {
+
+    if (isGenerating) return; // Prevent multiple clicks
+
     if (!sourceContent.trim()) {
       toast.error("Por favor, añade contenido para generar el hilo");
       return;
     }
+
+    if (!sourceTitle.trim()) {
+      toast.error("Por favor, añade un título para generar el hilo");
+      return;
+    }
+
 
     if (!selectedModel.model || !selectedModel.provider) {
       toast.error("Por favor, selecciona un modelo de IA");
@@ -79,6 +88,7 @@ export default function ThreadGenerator() {
 
     try {
       const result = await threadsGenerator(
+        sourceTitle,
         sourceContent,
         outputFormat,
         selectedModel
@@ -110,19 +120,6 @@ export default function ThreadGenerator() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const copyThread = () => {
-    if (generatedThread.length === 0) return;
-
-    const threadText = generatedThread
-      .map((tweet) => tweet.content)
-      .join("\n\n---\n\n");
-
-    navigator.clipboard
-      .writeText(threadText)
-      .then(() => toast.success("Hilo copiado al portapapeles"))
-      .catch(() => toast.error("Error al copiar el hilo"));
   };
 
   const checkApiKeyExists = async () => {
@@ -337,7 +334,7 @@ export default function ThreadGenerator() {
 
               <div className="p-6 space-y-4">
                 {/* Botones de acción */}
-                {/* <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4">
                   <WordPressSearchDialog
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
@@ -349,21 +346,34 @@ export default function ThreadGenerator() {
                     noResultsMessage="No se encontraron artículos para"
                     fullWidth
                   />
-                </div> */}
+                </div>
 
-                {sourceTitle && (
-                  <div className="p-3 bg-muted rounded-md flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-medium">{sourceTitle}</h3>
-                  </div>
-                )}
+                {/* Title Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Título
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ingresa el título del contenido..."
+                    className="w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={sourceTitle}
+                    onChange={(e) => setSourceTitle(e.target.value)}
+                  />
+                </div>
 
-                <Textarea
-                  placeholder="Pega aquí el contenido para generar el hilo o utiliza la búsqueda de WordPress..."
-                  className="min-h-[300px] resize-none"
-                  value={sourceContent}
-                  onChange={(e) => setSourceContent(e.target.value)}
-                />
+                {/* Content Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Contenido
+                  </label>
+                  <Textarea
+                    placeholder="Pega aquí el contenido para generar el hilo o utiliza la búsqueda de WordPress..."
+                    className="min-h-[300px] resize-none"
+                    value={sourceContent}
+                    onChange={(e) => setSourceContent(e.target.value)}
+                  />
+                </div>
 
                 <Button
                   onClick={generateThread}

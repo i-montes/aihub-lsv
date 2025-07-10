@@ -181,11 +181,11 @@ export function WordPressSearchDialog({
 
       const data = await response.json()
 
-      if (!response.ok) {
+      if (!response.ok || !data.success) {
         setInternalSearchError(data.message || "Error al buscar en WordPress")
         setInternalSearchResults([])
       } else {
-        setInternalSearchResults(data)
+        setInternalSearchResults(data?.data || [])
       }
     } catch (error) {
       console.error("Error al buscar en WordPress:", error)
@@ -231,7 +231,7 @@ export function WordPressSearchDialog({
     <Dialog open={open !== undefined ? open : dialogOpen} onOpenChange={handleOpenChange}>
       {!hideButton && (
         <DialogTrigger asChild>
-          <Button size={buttonSize} className={`shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90 ${buttonClassName} ${fullWidth ? "w-full" : ""}`}>
+          <Button size={buttonSize} variant={"ghost"} className={`shadow-sm hover:shadow-lg transition-all hover:opacity-90 border  ${buttonClassName} ${fullWidth ? "w-full" : ""}`}>
             <div className="flex items-center">
               <Image src="/wordpress-logo.png" alt="WordPress Logo" width={20} height={20} className="mr-2" />
               {buttonLabel}
