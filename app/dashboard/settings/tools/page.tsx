@@ -110,14 +110,14 @@ export default function ToolsSettingsPage() {
       // Create a map of custom tools by identity for quick lookup
       const customToolsMap = new Map<string, any>()
       if (customTools) {
-        customTools.forEach(tool => {
+        customTools.forEach((tool: any) => {
           customToolsMap.set(tool.identity, tool)
         })
       }
 
       // Add all custom tools first
       if (customTools && customTools.length > 0) {
-        customTools.forEach((tool) => {
+        customTools.forEach((tool: any) => {
           // Extract tags from the tool's schema if available
           let tags: string[] = []
           try {
@@ -128,6 +128,8 @@ export default function ToolsSettingsPage() {
           } catch (e) {
             console.error("Error extracting tags from schema:", e)
           }
+
+          console.log(tool.temperature)
 
           processedTools.push({
             id: tool.id,
@@ -146,14 +148,14 @@ export default function ToolsSettingsPage() {
             identity: tool.identity,
             schema: tool.schema,
             prompts: tool.prompts,
-            temperature: tool.temperature || 0.7,
-            topP: tool.top_p || 1,
+            temperature: tool.temperature,
+            topP: tool.top_p,
           })
         })
       }
 
       // Add default tools that don't have a custom counterpart
-      defaultTools.forEach((tool) => {
+      defaultTools.forEach((tool: any) => {
         // Only add if there's no custom tool with the same identity
         if (!customToolsMap.has(tool.identity)) {
           // Extract tags from the tool's schema if available
@@ -184,10 +186,20 @@ export default function ToolsSettingsPage() {
             identity: tool.identity,
             schema: tool.schema,
             prompts: tool.prompts,
-            temperature: tool.temperature || 0.7,
-            topP: tool.top_p || 1,
+            temperature: tool.temperature,
+            topP: tool.top_p,
           })
         }
+      })
+
+
+      processedTools.sort((a, b) => {
+        // Sort by last used date, then by usage count
+        const lastUsedA = a.lastUsed === "Nunca" ? new Date(0) : new Date(a.lastUsed)
+        const lastUsedB = b.lastUsed === "Nunca" ? new Date(0) : new Date(b.lastUsed)
+        if (lastUsedA < lastUsedB) return 1
+        if (lastUsedA > lastUsedB) return -1
+        return b.usageCount - a.usageCount // Sort by usage count if last used
       })
 
       setTools(processedTools)

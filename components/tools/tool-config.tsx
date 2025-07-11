@@ -91,7 +91,7 @@ export function ToolConfig({
           step={0.1}
           value={[temperature]}
           onValueChange={(values) => onTemperatureChange && onTemperatureChange(values[0])}
-          className="w-full"
+          className="w-full [&>span[data-orientation=horizontal]]:bg-gray-300 [&>span[data-orientation=horizontal]>span]:bg-blue-500"
         />
         <p className="text-xs text-gray-500 mt-1">
           Controla la aleatoriedad de las respuestas. Valores más bajos generan respuestas más predecibles.
@@ -109,7 +109,7 @@ export function ToolConfig({
           step={0.1}
           value={[topP]}
           onValueChange={(values) => onTopPChange && onTopPChange(values[0])}
-          className="w-full"
+          className="w-full [&>span[data-orientation=horizontal]]:bg-gray-300 [&>span[data-orientation=horizontal]>span]:bg-blue-500"
         />
         <p className="text-xs text-gray-500 mt-1">
           Controla la diversidad de las respuestas. Valores más bajos generan respuestas más enfocadas.

@@ -28,9 +28,8 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
   const [prompts, setPrompts] = useState<PromptItem[]>([])
   const [activePromptIndex, setActivePromptIndex] = useState(0)
   const [toolSchema, setToolSchema] = useState<any>(null)
-  const [toolTemperature, setToolTemperature] = useState<number>(0.7)
+  const [toolTemperature, setToolTemperature] = useState<number | null>(0.7)
   const [toolTopP, setToolTopP] = useState<number>(1)
-  const [hasChanges, setHasChanges] = useState<boolean>(false)
   const [isCopied, setIsCopied] = useState<boolean>(false)
 
   // Initialize form when tool changes
@@ -67,9 +66,8 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
       setPrompts(promptsArray)
       setActivePromptIndex(0)
       setToolSchema(tool.schema || {})
-      setToolTemperature(tool.temperature || 0.7)
-      setToolTopP(tool.topP || 1)
-      setHasChanges(false)
+      setToolTemperature(tool.temperature as number)
+      setToolTopP(tool.topP as number)
     }
   }, [tool])
 
@@ -95,17 +93,6 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
       } else if (typeof tool.prompts === "object" && tool.prompts !== null) {
         originalPrompts = [{ title: "Principal", content: JSON.stringify(tool.prompts, null, 2) }]
       }
-
-      // Compare current prompts with original
-      const promptsChanged = JSON.stringify(prompts) !== JSON.stringify(originalPrompts)
-
-      const hasChanged =
-        promptsChanged ||
-        toolTemperature !== (tool.temperature || 0.7) ||
-        toolTopP !== (tool.topP || 1) ||
-        JSON.stringify(toolSchema) !== JSON.stringify(tool.schema || {})
-
-      setHasChanges(hasChanged)
     }
   }, [tool, prompts, toolSchema, toolTemperature, toolTopP])
 
@@ -144,8 +131,8 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
         ...tool,
         prompts: prompts,
         schema: toolSchema,
-        temperature: toolTemperature,
-        topP: toolTopP,
+        temperature: toolTemperature as number,
+        topP: toolTopP as number,
       })
     }
   }
@@ -246,7 +233,7 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
               <ToolConfig
                 schema={toolSchema}
                 onSchemaChange={(schema) => setToolSchema(schema)}
-                temperature={toolTemperature}
+                temperature={toolTemperature as number}
                 onTemperatureChange={(temp) => setToolTemperature(temp)}
                 topP={toolTopP}
                 onTopPChange={(topP) => setToolTopP(topP)}
@@ -259,7 +246,7 @@ export function EditToolDialog({ isOpen, onOpenChange, tool, onSave }: EditToolD
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges}>
+          <Button onClick={handleSave}>
             {tool.isDefault ? "Crear copia personalizada" : "Guardar cambios"}
           </Button>
         </div>

@@ -14,6 +14,7 @@ import { SuggestionsPanel } from "@/components/proofreader/suggestions-panel";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { ProofreaderHeader } from "@/components/proofreader/header";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { DebugModal } from "@/components/debug/debug-modal";
 import { analyzeText } from "@/actions/analyze-text";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +69,7 @@ export default function ProofreaderPage() {
     styleScore: 0,
   });
   const [isAnalyzed, setIsAnalyzed] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<any[]>([]);
 
   // Estado para el modal de API key requerida
   const [apiKeyStatus, setApiKeyStatus] = useState<{
@@ -480,6 +482,7 @@ export default function ProofreaderPage() {
 
   const handleAnalyzeText = async () => {
     setIsAnalyzing(true);
+    setDebugLogs([]); // Limpiar logs anteriores
 
     try {
       const textContent = editorRef.current?.getText() || "";
@@ -497,6 +500,11 @@ export default function ProofreaderPage() {
 
       // Llamar a la función de análisis de texto
       const result = await analyzeText(textContent, selectedModel);
+
+      // Guardar los logs de debug si están disponibles
+      if (result.debugLogs) {
+        setDebugLogs(result.debugLogs);
+      }
 
       if (!result.success) {
         toast.error("Error al analizar el texto", {
@@ -574,11 +582,17 @@ export default function ProofreaderPage() {
     setSuggestions([]);
     setActiveSuggestion(null);
     setAppliedSuggestions([]);
+    setDebugLogs([]); // Limpiar logs al volver al editor
     setStats({
       readabilityScore: 0,
       grammarScore: 0,
       styleScore: 0,
     });
+  };
+
+  const clearDebugLogs = () => {
+    setDebugLogs([]);
+    toast.info("Logs de debug limpiados");
   };
 
   const copyText = async () => {
@@ -832,11 +846,16 @@ export default function ProofreaderPage() {
 
       <div className="flex flex-col h-full space-y-4">
         <div className="flex justify-between items-center">
-          <ProofreaderHeader
-            onCopyText={copyText}
-            hasText={!!originalText || !!correctedText}
-            showCopyButton={isAnalyzed}
-          />
+          <div className="flex items-center gap-3">
+            <ProofreaderHeader
+              onCopyText={copyText}
+              hasText={!!originalText || !!correctedText}
+              showCopyButton={isAnalyzed}
+            />
+            {isAnalyzed && debugLogs.length > 0 && (
+              <DebugModal logs={debugLogs} onClearLogs={clearDebugLogs} />
+            )}
+          </div>
           <WordPressSearchDialog
             open={dialogOpen}
             onOpenChange={setDialogOpen}
