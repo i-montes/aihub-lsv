@@ -120,13 +120,13 @@ export function DebugModal({ logs, onClearLogs }: DebugModalProps) {
                       {formatTimestamp(log.timestamp)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-900">{log.message}</p>
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{log.message}</p>
                   {log.data && (
                     <details className="mt-2">
                       <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800">
                         Ver datos adicionales
                       </summary>
-                      <pre className="mt-2 text-xs bg-gray-50 p-2 rounded border overflow-x-auto">
+                      <pre className="mt-2 text-xs bg-gray-50 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
                         {JSON.stringify(log.data, null, 2)}
                       </pre>
                     </details>

@@ -243,9 +243,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
 }
 `;
 
-    debugLogger.info("Prompt combinado creado", {
-      promptLength: combinedPrompt.length,
-    });
+    debugLogger.info(combinedPrompt);
 
     // 5. Crear la conexión con el proveedor adecuado
     debugLogger.info("Iniciando generación de texto con el modelo", {

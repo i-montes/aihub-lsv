@@ -37,15 +37,15 @@ export function SuggestionItem({ suggestion, isActive, onApply, onIgnore, onClic
       className={`border rounded-xl p-4 transition-all cursor-pointer ${
         isActive ? "border-blue-400 bg-blue-50 shadow-md" : "border-gray-200 hover:border-blue-200 hover:shadow-sm"
       }`}
-      onClick={(e) => {e.stopPropagation(); onClick(suggestion)}}
+      onClick={() => onClick(suggestion)}
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
           <Badge className={`${typeColors[suggestion.type]} border px-2 py-1`} variant="outline">
             {suggestion.type === "spelling" ? "Ortografía" : suggestion.type === "grammar" ? "Gramática" : "Estilo"}
           </Badge>
-          <Badge className={`${severityColors[suggestion.severity]} px-2 py-1`}>
-            {severityLabels[suggestion.severity]}
+          <Badge className={`${severityColors[suggestion.severity as keyof typeof severityColors]} px-2 py-1`}>
+            {severityLabels[suggestion.severity as keyof typeof severityLabels]}
           </Badge>
         </div>
       </div>
