@@ -77,6 +77,13 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/summary-generator"}
               isExpanded={isExpanded}
             />
+            <NavItem
+              icon={<FileText className="size-5" />}
+              label="Newsletter"
+              href="/dashboard/newsletter"
+              isActive={pathname === "/dashboard/newsletter"}
+              isExpanded={isExpanded}
+            />
             {/* <NavItem
               icon={<FileText className="size-5" />}
               label="Boletín"
