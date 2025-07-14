@@ -847,11 +847,7 @@ export default function ProofreaderPage() {
       <div className="flex flex-col h-full space-y-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <ProofreaderHeader
-              onCopyText={copyText}
-              hasText={!!originalText || !!correctedText}
-              showCopyButton={isAnalyzed}
-            />
+            <ProofreaderHeader />
             {isAnalyzed && debugLogs.length > 0 && (
               <DebugModal logs={debugLogs} onClearLogs={clearDebugLogs} />
             )}
@@ -932,16 +928,19 @@ export default function ProofreaderPage() {
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
                 {!isAnalyzed ? (
                   <ProofreaderEditor
-                    onTextChange={handleTextChange}
-                    onAnalyzeText={handleAnalyzeText}
-                    isAnalyzing={isAnalyzing}
-                    suggestions={suggestions}
-                    activeSuggestion={activeSuggestion}
-                    setActiveSuggestion={setActiveSuggestion}
-                    navigateSuggestions={navigateSuggestions}
-                    editorRef={editorRef}
-                    initialContent={originalText}
-                  />
+                      onTextChange={handleTextChange}
+                      onAnalyzeText={handleAnalyzeText}
+                      isAnalyzing={isAnalyzing}
+                      suggestions={suggestions}
+                      activeSuggestion={activeSuggestion}
+                      setActiveSuggestion={setActiveSuggestion}
+                      navigateSuggestions={navigateSuggestions}
+                      editorRef={editorRef as React.RefObject<{
+                        getHTML: () => string;
+                        getText: () => string;
+                        setContent: (content: string) => void;
+                      }>}
+                    />
                 ) : (
                   <div className="h-full overflow-auto relative">
                     {isAnalyzing ? (
@@ -1064,11 +1063,6 @@ export default function ProofreaderPage() {
                                           ? "bg-purple-100 text-purple-800"
                                           : ""
                                       }
-                                      ${
-                                        suggestion.type === "punctuation"
-                                          ? "bg-yellow-100 text-yellow-800"
-                                          : ""
-                                      }
                                     `}
                                     >
                                       {suggestion.type === "grammar" &&
@@ -1076,8 +1070,6 @@ export default function ProofreaderPage() {
                                       {suggestion.type === "spelling" &&
                                         "Ortografía"}
                                       {suggestion.type === "style" && "Estilo"}
-                                      {suggestion.type === "punctuation" &&
-                                        "Puntuación"}
                                     </span>
                                   </div>
                                 </div>

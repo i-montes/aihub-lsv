@@ -270,9 +270,6 @@ export default function ThreadGenerator() {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               <div className="p-6 border-b bg-muted/30">
-                <h2 className="text-xl font-semibold mb-4">
-                  Generador de Hilos
-                </h2>
 
                 {/* Modelo de IA */}
                 <div className="space-y-2 mb-4">
