@@ -191,11 +191,9 @@ INSTRUCCIONES ADICIONALES:
 
     // 5. Crear la conexión con el proveedor adecuado
     let result;
-    const temperature = tool.temperature || 0.7;
-    const top_p = tool.top_p || 0.95;
+    const temperature = tool.temperature;
+    const top_p = tool.top_p;
     const apiKey = apiKeyData.key;
-
-    console.log(tool)
 
     logs.push(
       `Iniciando generación con modelo: ${selectedModel.model} (${selectedModel.provider})`

@@ -55,7 +55,6 @@ export default function NewsletterGenerator() {
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
     model: string;
     provider: string;

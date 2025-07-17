@@ -5,14 +5,19 @@ export type ApiResponse<T = any> = {
   data?: T
   error?: string
   status: number
+  total?: {
+    count?: number
+    pages?: number
+  }
 }
 
-export function successResponse<T>(data: T, status = 200): NextResponse<ApiResponse<T>> {
+export function successResponse<T>(data: T, status = 200, total = {}): NextResponse<ApiResponse<T>> {
   return NextResponse.json(
     {
       success: true,
       data,
       status,
+      total
     },
     { status },
   )

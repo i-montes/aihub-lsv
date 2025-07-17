@@ -25,6 +25,8 @@ interface ProofreaderEditorProps {
     getHTML: () => string
     getText: () => string
     setContent: (content: string) => void
+    highlightText: (suggestion: Suggestion) => void
+    removeHoverHighlight: () => void
   }>
 }
 
@@ -80,6 +82,103 @@ export function ProofreaderEditor({
     },
   })
 
+  // Funciones para manejar el highlight en hover
+  const highlightTextOnHover = (suggestion: Suggestion) => {
+    if (!editor) return
+    
+    // Remover highlights previos de hover
+    removeHoverHighlight()
+    
+    try {
+      // Obtener el texto plano del editor
+      const editorText = editor.getHTML()
+      
+      // Buscar el texto de la sugerencia en el contenido del editor
+      const textToFind = suggestion.original
+      const searchStartIndex = editorText.indexOf(textToFind)
+      
+      if (searchStartIndex === -1) {
+        console.warn('Texto de sugerencia no encontrado en el editor:', textToFind)
+        return
+      }
+
+      console.log("Highlighting suggestion on hover:", {
+        text: textToFind,
+        startIndex: searchStartIndex + 1, // +1 porque TipTap usa posiciones basadas en 1
+        endIndex: searchStartIndex + 1 + textToFind.length,
+        editorLength: editorText.length,
+      })
+      
+      // Definir las constantes de índices basadas en la búsqueda
+      const startIndex = searchStartIndex + 1 // +1 porque TipTap usa posiciones basadas en 1
+      const endIndex = startIndex + textToFind.length
+    
+      
+      // Verificar que los índices calculados sean válidos
+      if (startIndex >= editorText.length + 1 || endIndex > editorText.length + 1) {
+        console.warn('Índices calculados fuera de rango:', { startIndex, endIndex, editorLength: editorText.length })
+        return
+      }
+      
+      // Guardar la selección actual
+      const currentSelection = editor.state.selection
+      
+      // Aplicar highlight temporal sin cambiar la selección del usuario
+      const { tr } = editor.state
+      
+      // Verificar que tenemos el schema correcto
+      if (!editor.schema.marks.highlight) {
+        console.warn('Mark highlight no disponible en el schema')
+        return
+      }
+      
+      tr.addMark(
+        startIndex,
+        endIndex,
+        editor.schema.marks.highlight.create({ 
+          class: 'bg-blue-200 px-1 rounded hover-highlight transition-colors duration-200' 
+        })
+      )
+      
+      // Restaurar la selección original
+      tr.setSelection(currentSelection)
+      
+      editor.view.dispatch(tr)
+    } catch (error) {
+      console.error('Error al aplicar highlight de hover:', error)
+    }
+  }
+
+  const removeHoverHighlight = () => {
+    if (!editor) return
+    
+    try {
+      // Guardar la selección actual
+      const currentSelection = editor.state.selection
+      const { tr, doc } = editor.state
+      
+      let modified = false
+      doc.descendants((node, pos) => {
+        if (node.isText && node.marks) {
+          node.marks.forEach((mark) => {
+            if (mark.type.name === 'highlight' && mark.attrs.class?.includes('hover-highlight')) {
+              tr.removeMark(pos, pos + node.nodeSize, mark.type)
+              modified = true
+            }
+          })
+        }
+      })
+      
+      if (modified) {
+        // Restaurar la selección original
+        tr.setSelection(currentSelection)
+        editor.view.dispatch(tr)
+      }
+    } catch (error) {
+      console.error('Error al remover highlight de hover:', error)
+    }
+  }
+
   // Exponer métodos del editor a través de la ref
   useEffect(() => {
     if (editor && editorRef && "current" in editorRef) {
@@ -90,6 +189,8 @@ export function ProofreaderEditor({
           editor.commands.setContent(content)
           console.log("Contenido establecido en el editor:", content)
         },
+        highlightText: highlightTextOnHover,
+        removeHoverHighlight: removeHoverHighlight,
       }
     }
   }, [editor, editorRef])
@@ -105,85 +206,6 @@ export function ProofreaderEditor({
     }
   }, [editor, activeSuggestion])
 
-  const copyTextWithFormat = async () => {
-    if (!editor) return
-
-    try {
-      // Obtener el HTML del editor
-      const htmlContent = editor.getHTML()
-
-      // Crear un elemento temporal para manipular el HTML
-      const container = document.createElement("div")
-      container.innerHTML = htmlContent
-
-      // Asegurarse de que los estilos estén incrustados para Google Docs
-      const styledHtml = `
-        <html>
-          <head>
-            <style>
-              body { font-family: 'Georgia', serif; line-height: 1.6; }
-              h1 { font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }
-              h2 { font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }
-              h3 { font-size: 1.25rem; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: bold; }
-              p { margin-bottom: 1rem; }
-              a { color: #2563eb; text-decoration: underline; }
-              ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
-              li { margin-bottom: 0.25rem; }
-              blockquote { border-left: 3px solid #e5e7eb; padding-left: 1rem; font-style: italic; color: #4b5563; }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-        </html>
-      `
-
-      // Usar la API moderna del portapapeles para copiar HTML
-      try {
-        const blob = new Blob([styledHtml], { type: "text/html" })
-        const plainTextBlob = new Blob([editor.getText()], { type: "text/plain" })
-
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/html": blob,
-            "text/plain": plainTextBlob,
-          }),
-        ])
-
-        toast.success("Contenido copiado con formato", {
-          description: "Ahora puedes pegarlo en Google Docs manteniendo el estilo.",
-        })
-      } catch (clipboardError) {
-        console.error("Error al usar Clipboard API moderna:", clipboardError)
-
-        // Fallback para navegadores que no soportan la API moderna
-        const tempElement = document.createElement("div")
-        tempElement.innerHTML = htmlContent
-        document.body.appendChild(tempElement)
-
-        const selection = window.getSelection()
-        if (selection) {
-          const range = document.createRange()
-          range.selectNodeContents(tempElement)
-          selection.removeAllRanges()
-          selection.addRange(range)
-          document.execCommand("copy")
-          selection.removeAllRanges()
-        }
-
-        document.body.removeChild(tempElement)
-
-        toast.success("Contenido copiado", {
-          description: "El contenido ha sido copiado al portapapeles.",
-        })
-      }
-    } catch (error) {
-      console.error("Error al copiar con formato:", error)
-      toast.error("Error al copiar", {
-        description: "No se pudo copiar el contenido con formato.",
-      })
-    }
-  }
 
   return (
     <div className="relative flex-1 overflow-hidden">
@@ -233,6 +255,11 @@ export function ProofreaderEditor({
             padding-left: 1rem;
             font-style: italic;
             color: #4b5563;
+          }
+          .tiptap-editor-container .ProseMirror .hover-highlight {
+            background-color: #dbeafe !important;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
           }
         `}</style>
       </div>

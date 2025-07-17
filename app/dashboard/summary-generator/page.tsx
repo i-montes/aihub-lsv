@@ -12,9 +12,17 @@ import Link from "next/link";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { SelectedContentModal } from "@/components/shared/selected-content-modal";
 import { Button } from "@/components/ui/button";
-import { FileText, Edit3 } from "lucide-react";
+import { FileText, Edit3, Eye } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import generateResume from "@/actions/generate-resume";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type WordPressPost = {
   id: number;
@@ -32,9 +40,12 @@ export type WordPressPost = {
 };
 
 export default function GeneradorResumenes() {
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split("T")[0];
+
   const [formData, setFormData] = useState({
-    fechaDesde: "",
-    fechaHasta: "",
+    fechaDesde: today,
+    fechaHasta: today,
     modelo: "",
   });
   const [resumen, setResumen] = useState("");
@@ -43,7 +54,9 @@ export default function GeneradorResumenes() {
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
   const [selectedContentModalOpen, setSelectedContentModalOpen] =
     useState(false);
-  const [selectionMode, setSelectionMode] = useState<'wordpress' | 'dateRange'>('wordpress');
+  const [selectionMode, setSelectionMode] = useState<"wordpress" | "dateRange">(
+    "wordpress"
+  );
   const [selectedModel, setSelectedModel] = useState<{
     model: string;
     provider: string;
@@ -62,6 +75,83 @@ export default function GeneradorResumenes() {
     hasApiKey: false,
     isAdmin: false,
   });
+
+  const [logs, setLogs] = useState<any[]>([]);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+
+  // Function to fetch WordPress content with pagination
+  const fetchWordPressContent = async (startDate: string, endDate: string): Promise<WordPressPost[]> => {
+    try {
+      // First request to get total count and pages
+      const initialParams = new URLSearchParams({
+        query: "*",
+        start_date: startDate,
+        end_date: endDate,
+        page: "1",
+        per_page: "20",
+      });
+
+      const initialResponse = await fetch(`/api/wordpress/search?${initialParams}`);
+      
+      if (!initialResponse.ok) {
+        throw new Error(`Error fetching WordPress content: ${initialResponse.status}`);
+      }
+
+      const initialResult = await initialResponse.json();
+      const totalPages = initialResult.total?.pages || 1;
+      const totalCount = initialResult.total?.count || 0;
+      
+      console.log(`Found ${totalCount} posts across ${totalPages} pages`);
+
+      // If no posts found, return empty array
+      if (totalCount === 0) {
+        return [];
+      }
+
+      // Collect all posts from all pages
+      let allPosts: WordPressPost[] = initialResult.data || [];
+
+      // Fetch remaining pages if there are more than 1 page
+      if (totalPages > 1) {
+        const pagePromises = [];
+        
+        for (let page = 2; page <= totalPages; page++) {
+          const pageParams = new URLSearchParams({
+            query: "*",
+            start_date: startDate,
+            end_date: endDate,
+            page: page.toString(),
+            per_page: "20",
+          });
+
+          pagePromises.push(
+            fetch(`/api/wordpress/search?${pageParams}`).then(async (response) => {
+              if (!response.ok) {
+                throw new Error(`Error fetching page ${page}: ${response.status}`);
+              }
+              const result = await response.json();
+              return result.data || [];
+            })
+          );
+        }
+
+        // Wait for all page requests to complete
+        const pageResults = await Promise.all(pagePromises);
+        
+        // Flatten and combine all results
+        pageResults.forEach((pageData) => {
+          allPosts = [...allPosts, ...pageData];
+        });
+      }
+
+      console.log(`Successfully fetched ${allPosts.length} total posts`);
+      return allPosts;
+
+    } catch (error) {
+      console.error("Error fetching WordPress content:", error);
+      throw error;
+    }
+  };
 
   const checkApiKeyExists = async () => {
     try {
@@ -155,23 +245,102 @@ export default function GeneradorResumenes() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
+    setLogs([]); // Clear previous logs
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      let contentToSummarize: WordPressPost[] = [];
+
+      if (selectionMode === "wordpress") {
+        // Use manually selected content
+        contentToSummarize = selectedContent;
+      } else {
+        // Automatic mode: fetch content by date range using new function
+        contentToSummarize = await fetchWordPressContent(
+          formData.fechaDesde,
+          formData.fechaHasta
+        );
+      }
+
+      if (contentToSummarize.length === 0) {
+        setResumen(
+          "No se encontró contenido para generar el resumen con los parámetros especificados."
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      const resume = await generateResume({
+        manual: selectionMode === "wordpress",
+        content: contentToSummarize,
+        selectedModel,
+        startDate: formData.fechaDesde,
+        endDate: formData.fechaHasta,
+      });
+
+      console.log("Generated resume:", resume);
+
+      // Store logs from the generation process
+      if (resume.logs) {
+        setLogs(resume.logs);
+      }
+
+      // Set the generated resume
+      if (resume.success && resume.resume) {
+        setResumen(resume.resume);
+      } else {
+        setResumen(resume.error || "Error al generar el resumen");
+      }
+
+      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error generating summary:", error);
       setResumen(
-        `Resumen generado para el período del ${formData.fechaDesde} al ${formData.fechaHasta} usando el modelo ${formData.modelo}`
+        `Error al generar el resumen: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`
       );
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    // Date range validation for one month maximum
+    if (name === "fechaDesde" || name === "fechaHasta") {
+      const newFormData = { ...formData, [name]: value };
+
+      if (newFormData.fechaDesde && newFormData.fechaHasta) {
+        const startDate = new Date(newFormData.fechaDesde);
+        const endDate = new Date(newFormData.fechaHasta);
+
+        // Calculate difference in days
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 31) {
+          // If range exceeds 31 days, adjust the other date
+          if (name === "fechaDesde") {
+            const maxEndDate = new Date(startDate);
+            maxEndDate.setDate(maxEndDate.getDate() + 31);
+            newFormData.fechaHasta = maxEndDate.toISOString().split("T")[0];
+          } else {
+            const minStartDate = new Date(endDate);
+            minStartDate.setDate(minStartDate.getDate() - 31);
+            newFormData.fechaDesde = minStartDate.toISOString().split("T")[0];
+          }
+        }
+      }
+
+      setFormData(newFormData);
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
 
   const insertMultiplePostContent = (posts: WordPressPost[]) => {
@@ -214,9 +383,6 @@ export default function GeneradorResumenes() {
         return provider;
     }
   };
-
-  // Get today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split("T")[0];
 
   return (
     <div className="p-6">
@@ -273,22 +439,22 @@ export default function GeneradorResumenes() {
               <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
                   type="button"
-                  onClick={() => setSelectionMode('wordpress')}
+                  onClick={() => setSelectionMode("wordpress")}
                   className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    selectionMode === 'wordpress'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
+                    selectionMode === "wordpress"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
                   Selección manual
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectionMode('dateRange')}
+                  onClick={() => setSelectionMode("dateRange")}
                   className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    selectionMode === 'dateRange'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
+                    selectionMode === "dateRange"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
                   Selección automática
@@ -297,7 +463,7 @@ export default function GeneradorResumenes() {
             </div>
 
             {/* WordPress Content Selection */}
-            {selectionMode === 'wordpress' && (
+            {selectionMode === "wordpress" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Contenido de WordPress
@@ -351,14 +517,15 @@ export default function GeneradorResumenes() {
             )}
 
             {/* Date Range Selection */}
-            {selectionMode === 'dateRange' && (
+            {selectionMode === "dateRange" && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Rango de fechas
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Selecciona un período para resumir todos los artículos publicados
+                    Selecciona un período para resumir todos los artículos
+                    publicados
                   </p>
                 </div>
                 <div>
@@ -378,6 +545,9 @@ export default function GeneradorResumenes() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Máximo un mes de diferencia entre fechas
+                  </p>
                 </div>
 
                 <div>
@@ -439,15 +609,17 @@ export default function GeneradorResumenes() {
             <button
               type="submit"
               disabled={
-                isGenerating || 
-                (selectionMode === 'wordpress' && selectedContent.length === 0) ||
-                (selectionMode === 'dateRange' && (!formData.fechaDesde || !formData.fechaHasta))
+                isGenerating ||
+                (selectionMode === "wordpress" &&
+                  selectedContent.length === 0) ||
+                (selectionMode === "dateRange" &&
+                  (!formData.fechaDesde || !formData.fechaHasta))
               }
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGenerating
                 ? "Generando..."
-                : selectionMode === 'wordpress'
+                : selectionMode === "wordpress"
                 ? `Generar Resumen${
                     selectedContent.length > 0
                       ? ` (${selectedContent.length} artículo${
@@ -466,7 +638,20 @@ export default function GeneradorResumenes() {
 
         {/* Resultado */}
         <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-4">Resultado</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Resultado</h2>
+            {logs.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLogsModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Ver Logs
+              </Button>
+            )}
+          </div>
 
           <div className="min-h-[300px] bg-gray-50 rounded-md p-4">
             {isGenerating ? (
@@ -504,6 +689,51 @@ export default function GeneradorResumenes() {
           </div>
         </div>
       </div>
+
+      {/* Logs Modal */}
+      <Dialog open={showLogsModal} onOpenChange={setShowLogsModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Logs de Generación</DialogTitle>
+            <DialogDescription>
+              Detalles del proceso de generación del resumen
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {logs.map((log, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded-md border-l-4 ${
+                  log.level === "error"
+                    ? "bg-red-50 border-red-500 text-red-800"
+                    : log.level === "warn"
+                    ? "bg-yellow-50 border-yellow-500 text-yellow-800"
+                    : "bg-blue-50 border-blue-500 text-blue-800"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono bg-gray-200 px-2 py-1 rounded">
+                        {log.level.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{log.message}</p>
+                    {log.data && (
+                      <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

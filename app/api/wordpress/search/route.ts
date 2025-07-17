@@ -6,6 +6,10 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   const supabase = await getSupabaseServer()
   const { searchParams } = new URL(req.url)
   const query = searchParams.get("query")
+  const startDate = searchParams.get("start_date")
+  const endDate = searchParams.get("end_date")
+  const page = searchParams.get("page") || "1"
+  const perPage = searchParams.get("per_page") || "20"
 
   if (!query) {
     return errorResponse("Query parameter is required", 400)
@@ -51,8 +55,21 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   }
 
   try {
-    // Construct WordPress API URL
-    const wpApiUrl = `${site_url}${api_path}/posts?search=${encodeURIComponent(query)}&per_page=20&_embed=true`
+    // Construct WordPress API URL with pagination, order and date filters
+    let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=asc&orderby=date&_embed=true&category=4924`
+
+    // Add search parameter only if query is not "*"
+    if (query !== "*") {
+      wpApiUrl += `&search=${encodeURIComponent(query)}`
+    }
+
+    // Add date filters if provided
+    if (startDate) {
+      wpApiUrl += `&after=${encodeURIComponent(startDate)}T00:00:00`
+    }
+    if (endDate) {
+      wpApiUrl += `&before=${encodeURIComponent(endDate)}T23:59:59`
+    }
 
     // Create basic auth header
     const authHeader = Buffer.from(`${username}:${password}`).toString('base64')
@@ -74,6 +91,10 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
     const posts = await response.json()
 
+    // Get pagination info from WordPress headers
+    const totalCount = response.headers.get('X-WP-Total') || '0'
+    const totalPages = response.headers.get('X-WP-TotalPages') || '1'
+
     // Transform the response to match our expected format
     const transformedPosts = posts.map((post: any) => ({
       id: post.id,
@@ -91,7 +112,12 @@ export const GET = createApiHandler(async (req: NextRequest) => {
       status: post.status
     }))
 
-    return successResponse(transformedPosts)
+    console.log('WordPress search results:', transformedPosts.length, 'posts found')
+
+    return successResponse(transformedPosts, 200, {
+      count: parseInt(totalCount),
+      pages: parseInt(totalPages)
+    })
   } catch (error) {
     console.error('WordPress search error:', error)
     return errorResponse("Error connecting to WordPress", 500)

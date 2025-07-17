@@ -1,25 +1,34 @@
+"use server";
+
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { z } from "zod";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject, generateText } from "ai";
 
-// Schema para la respuesta del modelo
-const ProofreaderResponseSchema = z.object({
-  correcciones: z.array(
-    z.object({
-      original: z.string().describe("Fragmento del texto original con error"),
-      suggestion: z.string().describe("Corrección sugerida para el error"),
-      type: z
-        .enum(["spelling", "grammar", "style", "punctuation"])
-        .describe("Tipo de error: spelling | grammar | style | punctuation"),
-      explanation: z.string().describe("Explicación de la corrección"),
-    })
-  ),
-});
+export type WordPressPost = {
+  id: number;
+  title: {
+    rendered: string;
+  };
+  excerpt: {
+    rendered: string;
+  };
+  content: {
+    rendered: string;
+  };
+  link: string;
+  date: string;
+};
 
-type ProofreaderResponse = z.infer<typeof ProofreaderResponseSchema>;
+type GenerateResumeParams = {
+  manual: boolean;
+  content?: WordPressPost[];
+  selectedModel: { model: string; provider: string };
+  startDate?: string;
+  endDate?: string;
+};
 
 // Debug logging system
 interface DebugLog {
@@ -71,21 +80,33 @@ class DebugLogger {
   }
 }
 
-export async function analyzeText(
-  text: string,
-  selectedModel: { model: string; provider: string }
-) {
+export default async function generateResume({
+  manual = false,
+  content = [],
+  selectedModel,
+  startDate,
+  endDate,
+}: GenerateResumeParams): Promise<{
+  success: boolean;
+  resume?: string;
+  error?: string;
+  logs?: DebugLog[];
+}> {
+  // Implementación de la función para generar un resumen
   const debugLogger = new DebugLogger();
 
   try {
-    debugLogger.info("Iniciando análisis de texto", {
-      textLength: text.length,
+    debugLogger.info("Inicio de generación de resumen, parámetros:", {
+      manual,
+      content: content.length,
       selectedModel,
+      startDate,
+      endDate,
     });
 
     // 1. Obtener la información del usuario autenticado de forma segura
     debugLogger.info("Obteniendo información del usuario autenticado");
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseServer();
 
     // Usar getUser() en lugar de getSession() para mayor seguridad
     const {
@@ -127,7 +148,7 @@ export async function analyzeText(
       .from("api_key_table")
       .select("key, provider")
       .eq("organizationId", organizationId)
-      .eq("provider", selectedModel.provider)
+      .eq("provider", selectedModel.provider as any)
       .eq("status", "ACTIVE")
       .single();
 
@@ -136,8 +157,8 @@ export async function analyzeText(
       return {
         success: false,
         error: "No se pudo obtener la API key para este proveedor",
-        correcciones: [],
-        debugLogs: debugLogger.getLogs(),
+        resume: "",
+        logs: debugLogger.getLogs(),
       };
     }
 
@@ -147,8 +168,8 @@ export async function analyzeText(
       return {
         success: false,
         error: "La API key está vacía o no es válida",
-        correcciones: [],
-        debugLogs: debugLogger.getLogs(),
+        resume: "",
+        logs: debugLogger.getLogs(),
       };
     }
 
@@ -156,13 +177,13 @@ export async function analyzeText(
       provider: apiKeyData.provider,
     });
 
-    // 3. Obtener la configuración de la herramienta "proofreader"
-    debugLogger.info("Obteniendo configuración de la herramienta proofreader");
+    // 3. Obtener la configuración de la herramienta "resume"
+    debugLogger.info("Obteniendo configuración de la herramienta resume");
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
       .select("prompts, temperature, top_p, schema")
       .eq("organization_id", organizationId)
-      .eq("identity", "proofreader")
+      .eq("identity", "resume")
       .single();
 
     // Si no existe, obtener la configuración por defecto
@@ -174,7 +195,7 @@ export async function analyzeText(
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
         .select("prompts, temperature, top_p, schema")
-        .eq("identity", "proofreader")
+        .eq("identity", "resume")
         .single();
 
       if (defaultToolError || !defaultToolData) {
@@ -185,8 +206,8 @@ export async function analyzeText(
         return {
           success: false,
           error: "No se pudo obtener la configuración de la herramienta",
-          correcciones: [],
-          debugLogs: debugLogger.getLogs(),
+          logs: debugLogger.getLogs(),
+          resume: "",
         };
       }
 
@@ -199,50 +220,77 @@ export async function analyzeText(
     debugLogger.info("Configuración de herramienta obtenida", {
       temperature: tool.temperature,
       top_p: tool.top_p,
-      promptsCount: tool.prompts?.length || 0,
+      promptsCount: Array.isArray(tool.prompts) ? tool.prompts.length : 0,
     });
 
     // 4. Combinar los prompts "Principal" y "Guía de estilo"
     debugLogger.info("Procesando prompts");
     const prompts = tool.prompts || [];
     let principalPrompt = "";
-    let styleGuidePrompt = "";
+    let selectionPrompt = "";
 
     // Buscar los prompts por título
     for (const prompt of prompts) {
       if (prompt.title === "Principal") {
         principalPrompt = prompt.content;
         debugLogger.info("Prompt principal encontrado");
-      } else if (prompt.title === "Guia de estilo") {
-        styleGuidePrompt = prompt.content;
-        debugLogger.info("Guía de estilo encontrada");
+      } else if (prompt.title === "Selección") {
+        selectionPrompt = prompt.content;
+        debugLogger.info("Prompt de selección encontrado");
       }
     }
 
-    // Combinar los prompts
-    const combinedPrompt = `
-${principalPrompt}
+    // Dividir el contenido en batches de 20 posts
+    const batchSize = 20;
+    const contentBatches: string[] = [];
 
-GUÍA DE ESTILO:
-${styleGuidePrompt}
+    for (let i = 0; i < content.length; i += batchSize) {
+      const batch = content.slice(i, i + batchSize);
 
-TEXTO A ANALIZAR:
-${text}
+      const batchContent = batch
+        .map((post) => {
+          const title = post.title.rendered;
+          // Limpiar contenido de saltos de línea y caracteres especiales
+          const cleanContent = post.content.rendered
+            .replace(/<[^>]*>/g, "") // Remover tags HTML
+            .replace(/\n/g, " ") // Remover saltos de línea
+            .replace(/\r/g, " ") // Remover retornos de carro
+            .replace(/\s+/g, " ") // Múltiples espacios en uno solo
+            .trim();
+          const date = new Date(post.date).toLocaleString("es-ES");
 
-FORMATO DE RESPUESTA:
-Debes responder con un objeto JSON que contenga un array de correcciones con el siguiente formato:
-{
-  "correcciones": [
-    {
-      "original": "fragmento con error",
-      "suggestion": "corrección sugerida",
-      "type": "spelling|grammar|style|punctuation",
-      "explanation": "explicación de la corrección"
+          return `Título: ${title} | Fecha: ${date} | Link: ${post.link} | Contenido: ${cleanContent}`;
+        })
+        .join(" --- ");
+
+      contentBatches.push(batchContent);
+
+      // Llamar a la función selectImportantNews para cada batch
     }
-  ]
-}
-`;
 
+    const importantNews = await Promise.all(
+      contentBatches.map((batchContent) =>
+        selectImportantNews(batchContent, selectionPrompt, debugLogger)
+      )
+    );
+
+    console.log("NOTICIAS IMPORTANTES:", importantNews);
+
+    debugLogger.info(
+      `Contenido dividido en ${contentBatches.length} batches de máximo ${batchSize} posts cada uno`
+    );
+
+    // Por ahora usamos el primer batch para el prompt combinado
+    // TODO: Implementar lógica de selección de noticias importantes
+    const newsContent = contentBatches[0] || "";
+
+    const combinedPrompt = `
+INSTRUCCIONES:
+${principalPrompt}    
+    
+ARTICULOS SELECCIONADOS:
+${newsContent}
+`;
     debugLogger.info(combinedPrompt);
 
     // 5. Crear la conexión con el proveedor adecuado
@@ -267,6 +315,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
+          maxTokens: 2048,
           topP: top_p,
         });
         break;
@@ -281,6 +330,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           prompt: combinedPrompt,
           temperature,
           topP: top_p,
+          maxTokens: 2048,
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
@@ -297,6 +347,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           model: google(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
+          maxTokens: 2048,
           topP: top_p,
         });
         break;
@@ -305,126 +356,76 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
     }
 
-    debugLogger.info("Texto generado exitosamente", {
-      responseLength: result.text.length,
-      usage: result.usage,
+    return {
+      success: true,
+      resume: result.text,
+      logs: debugLogger.getLogs(),
+    };
+  } catch (error) {
+    debugLogger.error("Error en la generación de resumen:", error);
+    throw error;
+  }
+}
+
+// Función para seleccionar noticias importantes
+const selectImportantNews = (
+  batch: string,
+  selectionPrompt: string,
+  debugLogger: any
+) => {
+  const startTime = Date.now();
+
+  const prompt = `
+  ${selectionPrompt}
+
+  Lista de noticias disponibles::
+  ${batch}
+
+  FORMATO DE RESPUESTA:
+  {
+    "links": [
+      {
+        "id": "123",
+        "title": "Título de la noticia",
+        "reason": "Breve explicación de por qué seleccionaste esta noticia"
+      },
+      {
+        "id": 456,
+        "title": "Título de la noticia 2",
+        "reason": "Breve explicación de por qué seleccionaste esta noticia"
+      },
+      // ... hasta completar 5 noticias
+    ]
+  }
+
+`;
+
+  try {
+    debugLogger.info("Iniciando selección de noticias importantes", {
+      batchSize: batch.length,
+      promptLength: prompt.length,
     });
 
-    // 6. Parsear la respuesta
-    debugLogger.info("Iniciando parseo de la respuesta");
-    try {
-      // Intentar extraer el JSON de la respuesta
-      const textResponse = result.text;
-      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    // const openai = createOpenAI({
+    //   apiKey: apiKey,
+    // });
 
-      if (!jsonMatch) {
-        debugLogger.error("No se pudo extraer JSON de la respuesta", {
-          textResponse,
-        });
-        throw new Error("No se pudo extraer JSON de la respuesta");
-      }
+    // // Aquí se llamaría al modelo para procesar el prompt
+    // const { object } = await generateObject({
+    //   model: openai("gpt-4o-mini"),
+    //   schema: newsSelectionSchema,
+    //   prompt: fullPrompt,
+    //   maxTokens: 2048, // Aumentar límite de tokens para manejar más contenido
+    // });
 
-      debugLogger.info("JSON extraído de la respuesta");
-      const jsonResponse = JSON.parse(jsonMatch[0]);
+    // debugLogger.info("Selección de noticias completada", {
+    //   selectedCount: response.links.length,
+    //   duration: Date.now() - startTime,
+    // });
 
-      // Intentar normalizar los tipos antes de validar
-      if (
-        jsonResponse.correcciones &&
-        Array.isArray(jsonResponse.correcciones)
-      ) {
-        debugLogger.info(
-          `Normalizando ${jsonResponse.correcciones.length} correcciones`
-        );
-        jsonResponse.correcciones = jsonResponse.correcciones.map(
-          (correccion: any) => {
-            // Normalizar el tipo si no es uno de los permitidos
-            if (
-              correccion.type &&
-              !["spelling", "grammar", "style", "punctuation"].includes(
-                correccion.type
-              )
-            ) {
-              const originalType = correccion.type;
-              // Asignar un tipo por defecto basado en heurísticas simples
-              if (
-                correccion.type.includes("punt") ||
-                correccion.type.includes("punct")
-              ) {
-                correccion.type = "punctuation";
-              } else if (correccion.type.includes("gram")) {
-                correccion.type = "grammar";
-              } else if (
-                correccion.type.includes("spell") ||
-                correccion.type.includes("ort")
-              ) {
-                correccion.type = "spelling";
-              } else {
-                correccion.type = "style";
-              }
-              debugLogger.info(
-                `Tipo normalizado: ${originalType} -> ${correccion.type}`
-              );
-            }
-            return correccion;
-          }
-        );
-      }
-
-      debugLogger.info("Validando respuesta con schema");
-      const validatedResponse = ProofreaderResponseSchema.parse(jsonResponse);
-
-      // Añadir IDs a las correcciones para facilitar su manejo en el frontend
-      const correcciones = validatedResponse.correcciones.map(
-        (correccion, index) => ({
-          ...correccion,
-          id: `correction-${index}`,
-          severity: getSeverity(correccion.type),
-          startIndex: 0, // Estos valores se calcularán en el frontend
-          endIndex: 0,
-        })
-      );
-
-      debugLogger.info(
-        `Análisis completado exitosamente con ${correcciones.length} correcciones`
-      );
-
-      return {
-        success: true,
-        correcciones,
-        debugLogs: debugLogger.getLogs(),
-      };
-    } catch (error) {
-      debugLogger.error("Error al parsear la respuesta", error);
-      return {
-        success: false,
-        error: "Error al procesar la respuesta del modelo",
-        correcciones: [],
-        debugLogs: debugLogger.getLogs(),
-      };
-    }
+    // return response;
   } catch (error) {
-    debugLogger.error("Error en el procesamiento del texto", error);
-    return {
-      success: false,
-      error: "Error en el procesamiento del texto",
-      correcciones: [],
-      debugLogs: debugLogger.getLogs(),
-    };
+    debugLogger.error("Error al seleccionar noticias importantes:", error);
+    throw new Error("Error al procesar la selección de noticias");
   }
-}
-
-// Función auxiliar para asignar severidad según el tipo de error
-function getSeverity(type: string): number {
-  switch (type) {
-    case "spelling":
-      return 1;
-    case "grammar":
-      return 2;
-    case "style":
-      return 3;
-    case "punctuation":
-      return 2; // Asignamos la misma severidad que grammar
-    default:
-      return 1;
-  }
-}
+};

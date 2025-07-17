@@ -87,10 +87,9 @@ export default function ProofreaderPage() {
     getHTML: () => string;
     getText: () => string;
     setContent: (content: string) => void;
+    highlightText: (suggestion: Suggestion) => void;
+    removeHoverHighlight: () => void;
   } | null>(null);
-
-  // Hooks
-  const router = useRouter();
 
   // Verificar si existe alguna API key al cargar la página
   useEffect(() => {
@@ -485,12 +484,12 @@ export default function ProofreaderPage() {
     setDebugLogs([]); // Limpiar logs anteriores
 
     try {
-      const textContent = editorRef.current?.getText() || "";
+      // const textContent = editorRef.current?.getText() || "";
       const htmlContent = editorRef.current?.getHTML() || "";
 
       setOriginalText(htmlContent);
 
-      if (!textContent.trim()) {
+      if (!htmlContent.trim()) {
         toast.error("El texto está vacío", {
           description: "Por favor, escribe algo para analizar.",
         });
@@ -499,7 +498,7 @@ export default function ProofreaderPage() {
       }
 
       // Llamar a la función de análisis de texto
-      const result = await analyzeText(textContent, selectedModel);
+      const result = await analyzeText(htmlContent, selectedModel);
 
       // Guardar los logs de debug si están disponibles
       if (result.debugLogs) {
@@ -825,6 +824,19 @@ export default function ProofreaderPage() {
     setSelectedModel({ model, provider });
   };
 
+  // Funciones para manejar hover en sugerencias
+  const handleSuggestionHover = (suggestion: Suggestion) => {
+    if (editorRef.current) {
+      editorRef.current.highlightText(suggestion);
+    }
+  };
+
+  const handleSuggestionHoverEnd = () => {
+    if (editorRef.current) {
+      editorRef.current.removeHoverHighlight();
+    }
+  };
+
   // Si está cargando, mostrar un estado de carga
   if (apiKeyStatus.isLoading) {
     return (
@@ -996,6 +1008,8 @@ export default function ProofreaderPage() {
                   onSuggestionClick={scrollToSuggestion}
                   onApplySuggestion={applySuggestion}
                   onIgnoreSuggestion={ignoreSuggestion}
+                  onSuggestionHover={(sugg: Suggestion) => highlightTextInContainer(sugg)}
+                  onSuggestionHoverEnd={handleSuggestionHoverEnd}
                 />
 
                 {appliedSuggestions.length > 0 && (

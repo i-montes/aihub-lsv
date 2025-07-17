@@ -10,6 +10,8 @@ interface SuggestionsPanelProps {
   onSuggestionClick: (suggestion: Suggestion) => void
   onApplySuggestion: (suggestion: Suggestion) => void
   onIgnoreSuggestion: (suggestionId: string) => void
+  onSuggestionHover?: (suggestion: Suggestion) => void
+  onSuggestionHoverEnd?: () => void
 }
 
 export function SuggestionsPanel({
@@ -18,6 +20,8 @@ export function SuggestionsPanel({
   onSuggestionClick,
   onApplySuggestion,
   onIgnoreSuggestion,
+  onSuggestionHover,
+  onSuggestionHoverEnd,
 }: SuggestionsPanelProps) {
   return (
     <div className="flex-1 overflow-auto">
@@ -41,6 +45,8 @@ export function SuggestionsPanel({
               onApply={onApplySuggestion}
               onIgnore={onIgnoreSuggestion}
               onClick={onSuggestionClick}
+              onHover={onSuggestionHover}
+              onHoverEnd={onSuggestionHoverEnd}
             />
           ))}
         </div>

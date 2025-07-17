@@ -9,7 +9,7 @@ const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env
  * Obtiene el cliente de Supabase para componentes del servidor
  * Esta función es segura para usar en componentes del servidor de React
  */
-export async function getSupabaseServer(): Promise<ReturnType<typeof createServerClient<Database>>> {
+export async function getSupabaseServer(): Promise<ReturnType<typeof createServerClient>> {
   try {
     // Si Supabase no está configurado, devolver un cliente simulado
     if (!isSupabaseConfigured) {
@@ -19,7 +19,7 @@ export async function getSupabaseServer(): Promise<ReturnType<typeof createServe
 
     // Crear una nueva instancia para cada solicitud (esto es seguro en el servidor)
     const cookieStore = await cookies()
-    return createServerClient<Database>(
+    return createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
