@@ -12,7 +12,7 @@ import Link from "next/link";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { SelectedContentModal } from "@/components/shared/selected-content-modal";
 import { Button } from "@/components/ui/button";
-import { FileText, Edit3, Eye } from "lucide-react";
+import { FileText, Edit3, Eye, Copy } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import generateResume from "@/actions/generate-resume";
@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { marked } from "marked";
 
 export type WordPressPost = {
   id: number;
@@ -50,6 +51,19 @@ export default function GeneradorResumenes() {
   });
   const [resumen, setResumen] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<{
+    step: string;
+    details?: string;
+    count?: number;
+    total?: number;
+    posts?: WordPressPost[];
+  }>({
+    step: "",
+    details: "",
+    count: 0,
+    total: 0,
+    posts: []
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
   const [selectedContentModalOpen, setSelectedContentModalOpen] =
@@ -78,10 +92,19 @@ export default function GeneradorResumenes() {
 
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Function to fetch WordPress content with pagination
-  const fetchWordPressContent = async (startDate: string, endDate: string): Promise<WordPressPost[]> => {
+  const fetchWordPressContent = async (
+    startDate: string,
+    endDate: string
+  ): Promise<WordPressPost[]> => {
     try {
+      setGenerationProgress({
+        step: "Conectando con WordPress",
+        details: "Estableciendo conexión con la API de WordPress..."
+      });
+
       // First request to get total count and pages
       const initialParams = new URLSearchParams({
         query: "*",
@@ -91,17 +114,33 @@ export default function GeneradorResumenes() {
         per_page: "20",
       });
 
-      const initialResponse = await fetch(`/api/wordpress/search?${initialParams}`);
-      
+      setGenerationProgress({
+        step: "Consultando contenido",
+        details: "Buscando artículos en el rango de fechas especificado..."
+      });
+
+      const initialResponse = await fetch(
+        `/api/wordpress/search?${initialParams}`
+      );
+
       if (!initialResponse.ok) {
-        throw new Error(`Error fetching WordPress content: ${initialResponse.status}`);
+        throw new Error(
+          `Error fetching WordPress content: ${initialResponse.status}`
+        );
       }
 
       const initialResult = await initialResponse.json();
       const totalPages = initialResult.total?.pages || 1;
       const totalCount = initialResult.total?.count || 0;
-      
+
       console.log(`Found ${totalCount} posts across ${totalPages} pages`);
+
+      setGenerationProgress({
+        step: "Artículos encontrados",
+        details: `Se encontraron ${totalCount} artículos en ${totalPages} página${totalPages > 1 ? 's' : ''}`,
+        count: 0,
+        total: totalCount
+      });
 
       // If no posts found, return empty array
       if (totalCount === 0) {
@@ -111,10 +150,18 @@ export default function GeneradorResumenes() {
       // Collect all posts from all pages
       let allPosts: WordPressPost[] = initialResult.data || [];
 
+      setGenerationProgress({
+        step: "Descargando artículos",
+        details: `Descargando artículos (página 1 de ${totalPages})...`,
+        count: allPosts.length,
+        total: totalCount,
+        posts: allPosts.slice(0, 3) // Preview first 3 posts
+      });
+
       // Fetch remaining pages if there are more than 1 page
       if (totalPages > 1) {
         const pagePromises = [];
-        
+
         for (let page = 2; page <= totalPages; page++) {
           const pageParams = new URLSearchParams({
             query: "*",
@@ -125,28 +172,48 @@ export default function GeneradorResumenes() {
           });
 
           pagePromises.push(
-            fetch(`/api/wordpress/search?${pageParams}`).then(async (response) => {
-              if (!response.ok) {
-                throw new Error(`Error fetching page ${page}: ${response.status}`);
+            fetch(`/api/wordpress/search?${pageParams}`).then(
+              async (response) => {
+                if (!response.ok) {
+                  throw new Error(
+                    `Error fetching page ${page}: ${response.status}`
+                  );
+                }
+                const result = await response.json();
+                
+                // Update progress for each page
+                setGenerationProgress(prev => ({
+                  ...prev,
+                  step: "Descargando artículos",
+                  details: `Descargando artículos (página ${page} de ${totalPages})...`,
+                  count: allPosts.length + (result.data?.length || 0)
+                }));
+                
+                return result.data || [];
               }
-              const result = await response.json();
-              return result.data || [];
-            })
+            )
           );
         }
 
         // Wait for all page requests to complete
         const pageResults = await Promise.all(pagePromises);
-        
+
         // Flatten and combine all results
         pageResults.forEach((pageData) => {
           allPosts = [...allPosts, ...pageData];
         });
       }
 
+      setGenerationProgress({
+        step: "Artículos descargados",
+        details: `Se descargaron exitosamente ${allPosts.length} artículos`,
+        count: allPosts.length,
+        total: totalCount,
+        posts: allPosts.slice(0, 5) // Preview first 5 posts
+      });
+
       console.log(`Successfully fetched ${allPosts.length} total posts`);
       return allPosts;
-
     } catch (error) {
       console.error("Error fetching WordPress content:", error);
       throw error;
@@ -246,12 +313,20 @@ export default function GeneradorResumenes() {
     e.preventDefault();
     setIsGenerating(true);
     setLogs([]); // Clear previous logs
+    setGenerationProgress({ step: "", details: "", count: 0, total: 0, posts: [] });
 
     try {
       let contentToSummarize: WordPressPost[] = [];
 
       if (selectionMode === "wordpress") {
         // Use manually selected content
+        setGenerationProgress({
+          step: "Preparando contenido seleccionado",
+          details: `Usando ${selectedContent.length} artículo${selectedContent.length > 1 ? 's' : ''} seleccionado${selectedContent.length > 1 ? 's' : ''} manualmente`,
+          count: selectedContent.length,
+          total: selectedContent.length,
+          posts: selectedContent.slice(0, 5)
+        });
         contentToSummarize = selectedContent;
       } else {
         // Automatic mode: fetch content by date range using new function
@@ -268,6 +343,14 @@ export default function GeneradorResumenes() {
         setIsGenerating(false);
         return;
       }
+
+      setGenerationProgress({
+        step: "Generando resumen",
+        details: "Enviando contenido al modelo de IA para generar el resumen...",
+        count: contentToSummarize.length,
+        total: contentToSummarize.length,
+        posts: contentToSummarize.slice(0, 5)
+      });
 
       const resume = await generateResume({
         manual: selectionMode === "wordpress",
@@ -286,6 +369,12 @@ export default function GeneradorResumenes() {
 
       // Set the generated resume
       if (resume.success && resume.resume) {
+        setGenerationProgress({
+          step: "Resumen completado",
+          details: "El resumen se ha generado exitosamente",
+          count: contentToSummarize.length,
+          total: contentToSummarize.length
+        });
         setResumen(resume.resume);
       } else {
         setResumen(resume.error || "Error al generar el resumen");
@@ -381,6 +470,46 @@ export default function GeneradorResumenes() {
         return "Google";
       default:
         return provider;
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      const htmlContent = marked(resumen) as string;
+      
+      // Create a temporary div to render the HTML and extract plain text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Use the modern Clipboard API with both HTML and text formats
+      if (navigator.clipboard && window.ClipboardItem) {
+        const clipboardItem = new ClipboardItem({
+          'text/html': new Blob([htmlContent], { type: 'text/html' }),
+          'text/plain': new Blob([plainText], { type: 'text/plain' })
+        });
+        
+        await navigator.clipboard.write([clipboardItem]);
+      } else {
+        // Fallback for browsers that don't support ClipboardItem
+        await navigator.clipboard.writeText(plainText);
+      }
+      
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      // Additional fallback: try to copy just the plain text
+      try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = marked(resumen) as string;
+        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        await navigator.clipboard.writeText(plainText);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (fallbackError) {
+        console.error("Fallback copy also failed:", fallbackError);
+      }
     }
   };
 
@@ -640,28 +769,97 @@ export default function GeneradorResumenes() {
         <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Resultado</h2>
-            {logs.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowLogsModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                Ver Logs
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {resumen && !isGenerating && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyToClipboard}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  {copySuccess ? "¡Copiado!" : "Copiar resumen"}
+                </Button>
+              )}
+              {logs.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowLogsModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver Logs
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="min-h-[300px] bg-gray-50 rounded-md p-4">
+          <div className="min-h-[450px] bg-gray-50 rounded-md p-4">
             {isGenerating ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600">Generando resumen...</span>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-700 font-medium">
+                    {generationProgress.step}
+                  </span>
+                </div>
+                
+                {generationProgress.details && (
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">{generationProgress.details}</p>
+                    {generationProgress.count !== undefined && generationProgress.total !== undefined && (
+                      <div className="mt-2">
+                        <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
+                          <span>{generationProgress.count} de {generationProgress.total} artículos</span>
+                        </div>
+                        {generationProgress.total > 0 && (
+                          <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ 
+                                width: `${Math.round((generationProgress.count / generationProgress.total) * 100)}%` 
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Preview of posts */}
+                {generationProgress.posts && generationProgress.posts.length > 0 && (
+                  <div className="mt-4 p-3 bg-white rounded-lg border">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Vista previa de artículos:
+                    </h4>
+                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                      {generationProgress.posts.map((post, index) => (
+                        <div key={post.id} className="text-xs text-gray-600 border-l-2 border-gray-200 pl-2">
+                          <span className="font-medium">
+                            {index + 1}. {post.title.rendered}
+                          </span>
+                          <div className="text-gray-500 mt-1">
+                            {new Date(post.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                      {generationProgress.total && generationProgress.total > generationProgress.posts.length && (
+                        <div className="text-xs text-gray-500 italic">
+                          ... y {generationProgress.total - generationProgress.posts.length} artículos más
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : resumen ? (
               <div className="text-gray-800">
-                <p className="whitespace-pre-wrap">{resumen}</p>
+                <div
+                  className="whitespace-pre-wrap [&_a]:text-blue-600 [&_a:hover]:text-blue-800 [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: marked(resumen) }}
+                />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">

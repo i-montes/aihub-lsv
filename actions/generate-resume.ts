@@ -271,33 +271,54 @@ export default async function generateResume({
     }
 
     const importantNews = await Promise.all(
-      contentBatches.map( async (batchContent) =>
-        await selectImportantNews(
-          batchContent,
-          selectionPrompt,
-          debugLogger,
-          selectedModel,
-          apiKeyData.key
-        )
+      contentBatches.map(
+        async (batchContent) =>
+          await selectImportantNews(
+            batchContent,
+            selectionPrompt,
+            debugLogger,
+            selectedModel,
+            apiKeyData.key
+          )
       )
     );
 
-    console.log("NOTICIAS IMPORTANTES:", importantNews);
+    const importantNewsLinks = importantNews.flatMap((news) =>
+      news.links.map((link) => ({
+        link: link.link,
+        title: link.title,
+        reason: link.reason,
+      }))
+    );
+
+    const selectedNews = await selectImportantNews(
+      importantNewsLinks
+        .map((news) => {
+          return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+        })
+        .join(" --- "),
+      selectionPrompt,
+      debugLogger,
+      selectedModel,
+      apiKeyData.key
+    );
+
+    console.log("NOTICIAS IMPORTANTES:", selectedNews);
 
     debugLogger.info(
       `Contenido dividido en ${contentBatches.length} batches de máximo ${batchSize} posts cada uno`
     );
-
-    // Por ahora usamos el primer batch para el prompt combinado
-    // TODO: Implementar lógica de selección de noticias importantes
-    const newsContent = contentBatches[0] || "";
 
     const combinedPrompt = `
 INSTRUCCIONES:
 ${principalPrompt}    
     
 ARTICULOS SELECCIONADOS:
-${newsContent}
+${selectedNews.links
+  .map((news) => {
+    return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+  })
+  .join(" ---------- ")}
 `;
     debugLogger.info(combinedPrompt);
 
@@ -395,12 +416,12 @@ const selectImportantNews = async (
   {
     "links": [
       {
-        "id": "123",
+        "link": "https://example.com/noticia-1",
         "title": "Título de la noticia",
         "reason": "Breve explicación de por qué seleccionaste esta noticia"
       },
       {
-        "id": 456,
+        "link": "https://example.com/noticia-2",
         "title": "Título de la noticia 2",
         "reason": "Breve explicación de por qué seleccionaste esta noticia"
       },
@@ -437,7 +458,7 @@ const selectImportantNews = async (
     const schema = z.object({
       links: z.array(
         z.object({
-          id: z.string(),
+          link: z.string(),
           title: z.string(),
           reason: z.string(),
         })
@@ -445,7 +466,6 @@ const selectImportantNews = async (
     });
 
     let result;
-
     switch (selectedModel.provider.toLowerCase()) {
       case "openai":
         debugLogger.info("Usando proveedor OpenAI");
@@ -454,9 +474,10 @@ const selectImportantNews = async (
         });
 
         result = await generateObject({
-          model: openai(selectedModel.model),
+          model: openai(model),
           prompt: prompt,
           maxTokens: 4096,
+          maxRetries: 3, // Intentar hasta 3 veces en caso de error
           schema: schema,
         });
         break;
@@ -467,10 +488,11 @@ const selectImportantNews = async (
         });
 
         result = await generateObject({
-          model: anthropic(selectedModel.model),
+          model: anthropic(model),
           prompt: prompt,
           maxTokens: 4096,
           schema: schema,
+          maxRetries: 3, // Intentar hasta 3 veces en caso de error
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
@@ -484,10 +506,11 @@ const selectImportantNews = async (
         });
 
         result = await generateObject({
-          model: google(selectedModel.model),
+          model: google(model),
           prompt: prompt,
           maxTokens: 4096,
           schema: schema,
+          maxRetries: 3, // Intentar hasta 3 veces en caso de error
         });
         break;
       default:
@@ -500,10 +523,9 @@ const selectImportantNews = async (
       responseLength: result.object.links.length,
     });
 
-
     return {
       links: result.object.links.map((link: any) => ({
-        id: link.id,
+        link: link.link,
         title: link.title,
         reason: link.reason,
       })),
@@ -524,6 +546,7 @@ const selectImportantNews = async (
 
     // return response;
   } catch (error) {
+    console.log("Error al seleccionar noticias importantes:", error);
     debugLogger.error("Error al seleccionar noticias importantes:", error);
     throw new Error("Error al procesar la selección de noticias");
   }

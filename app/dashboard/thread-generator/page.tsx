@@ -243,7 +243,7 @@ export default function ThreadGenerator() {
   const handleCopyAll = () => {
     const allContent = generatedThread
       .map((tweet) => tweet.content)
-      .join("\n\n");
+      .join("\n\n------\n\n");
     handleCopy(allContent, "all");
   };
 
@@ -261,7 +261,7 @@ export default function ThreadGenerator() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Generador de Hilos
+            Generador de Hilos para X
           </h1>
         </div>
 
@@ -338,7 +338,7 @@ export default function ThreadGenerator() {
                     onInsertContent={insertPostContent}
                     buttonLabel="Buscar en WordPress"
                     dialogTitle="Buscar contenido de WordPress"
-                    dialogDescription="Busca y selecciona un artículo de tu sitio WordPress para generar hilos"
+                    dialogDescription="Escribe el título o pega una parte del artículo de tu sitio WordPress"
                     placeholder="Buscar artículos..."
                     noResultsMessage="No se encontraron artículos para"
                     fullWidth
@@ -379,7 +379,7 @@ export default function ThreadGenerator() {
                     !sourceContent.trim() ||
                     !selectedModel.model
                   }
-                  className="w-full gap-2"
+                  className="w-full gap-2 text-white"
                 >
                   {isGenerating ? (
                     <>
@@ -389,7 +389,7 @@ export default function ThreadGenerator() {
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      Generar Hilo
+                      Generar hilo
                     </>
                   )}
                 </Button>
@@ -548,7 +548,7 @@ export default function ThreadGenerator() {
                         Generando tu hilo...
                       </h3>
                       <p className="text-muted-foreground text-sm mb-4">
-                        La IA está procesando tu contenido y creando un hilo optimizado para redes sociales.
+                        La IA está procesando tu contenido y creando un hilo optimizado para X
                       </p>
                       <div className="flex items-center justify-center gap-1">
                         <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -571,12 +571,10 @@ export default function ThreadGenerator() {
                         <Sparkles className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <h3 className="text-lg font-medium mb-2">
-                        Genera tu hilo
+                        Genera tu hilo para X
                       </h3>
                       <p className="text-muted-foreground text-sm">
-                        Pega tu contenido o busca en WordPress y haz clic en
-                        "Generar hilo" para crear un hilo optimizado para redes
-                        sociales.
+                        Aquí sucederá la magia La IA te va a proponer un borrador de hilo para que corrijas y uses. Ojo: revisa con cuidado. A veces las máquinas dicen cualquier cosa.
                       </p>
                     </div>
                   </div>

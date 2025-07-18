@@ -395,7 +395,7 @@ export function WordPressSearchDialog({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="submit" disabled={isSearching}>
+                <Button type="submit" disabled={isSearching} className="text-white">
                   {isSearching ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
