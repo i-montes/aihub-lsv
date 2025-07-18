@@ -2,10 +2,12 @@
 
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { MINI_MODELS } from "@/lib/utils";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, generateText } from "ai";
+import { z } from "zod";
 
 export type WordPressPost = {
   id: number;
@@ -269,8 +271,14 @@ export default async function generateResume({
     }
 
     const importantNews = await Promise.all(
-      contentBatches.map((batchContent) =>
-        selectImportantNews(batchContent, selectionPrompt, debugLogger)
+      contentBatches.map( async (batchContent) =>
+        await selectImportantNews(
+          batchContent,
+          selectionPrompt,
+          debugLogger,
+          selectedModel,
+          apiKeyData.key
+        )
       )
     );
 
@@ -368,10 +376,12 @@ ${newsContent}
 }
 
 // Función para seleccionar noticias importantes
-const selectImportantNews = (
+const selectImportantNews = async (
   batch: string,
   selectionPrompt: string,
-  debugLogger: any
+  debugLogger: any,
+  selectedModel: { model: string; provider: string },
+  apiKey: string
 ) => {
   const startTime = Date.now();
 
@@ -405,10 +415,99 @@ const selectImportantNews = (
       batchSize: batch.length,
       promptLength: prompt.length,
     });
+    const model =
+      MINI_MODELS[
+        selectedModel.provider.toUpperCase() as keyof typeof MINI_MODELS
+      ];
 
-    // const openai = createOpenAI({
-    //   apiKey: apiKey,
-    // });
+    if (!model) {
+      debugLogger.error(
+        `Modelo no soportado para el proveedor: ${selectedModel.provider}`
+      );
+      throw new Error(
+        `Modelo no soportado para el proveedor: ${selectedModel.provider}`
+      );
+    }
+
+    debugLogger.info("Modelo seleccionado", {
+      model,
+      provider: selectedModel.provider,
+    });
+
+    const schema = z.object({
+      links: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          reason: z.string(),
+        })
+      ),
+    });
+
+    let result;
+
+    switch (selectedModel.provider.toLowerCase()) {
+      case "openai":
+        debugLogger.info("Usando proveedor OpenAI");
+        const openai = createOpenAI({
+          apiKey: apiKey,
+        });
+
+        result = await generateObject({
+          model: openai(selectedModel.model),
+          prompt: prompt,
+          maxTokens: 4096,
+          schema: schema,
+        });
+        break;
+      case "anthropic":
+        debugLogger.info("Usando proveedor Anthropic");
+        const anthropic = createAnthropic({
+          apiKey: apiKey,
+        });
+
+        result = await generateObject({
+          model: anthropic(selectedModel.model),
+          prompt: prompt,
+          maxTokens: 4096,
+          schema: schema,
+          headers: {
+            "anthropic-dangerous-direct-browser-access": "true",
+            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
+          },
+        });
+        break;
+      case "google":
+        debugLogger.info("Usando proveedor Google");
+        const google = createGoogleGenerativeAI({
+          apiKey: apiKey,
+        });
+
+        result = await generateObject({
+          model: google(selectedModel.model),
+          prompt: prompt,
+          maxTokens: 4096,
+          schema: schema,
+        });
+        break;
+      default:
+        debugLogger.error(`Proveedor no soportado: ${selectedModel.provider}`);
+        throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
+    }
+
+    debugLogger.info("Selección de noticias completada", {
+      duration: Date.now() - startTime,
+      responseLength: result.object.links.length,
+    });
+
+
+    return {
+      links: result.object.links.map((link: any) => ({
+        id: link.id,
+        title: link.title,
+        reason: link.reason,
+      })),
+    };
 
     // // Aquí se llamaría al modelo para procesar el prompt
     // const { object } = await generateObject({

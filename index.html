@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invitación AIHub - La Silla Vacía</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f5f5f5;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #338bfd 0%, #2176f7 100%);
+        color: white;
+        padding: 40px 30px;
+        text-align: center;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+
+      .logo-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .logo-subtitle {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-top: 5px;
+      }
+
+      .header h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        font-size: 16px;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 40px 30px;
+        text-align: center;
+      }
+
+      .invitation-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #338bfd 0%, #2176f7 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 30px;
+        font-size: 36px;
+        color: white;
+      }
+
+      .message {
+        font-size: 16px;
+        color: #555;
+        margin-bottom: 20px;
+        line-height: 1.6;
+        text-align: center;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .message:last-of-type {
+        margin-bottom: 30px;
+      }
+
+      .site-name {
+        font-weight: 600;
+        color: #338bfd;
+      }
+
+      .cta-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #338bfd 0%, #2176f7 100%);
+        color: white;
+        text-decoration: none;
+        padding: 16px 32px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(51, 139, 253, 0.4);
+      }
+
+      .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(51, 139, 253, 0.6);
+      }
+
+      .footer {
+        background-color: #f8f9fa;
+        padding: 30px;
+        text-align: center;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .footer p {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+
+      .footer p:last-child {
+        margin-bottom: 0;
+        font-weight: 500;
+      }
+
+      .footer a {
+        color: #338bfd;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      .divider {
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(135deg, #338bfd 0%, #2176f7 100%);
+        border-radius: 2px;
+        margin: 20px auto;
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          margin: 0;
+          border-radius: 0;
+        }
+
+        .header,
+        .content,
+        .footer {
+          padding: 30px 20px;
+        }
+
+        .header h1 {
+          font-size: 24px;
+        }
+
+        .message {
+          font-size: 16px;
+        }
+
+        .cta-button {
+          padding: 14px 28px;
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Te damos la bienvenida al IAHub</h1>
+        <p>Accede al hub de herramientas de IA para periodistas</p>
+      </div>
+
+      <div class="content">
+        <div class="invitation-icon">
+          <svg
+            width="30"
+            height="30"
+            viewBox="0 0 30 30"
+            fill="currentColor"
+            class=""
+            style="
+              filter: drop-shadow(rgba(255, 255, 255, 0.5) 0px 0px 5px);
+              animation: 3s ease-in-out 0s infinite normal none running sparkle;
+            "
+          >
+            <path
+              d="M14.217,19.707l-1.112,2.547c-0.427,0.979-1.782,0.979-2.21,0l-1.112-2.547c-0.99-2.267-2.771-4.071-4.993-5.057	L1.73,13.292c-0.973-0.432-0.973-1.848,0-2.28l2.965-1.316C6.974,8.684,8.787,6.813,9.76,4.47l1.126-2.714	c0.418-1.007,1.81-1.007,2.228,0L14.24,4.47c0.973,2.344,2.786,4.215,5.065,5.226l2.965,1.316c0.973,0.432,0.973,1.848,0,2.28	l-3.061,1.359C16.988,15.637,15.206,17.441,14.217,19.707z"
+            ></path>
+            <path
+              d="M24.481,27.796l-0.339,0.777c-0.248,0.569-1.036,0.569-1.284,0l-0.339-0.777c-0.604-1.385-1.693-2.488-3.051-3.092	l-1.044-0.464c-0.565-0.251-0.565-1.072,0-1.323l0.986-0.438c1.393-0.619,2.501-1.763,3.095-3.195l0.348-0.84	c0.243-0.585,1.052-0.585,1.294,0l0.348,0.84c0.594,1.432,1.702,2.576,3.095,3.195l0.986,0.438c0.565,0.251,0.565,1.072,0,1.323	l-1.044,0.464C26.174,25.308,25.085,26.411,24.481,27.796z"
+            ></path>
+          </svg>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="message">
+          Has sido invitado a unirte a <strong>AIHub</strong>, la plataforma de
+          herramientas de Inteligencia Artificial desarrollada por
+          <span class="site-name">La Silla Vacía</span> para potenciar el
+          periodismo.
+        </p>
+
+        <p class="message">
+          Son herramientas diseñadas para colaborar en el análisis de datos,
+          verificación de información y generación de contenido.
+        </p>
+
+        <a href="{{ .ConfirmationURL }}" class="cta-button">
+          Acceder a AIHub
+        </a>
+      </div>
+
+      <div class="footer">
+        <p>Si no solicitaste acceso a AIHub, puedes ignorar este mensaje.</p>
+        <p>
+          ¿Necesitas ayuda?
+          <a href="mailto:labdeia@lasillavacia.com">Contacta con soporte</a>
+        </p>
+        <p>
+          Una iniciativa de <strong>La Silla Vacía</strong> para el futuro del
+          periodismo
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
