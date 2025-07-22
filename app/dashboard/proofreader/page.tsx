@@ -24,6 +24,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ChevronLeft, ChevronRight, Copy } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const getProviderDisplayName = (provider: string): string => {
   switch (provider.toLowerCase()) {
@@ -70,6 +77,12 @@ export default function ProofreaderPage() {
   });
   const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [debugLogs, setDebugLogs] = useState<any[]>([]);
+  const [models, setModels] = useState<
+    {
+      model: string;
+      provider: string;
+    }[]
+  >([]);
 
   // Estado para el modal de API key requerida
   const [apiKeyStatus, setApiKeyStatus] = useState<{
@@ -432,6 +445,28 @@ export default function ProofreaderPage() {
         return;
       }
 
+      // Fetch custom tools for this organization
+      const { data: customTool, error: customToolsError } = await supabase
+        .from("tools")
+        .select("models")
+        .eq("organization_id", profileData.organizationId)
+        .eq("identity", "proofreader")
+        .single();
+
+      if (customToolsError) {
+        console.error(
+          "Error al obtener herramientas personalizadas:",
+          customToolsError
+        );
+      }
+
+      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
+      if (customTool?.models?.length > 0) {
+        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
+      }
+
+      setModels(customTool?.models || []);
+
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];
       const map: Record<string, string> = {};
@@ -457,16 +492,6 @@ export default function ProofreaderPage() {
 
       // Establecer los modelos disponibles
       setAvailableModels(allModels);
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (apiKeys.length > 0 && allModels.length > 0) {
-        const firstKey = apiKeys[0];
-        const firstModel = allModels[0];
-        setSelectedModel({
-          model: firstModel,
-          provider: firstKey.provider || "",
-        });
-      }
 
       setModelProviderMap(map);
     } catch (error) {
@@ -888,71 +913,78 @@ export default function ProofreaderPage() {
                     size="sm"
                     className="bg-white border-gray-200 hover:bg-gray-50"
                   >
-                    ← Volver al editor
+                    ← Volver
                   </Button>
                 )}
                 <span className="text-sm font-medium text-gray-700">
                   {isAnalyzed ? "Texto Corregido" : "Editor de Texto"}
                 </span>
               </div>
-              <div className="relative">
-                <select
-                  className="appearance-none w-64 h-10 rounded-md border border-gray-200 bg-white pl-4 pr-10 py-2 text-sm font-medium shadow-sm transition-all hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  value={`${selectedModel.model}|${selectedModel.provider}`}
-                  onChange={handleModelChange}
-                  disabled={availableModels.length === 0}
-                >
-                  {availableModels.length > 0 ? (
-                    availableModels.map((model) => (
-                      <option
-                        key={model}
-                        value={`${model}|${modelProviderMap[model]}`}
-                      >
-                        {model} (
-                        {getProviderDisplayName(modelProviderMap[model])})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="|">No hay modelos disponibles</option>
-                  )}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
+              {models.length > 1 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Modelo:</span>
+                  <Select
+                    value={
+                      selectedModel.model
+                        ? `${selectedModel.model}|${selectedModel.provider}`
+                        : ""
+                    }
+                    onValueChange={(value) => {
+                      const [model, provider] = value.split("|");
+                      setSelectedModel({ model, provider });
+                    }}
+                    disabled={models.length === 0 || apiKeyStatus.isLoading}
                   >
-                    <path
-                      d="M2.5 4.5L6 8L9.5 4.5"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                    <SelectTrigger className="w-auto min-w-48 bg-white border-gray-200 hover:bg-gray-50">
+                      <SelectValue
+                        placeholder={
+                          apiKeyStatus.isLoading
+                            ? "Cargando..."
+                            : "Seleccionar modelo"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {models.map((modelInfo) => (
+                        <SelectItem
+                          key={`${modelInfo.model}|${modelInfo.provider}`}
+                          value={`${modelInfo.model}|${modelInfo.provider}`}
+                        >
+                          <div className="flex flex-row items-center justify-between gap-2">
+                            <span className="font-medium">
+                              {modelInfo.model}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {getProviderDisplayName(modelInfo.provider)}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
+              )}
             </div>
 
             <Card className="flex-1 overflow-hidden border-0 shadow-lg flex flex-col h-full">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
                 {!isAnalyzed ? (
                   <ProofreaderEditor
-                      onTextChange={handleTextChange}
-                      onAnalyzeText={handleAnalyzeText}
-                      isAnalyzing={isAnalyzing}
-                      suggestions={suggestions}
-                      activeSuggestion={activeSuggestion}
-                      setActiveSuggestion={setActiveSuggestion}
-                      navigateSuggestions={navigateSuggestions}
-                      editorRef={editorRef as React.RefObject<{
+                    onTextChange={handleTextChange}
+                    onAnalyzeText={handleAnalyzeText}
+                    isAnalyzing={isAnalyzing}
+                    suggestions={suggestions}
+                    activeSuggestion={activeSuggestion}
+                    setActiveSuggestion={setActiveSuggestion}
+                    navigateSuggestions={navigateSuggestions}
+                    editorRef={
+                      editorRef as React.RefObject<{
                         getHTML: () => string;
                         getText: () => string;
                         setContent: (content: string) => void;
-                      }>}
-                    />
+                      }>
+                    }
+                  />
                 ) : (
                   <div className="h-full overflow-auto relative">
                     {isAnalyzing ? (
@@ -1008,7 +1040,9 @@ export default function ProofreaderPage() {
                   onSuggestionClick={scrollToSuggestion}
                   onApplySuggestion={applySuggestion}
                   onIgnoreSuggestion={ignoreSuggestion}
-                  onSuggestionHover={(sugg: Suggestion) => highlightTextInContainer(sugg)}
+                  onSuggestionHover={(sugg: Suggestion) =>
+                    highlightTextInContainer(sugg)
+                  }
                   onSuggestionHoverEnd={handleSuggestionHoverEnd}
                 />
 

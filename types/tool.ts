@@ -12,4 +12,8 @@ export interface Tool {
   prompts?: any
   temperature?: number
   topP?: number
+  models?: {
+    provider: string
+    model: string
+  }[]
 }

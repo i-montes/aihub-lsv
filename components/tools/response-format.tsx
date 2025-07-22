@@ -5,40 +5,7 @@ import { Badge } from "@/components/ui/badge"
 /**
  * Component for displaying the expected response format
  */
-export function ResponseFormat() {
-  // The schema is now hardcoded and read-only
-  const jsonSchema = {
-    type: "object",
-    required: ["correcciones"],
-    properties: {
-      correcciones: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["original", "suggestion", "type", "explanation"],
-          properties: {
-            type: {
-              enum: ["spelling", "grammar", "style"],
-              type: "string",
-              description: "Tipo de error: spelling | grammar | style",
-            },
-            original: {
-              type: "string",
-              description: "Fragmento del texto original con error",
-            },
-            suggestion: {
-              type: "string",
-              description: "Corrección sugerida para el error",
-            },
-            explanation: {
-              type: "string",
-              description: "Explicación de la corrección",
-            },
-          },
-        },
-      },
-    },
-  }
+export function ResponseFormat({ jsonSchema }: { jsonSchema: any }) {
 
   // Function to render JSON with syntax highlighting
   const renderJsonWithHighlighting = (obj: any, indent = 0) => {

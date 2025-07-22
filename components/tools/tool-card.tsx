@@ -8,13 +8,12 @@ interface ToolCardProps {
   tool: Tool
   tagColors: Record<string, string>
   onEdit: (tool: Tool) => void
-  onDelete: (tool: Tool) => void
 }
 
 /**
  * Card component for displaying a tool
  */
-export function ToolCard({ tool, tagColors, onEdit, onDelete }: ToolCardProps) {
+export function ToolCard({ tool, tagColors, onEdit }: ToolCardProps) {
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden group hover:shadow-sm transition-shadow">
       <div className="p-4">

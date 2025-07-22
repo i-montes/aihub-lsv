@@ -8,9 +8,7 @@ import { SearchBar } from "@/components/tools/search-bar"
 import { EmptyState } from "@/components/tools/empty-state"
 import { ToolCard } from "@/components/tools/tool-card"
 import { ToolListItem } from "@/components/tools/tool-list-item"
-import { CreateToolDialog } from "@/components/tools/create-tool-dialog"
 import { EditToolDialog } from "@/components/tools/edit-tool-dialog"
-import { DeleteToolDialog } from "@/components/tools/delete-tool-dialog"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import type { Tool } from "@/types/tool"
@@ -34,9 +32,7 @@ const tagColors: Record<string, string> = {
 export default function ToolsSettingsPage() {
   // State
   const [searchTerm, setSearchTerm] = useState("")
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null)
   const [tools, setTools] = useState<Tool[]>([])
   const [loading, setLoading] = useState(true)
@@ -150,6 +146,7 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
+            models: tool.models || [], // Ensure models is always an array
           })
         })
       }
@@ -188,6 +185,7 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
+            models: tool.models || [], // Ensure models is always an array
           })
         }
       })
@@ -229,89 +227,6 @@ export default function ToolsSettingsPage() {
   const handleEditClick = (tool: Tool) => {
     setSelectedTool(tool)
     setIsEditModalOpen(true)
-  }
-
-  const handleDeleteClick = (tool: Tool) => {
-    setSelectedTool(tool)
-    setIsDeleteModalOpen(true)
-  }
-
-  const handleCreateTool = async (data: any) => {
-    try {
-      const supabase = getSupabaseClient()
-
-      // Get the current user's organization ID
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (userError) {
-        throw new Error("Error al obtener la sesión: " + userError.message)
-      }
-
-      if (!user) {
-        throw new Error("Usuario no autenticado")
-      }
-
-      // Get user profile to get organization ID
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("organizationId")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError) {
-        throw new Error("Error al obtener el perfil: " + profileError.message)
-      }
-
-      const organizationId = profileData.organizationId
-
-      if (!organizationId) {
-        throw new Error("Usuario no pertenece a una organización")
-      }
-
-      // Generate a unique identity based on title
-      const identity = `custom.${data.title.toLowerCase().replace(/\s+/g, "-")}`
-
-      // Insert new tool
-      const { data: newTool, error: insertError } = await supabase
-        .from("tools")
-        .insert({
-          title: data.title,
-          prompts: data.description,
-          schema: data.schema || {},
-          identity: identity,
-          organization_id: organizationId,
-          temperature: data.temperature || 0.7,
-          top_p: data.topP || 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          usage: 0,
-        })
-        .select()
-
-      if (insertError) {
-        throw new Error("Error al crear la herramienta: " + insertError.message)
-      }
-
-      toast({
-        title: "Herramienta creada",
-        description: "La herramienta se ha creado correctamente",
-      })
-
-      // Refresh tools list
-      fetchTools()
-    } catch (err) {
-      console.error("Error creating tool:", err)
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Error desconocido al crear la herramienta",
-        variant: "destructive",
-      })
-    }
-
-    setIsCreateModalOpen(false)
   }
 
   const handleSaveTool = async (tool: Tool) => {
@@ -365,6 +280,7 @@ export default function ToolsSettingsPage() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             usage: 0,
+            models: tool.models,
           })
           .select()
 
@@ -387,6 +303,7 @@ export default function ToolsSettingsPage() {
             temperature: tool.temperature,
             top_p: tool.topP,
             updated_at: new Date().toISOString(),
+            models: tool.models,
           })
           .eq("id", tool.id)
 
@@ -414,46 +331,6 @@ export default function ToolsSettingsPage() {
     setIsEditModalOpen(false)
   }
 
-  const handleDeleteTool = async () => {
-    if (!selectedTool) return
-
-    try {
-      const supabase = getSupabaseClient()
-
-      // Can only delete custom tools, not default ones
-      if (!selectedTool.isDefault) {
-        const { error: deleteError } = await supabase.from("tools").delete().eq("id", selectedTool.id)
-
-        if (deleteError) {
-          throw new Error("Error al eliminar la herramienta: " + deleteError.message)
-        }
-
-        toast({
-          title: "Herramienta eliminada",
-          description: "La herramienta se ha eliminado correctamente",
-        })
-
-        // Refresh tools list
-        fetchTools()
-      } else {
-        toast({
-          title: "Operación no permitida",
-          description: "No se pueden eliminar herramientas predeterminadas",
-          variant: "destructive",
-        })
-      }
-    } catch (err) {
-      console.error("Error deleting tool:", err)
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Error desconocido al eliminar la herramienta",
-        variant: "destructive",
-      })
-    }
-
-    setIsDeleteModalOpen(false)
-  }
-
   const handleClearFilters = () => {
     setSearchTerm("")
   }
@@ -471,7 +348,6 @@ export default function ToolsSettingsPage() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         sortOptions={["Más recientes", "Más usados", "Alfabético"]}
-        onCreateNew={() => setIsCreateModalOpen(true)}
       />
 
       {/* Error state */}
@@ -541,7 +417,6 @@ export default function ToolsSettingsPage() {
                       tool={tool}
                       tagColors={tagColors}
                       onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
                     />
                   ))}
                 </div>
@@ -564,7 +439,6 @@ export default function ToolsSettingsPage() {
                       tool={tool}
                       tagColors={tagColors}
                       onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
                     />
                   ))}
                 </div>
@@ -574,8 +448,6 @@ export default function ToolsSettingsPage() {
         </Tabs>
       )}
 
-      {/* Dialogs */}
-      <CreateToolDialog isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onSubmit={handleCreateTool} />
 
       <EditToolDialog
         isOpen={isEditModalOpen}
@@ -584,12 +456,7 @@ export default function ToolsSettingsPage() {
         onSave={handleSaveTool}
       />
 
-      <DeleteToolDialog
-        isOpen={isDeleteModalOpen}
-        onOpenChange={setIsDeleteModalOpen}
-        tool={selectedTool}
-        onConfirm={handleDeleteTool}
-      />
+    
     </div>
   )
 }
