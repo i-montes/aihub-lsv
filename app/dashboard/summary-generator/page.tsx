@@ -62,7 +62,7 @@ export default function GeneradorResumenes() {
     details: "",
     count: 0,
     total: 0,
-    posts: []
+    posts: [],
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
@@ -79,6 +79,12 @@ export default function GeneradorResumenes() {
   const [modelProviderMap, setModelProviderMap] = useState<
     Record<string, string>
   >({});
+  const [models, setModels] = useState<
+    {
+      model: string;
+      provider: string;
+    }[]
+  >([]);
 
   const [apiKeyStatus, setApiKeyStatus] = useState<{
     isLoading: boolean;
@@ -102,7 +108,7 @@ export default function GeneradorResumenes() {
     try {
       setGenerationProgress({
         step: "Conectando con WordPress",
-        details: "Estableciendo conexión con la API de WordPress..."
+        details: "Estableciendo conexión con la API de WordPress...",
       });
 
       // First request to get total count and pages
@@ -116,7 +122,7 @@ export default function GeneradorResumenes() {
 
       setGenerationProgress({
         step: "Consultando contenido",
-        details: "Buscando artículos en el rango de fechas especificado..."
+        details: "Buscando artículos en el rango de fechas especificado...",
       });
 
       const initialResponse = await fetch(
@@ -137,9 +143,11 @@ export default function GeneradorResumenes() {
 
       setGenerationProgress({
         step: "Artículos encontrados",
-        details: `Se encontraron ${totalCount} artículos en ${totalPages} página${totalPages > 1 ? 's' : ''}`,
+        details: `Se encontraron ${totalCount} artículos en ${totalPages} página${
+          totalPages > 1 ? "s" : ""
+        }`,
         count: 0,
-        total: totalCount
+        total: totalCount,
       });
 
       // If no posts found, return empty array
@@ -155,7 +163,7 @@ export default function GeneradorResumenes() {
         details: `Descargando artículos (página 1 de ${totalPages})...`,
         count: allPosts.length,
         total: totalCount,
-        posts: allPosts.slice(0, 3) // Preview first 3 posts
+        posts: allPosts.slice(0, 3), // Preview first 3 posts
       });
 
       // Fetch remaining pages if there are more than 1 page
@@ -180,15 +188,15 @@ export default function GeneradorResumenes() {
                   );
                 }
                 const result = await response.json();
-                
+
                 // Update progress for each page
-                setGenerationProgress(prev => ({
+                setGenerationProgress((prev) => ({
                   ...prev,
                   step: "Descargando artículos",
                   details: `Descargando artículos (página ${page} de ${totalPages})...`,
-                  count: allPosts.length + (result.data?.length || 0)
+                  count: allPosts.length + (result.data?.length || 0),
                 }));
-                
+
                 return result.data || [];
               }
             )
@@ -209,7 +217,7 @@ export default function GeneradorResumenes() {
         details: `Se descargaron exitosamente ${allPosts.length} artículos`,
         count: allPosts.length,
         total: totalCount,
-        posts: allPosts.slice(0, 5) // Preview first 5 posts
+        posts: allPosts.slice(0, 5), // Preview first 5 posts
       });
 
       console.log(`Successfully fetched ${allPosts.length} total posts`);
@@ -262,6 +270,28 @@ export default function GeneradorResumenes() {
         return;
       }
 
+      // Fetch custom tools for this organization
+      const { data: customTool, error: customToolsError } = await supabase
+        .from("tools")
+        .select("models")
+        .eq("organization_id", profileData.organizationId)
+        .eq("identity", "resume")
+        .single();
+
+      if (customToolsError) {
+        console.error(
+          "Error al obtener herramientas personalizadas:",
+          customToolsError
+        );
+      }
+
+      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
+      if (customTool?.models?.length > 0) {
+        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
+      }
+
+      setModels(customTool?.models || []);
+
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];
       const map: Record<string, string> = {};
@@ -288,16 +318,6 @@ export default function GeneradorResumenes() {
       // Establecer los modelos disponibles
       setAvailableModels(allModels);
 
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (apiKeys.length > 0 && allModels.length > 0) {
-        const firstKey = apiKeys[0];
-        const firstModel = allModels[0];
-        setSelectedModel({
-          model: firstModel,
-          provider: firstKey.provider || "",
-        });
-      }
-
       setModelProviderMap(map);
     } catch (error) {
       console.error("Error al verificar API keys:", error);
@@ -313,7 +333,13 @@ export default function GeneradorResumenes() {
     e.preventDefault();
     setIsGenerating(true);
     setLogs([]); // Clear previous logs
-    setGenerationProgress({ step: "", details: "", count: 0, total: 0, posts: [] });
+    setGenerationProgress({
+      step: "",
+      details: "",
+      count: 0,
+      total: 0,
+      posts: [],
+    });
 
     try {
       let contentToSummarize: WordPressPost[] = [];
@@ -322,10 +348,12 @@ export default function GeneradorResumenes() {
         // Use manually selected content
         setGenerationProgress({
           step: "Preparando contenido seleccionado",
-          details: `Usando ${selectedContent.length} artículo${selectedContent.length > 1 ? 's' : ''} seleccionado${selectedContent.length > 1 ? 's' : ''} manualmente`,
+          details: `Usando ${selectedContent.length} artículo${
+            selectedContent.length > 1 ? "s" : ""
+          } seleccionado${selectedContent.length > 1 ? "s" : ""} manualmente`,
           count: selectedContent.length,
           total: selectedContent.length,
-          posts: selectedContent.slice(0, 5)
+          posts: selectedContent.slice(0, 5),
         });
         contentToSummarize = selectedContent;
       } else {
@@ -346,10 +374,11 @@ export default function GeneradorResumenes() {
 
       setGenerationProgress({
         step: "Generando resumen",
-        details: "Enviando contenido al modelo de IA para generar el resumen...",
+        details:
+          "Enviando contenido al modelo de IA para generar el resumen...",
         count: contentToSummarize.length,
         total: contentToSummarize.length,
-        posts: contentToSummarize.slice(0, 5)
+        posts: contentToSummarize.slice(0, 5),
       });
 
       const resume = await generateResume({
@@ -373,7 +402,7 @@ export default function GeneradorResumenes() {
           step: "Resumen completado",
           details: "El resumen se ha generado exitosamente",
           count: contentToSummarize.length,
-          total: contentToSummarize.length
+          total: contentToSummarize.length,
         });
         setResumen(resume.resume);
       } else {
@@ -476,34 +505,34 @@ export default function GeneradorResumenes() {
   const copyToClipboard = async () => {
     try {
       const htmlContent = marked(resumen) as string;
-      
+
       // Create a temporary div to render the HTML and extract plain text
-      const tempDiv = document.createElement('div');
+      const tempDiv = document.createElement("div");
       tempDiv.innerHTML = htmlContent;
-      const plainText = tempDiv.textContent || tempDiv.innerText || '';
-      
+      const plainText = tempDiv.textContent || tempDiv.innerText || "";
+
       // Use the modern Clipboard API with both HTML and text formats
       if (navigator.clipboard && window.ClipboardItem) {
         const clipboardItem = new ClipboardItem({
-          'text/html': new Blob([htmlContent], { type: 'text/html' }),
-          'text/plain': new Blob([plainText], { type: 'text/plain' })
+          "text/html": new Blob([htmlContent], { type: "text/html" }),
+          "text/plain": new Blob([plainText], { type: "text/plain" }),
         });
-        
+
         await navigator.clipboard.write([clipboardItem]);
       } else {
         // Fallback for browsers that don't support ClipboardItem
         await navigator.clipboard.writeText(plainText);
       }
-      
+
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
       console.error("Error copying to clipboard:", error);
       // Additional fallback: try to copy just the plain text
       try {
-        const tempDiv = document.createElement('div');
+        const tempDiv = document.createElement("div");
         tempDiv.innerHTML = marked(resumen) as string;
-        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        const plainText = tempDiv.textContent || tempDiv.innerText || "";
         await navigator.clipboard.writeText(plainText);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
@@ -700,40 +729,53 @@ export default function GeneradorResumenes() {
               </div>
             )}
 
-            <div>
-              <label
-                htmlFor="modelo"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Modelo
-              </label>
-              <Select
-                value={`${selectedModel.model}|${selectedModel.provider}`}
-                onValueChange={handleModelChange}
-                disabled={availableModels.length === 0}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona un modelo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModels.length > 0 ? (
-                    availableModels.map((model) => (
+            {models.length > 1 && (
+              <div>
+                <label
+                  htmlFor="modelo"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Modelo
+                </label>
+                <Select
+                  value={
+                    selectedModel.model
+                      ? `${selectedModel.model}|${selectedModel.provider}`
+                      : ""
+                  }
+                  onValueChange={(value) => {
+                    const [model, provider] = value.split("|");
+                    setSelectedModel({ model, provider });
+                  }}
+                  disabled={models.length === 0 || apiKeyStatus.isLoading}
+                >
+                  <SelectTrigger className="w-full min-w-48 bg-white border-gray-200 hover:bg-gray-50">
+                    <SelectValue
+                      placeholder={
+                        apiKeyStatus.isLoading
+                          ? "Cargando..."
+                          : "Seleccionar modelo"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((modelInfo) => (
                       <SelectItem
-                        key={model}
-                        value={`${model}|${modelProviderMap[model]}`}
+                        key={`${modelInfo.model}|${modelInfo.provider}`}
+                        value={`${modelInfo.model}|${modelInfo.provider}`}
                       >
-                        {model} (
-                        {getProviderDisplayName(modelProviderMap[model])})
+                        <div className="flex flex-row items-center justify-between gap-2">
+                          <span className="font-medium">{modelInfo.model}</span>
+                          <span className="text-xs text-gray-500">
+                            {getProviderDisplayName(modelInfo.provider)}
+                          </span>
+                        </div>
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="|">
-                      No hay modelos disponibles
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -804,55 +846,74 @@ export default function GeneradorResumenes() {
                     {generationProgress.step}
                   </span>
                 </div>
-                
+
                 {generationProgress.details && (
                   <div className="text-center">
-                    <p className="text-sm text-gray-600">{generationProgress.details}</p>
-                    {generationProgress.count !== undefined && generationProgress.total !== undefined && (
-                      <div className="mt-2">
-                        <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
-                          <span>{generationProgress.count} de {generationProgress.total} artículos</span>
-                        </div>
-                        {generationProgress.total > 0 && (
-                          <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ 
-                                width: `${Math.round((generationProgress.count / generationProgress.total) * 100)}%` 
-                              }}
-                            ></div>
+                    <p className="text-sm text-gray-600">
+                      {generationProgress.details}
+                    </p>
+                    {generationProgress.count !== undefined &&
+                      generationProgress.total !== undefined && (
+                        <div className="mt-2">
+                          <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
+                            <span>
+                              {generationProgress.count} de{" "}
+                              {generationProgress.total} artículos
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          {generationProgress.total > 0 && (
+                            <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.round(
+                                    (generationProgress.count /
+                                      generationProgress.total) *
+                                      100
+                                  )}%`,
+                                }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 )}
 
                 {/* Preview of posts */}
-                {generationProgress.posts && generationProgress.posts.length > 0 && (
-                  <div className="mt-4 p-3 bg-white rounded-lg border">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                      Vista previa de artículos:
-                    </h4>
-                    <div className="space-y-2 max-h-56 overflow-y-auto">
-                      {generationProgress.posts.map((post, index) => (
-                        <div key={post.id} className="text-xs text-gray-600 border-l-2 border-gray-200 pl-2">
-                          <span className="font-medium">
-                            {index + 1}. {post.title.rendered}
-                          </span>
-                          <div className="text-gray-500 mt-1">
-                            {new Date(post.date).toLocaleDateString()}
+                {generationProgress.posts &&
+                  generationProgress.posts.length > 0 && (
+                    <div className="mt-4 p-3 bg-white rounded-lg border">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                        Vista previa de artículos:
+                      </h4>
+                      <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {generationProgress.posts.map((post, index) => (
+                          <div
+                            key={post.id}
+                            className="text-xs text-gray-600 border-l-2 border-gray-200 pl-2"
+                          >
+                            <span className="font-medium">
+                              {index + 1}. {post.title.rendered}
+                            </span>
+                            <div className="text-gray-500 mt-1">
+                              {new Date(post.date).toLocaleDateString()}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      {generationProgress.total && generationProgress.total > generationProgress.posts.length && (
-                        <div className="text-xs text-gray-500 italic">
-                          ... y {generationProgress.total - generationProgress.posts.length} artículos más
-                        </div>
-                      )}
+                        ))}
+                        {generationProgress.total &&
+                          generationProgress.total >
+                            generationProgress.posts.length && (
+                            <div className="text-xs text-gray-500 italic">
+                              ... y{" "}
+                              {generationProgress.total -
+                                generationProgress.posts.length}{" "}
+                              artículos más
+                            </div>
+                          )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             ) : resumen ? (
               <div className="text-gray-800">

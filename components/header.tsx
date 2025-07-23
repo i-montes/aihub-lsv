@@ -59,7 +59,7 @@ export function Header() {
         <div className="flex-1"></div>
 
         <div className="flex items-center space-x-4">
-          <div className="relative">
+          {/* <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <Input className="pl-10 w-[300px] bg-gray-50 border-gray-100" placeholder="Buscar contenido" />
           </div>
@@ -136,7 +136,7 @@ export function Header() {
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
 
           <div className="relative">
             <div

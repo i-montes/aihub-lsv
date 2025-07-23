@@ -19,7 +19,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Copy, Loader2, Share, Upload, FileText, ScrollText } from "lucide-react";
+import {
+  Copy,
+  Loader2,
+  Share,
+  Upload,
+  FileText,
+  ScrollText,
+} from "lucide-react";
 import { toast } from "sonner";
 import { WordPressSearch } from "@/components/thread-generator/wordpress-search";
 import { ThreadPreview } from "@/components/thread-generator/thread-preview";
@@ -37,6 +44,12 @@ export default function ThreadGenerator() {
   const [outputFormat, setOutputFormat] = useState<
     "tesis" | "investigacion" | "lista"
   >("tesis");
+  const [models, setModels] = useState<
+    {
+      model: string;
+      provider: string;
+    }[]
+  >([]);
 
   const [generatedThread, setGeneratedThread] = useState<
     { content: string; imageUrl?: string }[]
@@ -63,7 +76,6 @@ export default function ThreadGenerator() {
   const [showLogsModal, setShowLogsModal] = useState(false);
 
   const generateThread = async () => {
-
     if (isGenerating) return; // Prevent multiple clicks
 
     if (!sourceContent.trim()) {
@@ -75,7 +87,6 @@ export default function ThreadGenerator() {
       toast.error("Por favor, añade un título para generar el hilo");
       return;
     }
-
 
     if (!selectedModel.model || !selectedModel.provider) {
       toast.error("Por favor, selecciona un modelo de IA");
@@ -164,6 +175,28 @@ export default function ThreadGenerator() {
         return;
       }
 
+      // Fetch custom tools for this organization
+      const { data: customTool, error: customToolsError } = await supabase
+        .from("tools")
+        .select("models")
+        .eq("organization_id", profileData.organizationId)
+        .eq("identity", "threads_generator")
+        .single();
+
+      if (customToolsError) {
+        console.error(
+          "Error al obtener herramientas personalizadas:",
+          customToolsError
+        );
+      }
+
+      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
+      if (customTool?.models?.length > 0) {
+        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
+      }
+
+      setModels(customTool?.models || []);
+
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];
       const map: Record<string, string> = {};
@@ -189,16 +222,6 @@ export default function ThreadGenerator() {
 
       // Establecer los modelos disponibles
       setAvailableModels(allModels);
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (apiKeys.length > 0 && allModels.length > 0) {
-        const firstKey = apiKeys[0];
-        const firstModel = allModels[0];
-        setSelectedModel({
-          model: firstModel,
-          provider: firstKey.provider || "",
-        });
-      }
 
       setModelProviderMap(map);
     } catch (error) {
@@ -270,39 +293,53 @@ export default function ThreadGenerator() {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               <div className="p-6 border-b bg-muted/30">
-
                 {/* Modelo de IA */}
-                <div className="space-y-2 mb-4">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Modelo de IA
-                  </label>
-                  <Select
-                    value={`${selectedModel.model}|${selectedModel.provider}`}
-                    onValueChange={handleModelChange}
-                    disabled={availableModels.length === 0}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona un modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.length > 0 ? (
-                        availableModels.map((model) => (
+                {models.length > 1 && (
+                  <div className="space-y-2 mb-4">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Modelo de IA
+                    </label>
+                    <Select
+                      value={
+                        selectedModel.model
+                          ? `${selectedModel.model}|${selectedModel.provider}`
+                          : ""
+                      }
+                      onValueChange={(value) => {
+                        const [model, provider] = value.split("|");
+                        setSelectedModel({ model, provider });
+                      }}
+                      disabled={models.length === 0 || apiKeyStatus.isLoading}
+                    >
+                      <SelectTrigger className="w-full min-w-48 bg-white border-gray-200 hover:bg-gray-50">
+                        <SelectValue
+                          placeholder={
+                            apiKeyStatus.isLoading
+                              ? "Cargando..."
+                              : "Seleccionar modelo"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {models.map((modelInfo) => (
                           <SelectItem
-                            key={model}
-                            value={`${model}|${modelProviderMap[model]}`}
+                            key={`${modelInfo.model}|${modelInfo.provider}`}
+                            value={`${modelInfo.model}|${modelInfo.provider}`}
                           >
-                            {model} (
-                            {getProviderDisplayName(modelProviderMap[model])})
+                            <div className="flex flex-row items-center justify-between gap-2">
+                              <span className="font-medium">
+                                {modelInfo.model}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {getProviderDisplayName(modelInfo.provider)}
+                              </span>
+                            </div>
                           </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="|">
-                          No hay modelos disponibles
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Formato de Salida */}
                 <div className="space-y-2">
@@ -404,15 +441,15 @@ export default function ThreadGenerator() {
                 <h2 className="text-xl font-semibold">Vista previa del hilo</h2>
 
                 <div className="flex items-center gap-2">
-                  {(generatedThread.length > 0 || generationLogs.length > 0) && (
+                  {(generatedThread.length > 0 ||
+                    generationLogs.length > 0) && (
                     <>
-                      <Dialog open={showLogsModal} onOpenChange={setShowLogsModal}>
+                      <Dialog
+                        open={showLogsModal}
+                        onOpenChange={setShowLogsModal}
+                      >
                         <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                          >
+                          <Button variant="outline" size="sm" className="gap-2">
                             <ScrollText className="h-4 w-4" />
                             Logs
                           </Button>
@@ -424,7 +461,8 @@ export default function ThreadGenerator() {
                               Logs de Generación
                             </DialogTitle>
                             <p className="text-sm text-muted-foreground">
-                              Seguimiento detallado del proceso de generación del hilo
+                              Seguimiento detallado del proceso de generación
+                              del hilo
                             </p>
                           </DialogHeader>
                           <div className="relative">
@@ -442,7 +480,7 @@ export default function ThreadGenerator() {
                                       {generationLogs.length} pasos
                                     </span>
                                   </div>
-                                  
+
                                   {generationLogs.map((log, index) => (
                                     <div
                                       key={index}
@@ -456,22 +494,31 @@ export default function ThreadGenerator() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="font-mono text-sm leading-relaxed text-gray-800 dark:text-gray-200">
-                                            {log.split('\n').map((line, lineIndex) => (
-                                              <div key={lineIndex} className={lineIndex > 0 ? 'mt-1' : ''}>
-                                                {line || <br />}
-                                              </div>
-                                            ))}
+                                            {log
+                                              .split("\n")
+                                              .map((line, lineIndex) => (
+                                                <div
+                                                  key={lineIndex}
+                                                  className={
+                                                    lineIndex > 0 ? "mt-1" : ""
+                                                  }
+                                                >
+                                                  {line || <br />}
+                                                </div>
+                                              ))}
                                           </div>
                                         </div>
                                         <button
-                                          onClick={() => navigator.clipboard.writeText(log)}
+                                          onClick={() =>
+                                            navigator.clipboard.writeText(log)
+                                          }
                                           className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
                                           title="Copiar este log"
                                         >
                                           <Copy className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
                                         </button>
                                       </div>
-                                      
+
                                       {/* Progress indicator line */}
                                       {index < generationLogs.length - 1 && (
                                         <div className="absolute left-[1.125rem] top-[3.5rem] w-px h-4 bg-gradient-to-b from-primary/30 to-transparent"></div>
@@ -488,16 +535,18 @@ export default function ThreadGenerator() {
                                     No hay logs disponibles
                                   </h3>
                                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                                    Los logs de generación aparecerán aquí cuando se complete el proceso de creación del hilo.
+                                    Los logs de generación aparecerán aquí
+                                    cuando se complete el proceso de creación
+                                    del hilo.
                                   </p>
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Gradient fade at bottom */}
                             <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
                           </div>
-                          
+
                           {generationLogs.length > 0 && (
                             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                               <div className="text-xs text-muted-foreground">
@@ -507,9 +556,12 @@ export default function ThreadGenerator() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  const allLogs = generationLogs.join('\n\n---\n\n');
+                                  const allLogs =
+                                    generationLogs.join("\n\n---\n\n");
                                   navigator.clipboard.writeText(allLogs);
-                                  toast.success("Logs copiados al portapapeles");
+                                  toast.success(
+                                    "Logs copiados al portapapeles"
+                                  );
                                 }}
                                 className="gap-2"
                               >
@@ -548,12 +600,22 @@ export default function ThreadGenerator() {
                         Generando tu hilo...
                       </h3>
                       <p className="text-muted-foreground text-sm mb-4">
-                        La IA está procesando tu contenido y creando un hilo optimizado para X
+                        La IA está procesando tu contenido y creando un hilo
+                        optimizado para X
                       </p>
                       <div className="flex items-center justify-center gap-1">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        <div
+                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "0ms" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "150ms" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "300ms" }}
+                        ></div>
                       </div>
                     </div>
                   </div>
@@ -574,7 +636,9 @@ export default function ThreadGenerator() {
                         Genera tu hilo para X
                       </h3>
                       <p className="text-muted-foreground text-sm">
-                        Aquí sucederá la magia La IA te va a proponer un borrador de hilo para que corrijas y uses. Ojo: revisa con cuidado. A veces las máquinas dicen cualquier cosa.
+                        Aquí sucederá la magia La IA te va a proponer un
+                        borrador de hilo para que corrijas y uses. Ojo: revisa
+                        con cuidado. A veces las máquinas dicen cualquier cosa.
                       </p>
                     </div>
                   </div>

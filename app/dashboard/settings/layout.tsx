@@ -129,13 +129,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         onClick={() => router.push("/dashboard/settings/wordpress")}
                         indented
                       />
-                      <SettingsMenuItem
+                      {/* <SettingsMenuItem
                         icon={<CreditCard size={18} />}
                         title="Billing & Usage"
                         active={pathname === "/dashboard/settings/billing"}
                         onClick={() => router.push("/dashboard/settings/billing")}
                         indented
-                      />
+                      /> */}
                     </>
                   )}
                 </div>
