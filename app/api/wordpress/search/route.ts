@@ -10,6 +10,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   const endDate = searchParams.get("end_date")
   const page = searchParams.get("page") || "1"
   const perPage = searchParams.get("per_page") || "20"
+  const categories = searchParams.get("categories") || ""
 
   if (!query) {
     return errorResponse("Query parameter is required", 400)
@@ -56,11 +57,18 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
   try {
     // Construct WordPress API URL with pagination, order and date filters
-    let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=desc&orderby=date&_embed=true&category=4924`
+    let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=desc&orderby=date&_embed=true`
 
     // Add search parameter only if query is not "*"
     if (query !== "*") {
       wpApiUrl += `&search=${encodeURIComponent(query)}`
+    }
+
+    if (categories) {
+      const categoryIds = categories.split(',').map(id => id.trim()).filter(id => id)
+      if (categoryIds.length > 0) {
+        wpApiUrl += `&categories=${categoryIds.join(',')}`
+      }
     }
 
     // Add date filters if provided

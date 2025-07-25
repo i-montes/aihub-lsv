@@ -21,10 +21,13 @@ import {
   Image,
   Type,
   Paperclip,
+  FileText,
+  X,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
+import generateNewsletter from "@/actions/generate-newsletter";
 
 interface NewsletterData {
   content: string;
@@ -46,6 +49,15 @@ export type WordPressPost = {
   date: string;
 };
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  content?: string;
+  file?: File; // Add File object to store the actual file
+}
+
 export default function NewsletterGenerator() {
   const [newsletterData, setNewsletterData] = useState<NewsletterData>({
     content: "",
@@ -53,6 +65,8 @@ export default function NewsletterGenerator() {
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
@@ -74,6 +88,14 @@ export default function NewsletterGenerator() {
     isAdmin: false,
   });
 
+  const [models, setModels] = useState<
+    {
+      model: string;
+      provider: string;
+    }[]
+  >([]);
+  const [generatedNewsletter, setGeneratedNewsletter] = useState<any>(null);
+
   const templates = [
     {
       id: "charlas",
@@ -89,10 +111,34 @@ export default function NewsletterGenerator() {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    // Simular generación con IA
-    setTimeout(() => {
+    
+    try {
+      
+
+      // Prepare WordPress content
+      const wordpressContent = selectedContent.map(post => ({
+        title: post.title.rendered.replace(/<[^>]*>/g, ""),
+        content: post.content.rendered,
+        excerpt: post.excerpt.rendered,
+        date: post.date,
+        link: post.link
+      }));
+
+      // Call generateNewsletter with all parameters
+      const result = await generateNewsletter({
+        images: [],
+        wordpressContent,
+        customContent: newsletterData.content,
+        template: newsletterData.template,
+        selectedModel
+      });
+
+      
+    } catch (error) {
+      console.error('Error calling generateNewsletter:', error);
+    } finally {
       setIsGenerating(false);
-    }, 3000);
+    }
   };
 
   const insertMultiplePostContent = (posts: WordPressPost[]) => {
@@ -151,6 +197,28 @@ export default function NewsletterGenerator() {
         return;
       }
 
+      // Fetch custom tools for this organization
+      const { data: customTool, error: customToolsError } = await supabase
+        .from("tools")
+        .select("models")
+        .eq("organization_id", profileData.organizationId)
+        .eq("identity", "resume")
+        .single();
+
+      if (customToolsError) {
+        console.error(
+          "Error al obtener herramientas personalizadas:",
+          customToolsError
+        );
+      }
+
+      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
+      if (customTool?.models?.length > 0) {
+        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
+      }
+
+      setModels(customTool?.models || []);
+
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];
       const map: Record<string, string> = {};
@@ -177,16 +245,6 @@ export default function NewsletterGenerator() {
       // Establecer los modelos disponibles
       setAvailableModels(allModels);
 
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (apiKeys.length > 0 && allModels.length > 0) {
-        const firstKey = apiKeys[0];
-        const firstModel = allModels[0];
-        setSelectedModel({
-          model: firstModel,
-          provider: firstKey.provider || "",
-        });
-      }
-
       setModelProviderMap(map);
     } catch (error) {
       console.error("Error al verificar API keys:", error);
@@ -211,6 +269,69 @@ export default function NewsletterGenerator() {
     checkApiKeyExists();
   }, []);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_FILE_TYPES = ["application/pdf"];
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    setIsUploading(true);
+    const validFiles: UploadedFile[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      // Validar tipo de archivo
+      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        errors.push(`${file.name}: Solo se permiten archivos PDF`);
+        continue;
+      }
+
+      // Validar tamaño de archivo
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: El archivo excede el tamaño máximo de 5MB`);
+        continue;
+      }
+
+      // Crear objeto de archivo válido con el File object
+      const uploadedFile: UploadedFile = {
+        id: `file-${Date.now()}-${i}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file // Store the actual File object
+      };
+
+      validFiles.push(uploadedFile);
+    }
+
+    // Mostrar errores si los hay
+    if (errors.length > 0) {
+      alert(errors.join("\n"));
+    }
+
+    // Agregar archivos válidos al estado
+    setUploadedFiles((prev) => [...prev, ...validFiles]);
+    setIsUploading(false);
+
+    // Limpiar el input
+    event.target.value = "";
+  };
+
+  const removeUploadedFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <ApiKeyRequiredModal
@@ -221,9 +342,7 @@ export default function NewsletterGenerator() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold ">
-            Generador de Newsletter
-          </h1>
+          <h1 className="text-3xl font-bold ">Generador de Newsletter</h1>
           <p className="text-muted-foreground mt-2">
             Crea newsletters profesionales con IA en minutos
           </p>
@@ -269,11 +388,81 @@ export default function NewsletterGenerator() {
                     allowMultipleSelection={true}
                   />
 
-                  <Button variant="outline" className="w-full">
-                    <Paperclip className="w-4 h-4 mr-2" />
-                    Subir archivos
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={isUploading}
+                    />
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                          Subiendo...
+                        </>
+                      ) : (
+                        <>
+                          <Paperclip className="w-4 h-4 mr-2" />
+                          Subir archivos PDF
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Archivos subidos */}
+                {uploadedFiles.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-green-900">
+                        Archivos subidos
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setUploadedFiles([])}
+                        className="text-green-600 hover:text-green-700 h-auto p-1"
+                      >
+                        Limpiar todo
+                      </Button>
+                    </div>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {uploadedFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between bg-white rounded-md p-2 border border-green-100"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeUploadedFile(file.id)}
+                            className="text-gray-400 hover:text-red-500 h-auto p-1 ml-2"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Artículos seleccionados */}
                 {selectedContent.length > 0 && (
@@ -346,7 +535,7 @@ export default function NewsletterGenerator() {
                 </div>
 
                 <Textarea
-                  placeholder="Proporciona instrucciones específicas sobre el tono, estilo, longitud o cualquier otro aspecto del newsletter que quieras generar..."
+                  placeholder="Proporciona información adicional para la generación del newsletter."
                   className="min-h-[120px] resize-none"
                   value={newsletterData.content}
                   onChange={(e) =>
@@ -393,37 +582,52 @@ export default function NewsletterGenerator() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Modelo de IA
-                    </label>
-                    <Select
-                      value={`${selectedModel.model}|${selectedModel.provider}`}
-                      onValueChange={handleModelChange}
-                      disabled={availableModels.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un modelo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableModels.length > 0 ? (
-                          availableModels.map((model) => (
+                  {models.length > 1 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Modelo de IA
+                      </label>
+                      <Select
+                        value={
+                          selectedModel.model
+                            ? `${selectedModel.model}|${selectedModel.provider}`
+                            : ""
+                        }
+                        onValueChange={(value) => {
+                          const [model, provider] = value.split("|");
+                          setSelectedModel({ model, provider });
+                        }}
+                        disabled={models.length === 0 || apiKeyStatus.isLoading}
+                      >
+                        <SelectTrigger className="w-full min-w-48 bg-white border-gray-200 hover:bg-gray-50">
+                          <SelectValue
+                            placeholder={
+                              apiKeyStatus.isLoading
+                                ? "Cargando..."
+                                : "Seleccionar modelo"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models.map((modelInfo) => (
                             <SelectItem
-                              key={model}
-                              value={`${model}|${modelProviderMap[model]}`}
+                              key={`${modelInfo.model}|${modelInfo.provider}`}
+                              value={`${modelInfo.model}|${modelInfo.provider}`}
                             >
-                              {model} (
-                              {getProviderDisplayName(modelProviderMap[model])})
+                              <div className="flex flex-row items-center justify-between gap-2">
+                                <span className="font-medium">
+                                  {modelInfo.model}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {getProviderDisplayName(modelInfo.provider)}
+                                </span>
+                              </div>
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="|">
-                            No hay modelos disponibles
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -433,7 +637,9 @@ export default function NewsletterGenerator() {
                   onClick={handleGenerate}
                   disabled={
                     isGenerating ||
-                    (!selectedContent.length && !newsletterData.content.trim())
+                    (!selectedContent.length &&
+                      !uploadedFiles.length &&
+                      !newsletterData.content.trim())
                   }
                   className="text-white h-12 text-base font-medium"
                   size="lg"
@@ -451,12 +657,14 @@ export default function NewsletterGenerator() {
                   )}
                 </Button>
 
-                {!selectedContent.length && !newsletterData.content.trim() && (
-                  <p className="text-xs text-center text-gray-500">
-                    Selecciona artículos de WordPress o agrega instrucciones
-                    para comenzar
-                  </p>
-                )}
+                {!selectedContent.length &&
+                  !uploadedFiles.length &&
+                  !newsletterData.content.trim() && (
+                    <p className="text-xs text-center text-gray-500">
+                      Selecciona artículos de WordPress, sube archivos PDF o agrega
+                      instrucciones para comenzar
+                    </p>
+                  )}
               </div>
             </CardContent>
           </Card>
@@ -472,20 +680,35 @@ export default function NewsletterGenerator() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg p-4 bg-white min-h-[400px] flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Mail className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  Newsletter Preview
-                </h3>
-                <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
-                  Aquí se mostrará la vista previa de tu newsletter una vez que sea generado por el asistente de IA.
-                </p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generado automáticamente con IA</span>
-                </div>
+              <div className="border rounded-lg p-4 bg-white min-h-[400px] flex flex-col">
+                {generatedNewsletter ? (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">{generatedNewsletter.title}</h3>
+                    <div className="prose max-w-none">
+                      {generatedNewsletter.content}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-4">
+                      Generado: {new Date(generatedNewsletter.generatedAt).toLocaleString()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center flex-1">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Mail className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">
+                      Newsletter Preview
+                    </h3>
+                    <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
+                      Aquí se mostrará la vista previa de tu newsletter una vez que
+                      sea generado por el asistente de IA.
+                    </p>
+                    <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generado automáticamente con IA</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

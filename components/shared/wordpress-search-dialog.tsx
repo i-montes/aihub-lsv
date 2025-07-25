@@ -48,6 +48,7 @@ interface WordPressSearchDialogProps {
   hideButton?: boolean;
   fullWidth?: boolean;
   allowMultipleSelection?: boolean;
+  categories?: string; // Comma-separated category IDs
 }
 
 // Función para limpiar el HTML de los excerpts de WordPress
@@ -81,6 +82,7 @@ export function WordPressSearchDialog({
   hideButton = false,
   fullWidth = false,
   allowMultipleSelection = false,
+  categories = "",
 }: WordPressSearchDialogProps) {
   // Estado interno para la conexión a WordPress
   const [wordpressConnection, setWordpressConnection] = useState<{
@@ -196,8 +198,14 @@ export function WordPressSearchDialog({
       setInternalIsSearching(true);
       setInternalSearchError(null);
 
+      let apiUrl = `/api/wordpress/search?query=${encodeURIComponent(query)}`;
+
+      if (categories) {
+        apiUrl += `&categories=${encodeURIComponent(categories)}`;
+      }
+
       const response = await fetch(
-        `/api/wordpress/search?query=${encodeURIComponent(query)}`
+        apiUrl
       );
 
       // Verificar si la respuesta es JSON

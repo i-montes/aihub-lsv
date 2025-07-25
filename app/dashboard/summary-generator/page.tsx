@@ -484,11 +484,6 @@ export default function GeneradorResumenes() {
     setDialogOpen(true);
   };
 
-  const handleModelChange = (option: string) => {
-    const [model, provider] = option.split("|");
-    setSelectedModel({ model, provider });
-  };
-
   const getProviderDisplayName = (provider: string): string => {
     switch (provider.toLowerCase()) {
       case "openai":
@@ -639,6 +634,7 @@ export default function GeneradorResumenes() {
                   placeholder="Buscar artículos..."
                   noResultsMessage="No se encontraron artículos para"
                   fullWidth
+                  categories={"4924"}
                   allowMultipleSelection={true}
                 />
 
