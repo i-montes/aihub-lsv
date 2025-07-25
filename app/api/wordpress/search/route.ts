@@ -57,7 +57,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
 
   try {
     // Construct WordPress API URL with pagination, order and date filters
-    let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=desc&orderby=date&_embed=true`
+    let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=desc&orderby=date&_embed=true&status=any`
 
     // Add search parameter only if query is not "*"
     if (query !== "*") {
@@ -70,6 +70,8 @@ export const GET = createApiHandler(async (req: NextRequest) => {
         wpApiUrl += `&categories=${categoryIds.join(',')}`
       }
     }
+
+    console.log('WordPress API URL:', wpApiUrl)
 
     // Add date filters if provided
     if (startDate) {
