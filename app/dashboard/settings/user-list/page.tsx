@@ -42,6 +42,15 @@ export default function UserListSettingsPage() {
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [userToEdit, setUserToEdit] = useState<Profile | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    lastname: "",
+    role: "",
+  })
+
   const fetchMembers = async () => {
     try {
       setIsLoading(true)
@@ -131,6 +140,52 @@ export default function UserListSettingsPage() {
     }
   }
 
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setEditForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleEditRoleChange = (value: string) => {
+    setEditForm((prev) => ({ ...prev, role: value }))
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!userToEdit) return
+
+    try {
+      setIsEditing(true)
+
+      await api.put(`/organization/members/${userToEdit.id}`, {
+        name: editForm.name,
+        lastname: editForm.lastname,
+        role: editForm.role,
+      })
+
+      toast.success("Usuario actualizado exitosamente")
+
+      // Actualizar la lista de miembros
+      setMembers(
+        members.map((member) =>
+          member.id === userToEdit.id
+            ? { ...member, name: editForm.name, lastname: editForm.lastname, role: editForm.role }
+            : member
+        )
+      )
+
+      // Cerrar el diálogo
+      setIsEditDialogOpen(false)
+      setUserToEdit(null)
+      setEditForm({ name: "", lastname: "", role: "" })
+    } catch (error: any) {
+      console.error("Error updating user:", error)
+      toast.error(error.message || "Error al actualizar el usuario")
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -196,7 +251,6 @@ export default function UserListSettingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="OWNER">Propietario</SelectItem>
-                      <SelectItem value="ADMIN">Administrador</SelectItem>
                       <SelectItem value="USER">Usuario</SelectItem>
                     </SelectContent>
                   </Select>
@@ -254,7 +308,20 @@ export default function UserListSettingsPage() {
                     <div className="px-2 py-1 bg-sidebar text-white rounded-full text-xs">Tú</div>
                   ) : (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="p-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="p-2"
+                        onClick={() => {
+                          setUserToEdit(member)
+                          setEditForm({
+                            name: member.name || "",
+                            lastname: member.lastname || "",
+                            role: member.role || "USER",
+                          })
+                          setIsEditDialogOpen(true)
+                        }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
@@ -276,6 +343,96 @@ export default function UserListSettingsPage() {
           </div>
         </CardContent2>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Usuario</DialogTitle>
+            <DialogDescription>
+              Modifica la información del usuario {userToEdit?.name} {userToEdit?.lastname}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={userToEdit?.email || ""}
+                  className="col-span-3"
+                  disabled
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Nombre
+                </Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={editForm.name}
+                  onChange={handleEditInputChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-lastname" className="text-right">
+                  Apellido
+                </Label>
+                <Input
+                  id="edit-lastname"
+                  name="lastname"
+                  value={editForm.lastname}
+                  onChange={handleEditInputChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">
+                  Rol
+                </Label>
+                <Select value={editForm.role} onValueChange={handleEditRoleChange}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Selecciona un rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="OWNER">Propietario</SelectItem>
+                    <SelectItem value="USER">Usuario</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false)
+                  setUserToEdit(null)
+                  setEditForm({ name: "", lastname: "", role: "" })
+                }}
+                disabled={isEditing}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-sidebar text-white hover:bg-sidebar/90"
+                disabled={isEditing}
+              >
+                {isEditing ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
