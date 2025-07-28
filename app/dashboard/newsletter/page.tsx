@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Select,
   SelectContent,
@@ -23,11 +25,14 @@ import {
   Paperclip,
   FileText,
   X,
+  Copy,
+  Check,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import generateNewsletter from "@/actions/generate-newsletter";
+import { loadPdfJs } from "@/lib/load-pdfjs";
 
 interface NewsletterData {
   content: string;
@@ -55,7 +60,25 @@ interface UploadedFile {
   size: number;
   type: string;
   content?: string;
-  file?: File; // Add File object to store the actual file
+  file?: File;
+}
+
+interface ProcessedImage {
+  id: string;
+  name: string;
+  dataUrl: string;
+  sourceFile: string;
+  pageNumber: number;
+}
+
+interface ConversionProgress {
+  fileId: string;
+  fileName: string;
+  currentPage: number;
+  totalPages: number;
+  isConverting: boolean;
+  isCompleted: boolean;
+  error?: string;
 }
 
 export default function NewsletterGenerator() {
@@ -66,7 +89,9 @@ export default function NewsletterGenerator() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessingPDFs, setIsProcessingPDFs] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
@@ -95,6 +120,8 @@ export default function NewsletterGenerator() {
     }[]
   >([]);
   const [generatedNewsletter, setGeneratedNewsletter] = useState<any>(null);
+  const [conversionProgress, setConversionProgress] = useState<ConversionProgress[]>([]);
+  const [copied, setCopied] = useState(false);
 
   const templates = [
     {
@@ -109,11 +136,87 @@ export default function NewsletterGenerator() {
     },
   ];
 
+  const convertPDFToImages = async (file: File, fileId: string): Promise<ProcessedImage[]> => {
+    try {
+      const pdfjsLib = await loadPdfJs();
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const images: ProcessedImage[] = [];
+
+      // Initialize progress
+      setConversionProgress(prev => [...prev, {
+        fileId,
+        fileName: file.name,
+        currentPage: 0,
+        totalPages: pdf.numPages,
+        isConverting: true,
+        isCompleted: false
+      }]);
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        // Update progress
+        setConversionProgress(prev => 
+          prev.map(p => p.fileId === fileId 
+            ? { ...p, currentPage: pageNum }
+            : p
+          )
+        );
+
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+
+        await page.render(renderContext).promise;
+        const dataUrl = canvas.toDataURL('image/png');
+
+        images.push({
+          id: `${fileId}-page-${pageNum}`,
+          name: `${file.name} - Página ${pageNum}`,
+          dataUrl,
+          sourceFile: file.name,
+          pageNumber: pageNum
+        });
+      }
+
+      // Mark as completed
+      setConversionProgress(prev => 
+        prev.map(p => p.fileId === fileId 
+          ? { ...p, isConverting: false, isCompleted: true }
+          : p
+        )
+      );
+
+      return images;
+    } catch (error: any) {
+      console.error(`Error converting PDF ${file.name} to images:`, error);
+      
+      // Mark as error
+      setConversionProgress(prev => 
+        prev.map(p => p.fileId === fileId 
+          ? { ...p, isConverting: false, error: error.message }
+          : p
+        )
+      );
+      
+      throw error;
+    }
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     
     try {
-      
+      // Use already processed images
+      const images = processedImages;
 
       // Prepare WordPress content
       const wordpressContent = selectedContent.map(post => ({
@@ -124,16 +227,21 @@ export default function NewsletterGenerator() {
         link: post.link
       }));
 
-      // Call generateNewsletter with all parameters
+      // Call generateNewsletter with processed images
       const result = await generateNewsletter({
-        images: [],
+        images: images.map(img => ({
+          id: img.id,
+          name: img.name,
+          dataUrl: img.dataUrl,
+          sourceFile: img.sourceFile
+        })),
         wordpressContent,
         customContent: newsletterData.content,
         template: newsletterData.template,
         selectedModel
       });
 
-      
+      setGeneratedNewsletter(result);
     } catch (error) {
       console.error('Error calling generateNewsletter:', error);
     } finally {
@@ -202,7 +310,7 @@ export default function NewsletterGenerator() {
         .from("tools")
         .select("models")
         .eq("organization_id", profileData.organizationId)
-        .eq("identity", "resume")
+        .eq("identity", "newsletter")
         .single();
 
       if (customToolsError) {
@@ -301,7 +409,7 @@ export default function NewsletterGenerator() {
         name: file.name,
         size: file.size,
         type: file.type,
-        file: file // Store the actual File object
+        file: file
       };
 
       validFiles.push(uploadedFile);
@@ -316,12 +424,40 @@ export default function NewsletterGenerator() {
     setUploadedFiles((prev) => [...prev, ...validFiles]);
     setIsUploading(false);
 
+    // Automatically convert PDFs to images
+    if (validFiles.length > 0) {
+      setIsProcessingPDFs(true);
+      
+      try {
+        for (const uploadedFile of validFiles) {
+          if (uploadedFile.file && uploadedFile.type === 'application/pdf') {
+            const images = await convertPDFToImages(uploadedFile.file, uploadedFile.id);
+            setProcessedImages(prev => [...prev, ...images]);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing PDFs:', error);
+      } finally {
+        setIsProcessingPDFs(false);
+      }
+    }
+
     // Limpiar el input
     event.target.value = "";
   };
 
   const removeUploadedFile = (fileId: string) => {
+    const fileToRemove = uploadedFiles.find(f => f.id === fileId);
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId));
+    
+    if (fileToRemove) {
+      setProcessedImages(prev => 
+        prev.filter(img => img.sourceFile !== fileToRemove.name)
+      );
+      setConversionProgress(prev => 
+        prev.filter(p => p.fileId !== fileId)
+      );
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -330,6 +466,31 @@ export default function NewsletterGenerator() {
     const sizes = ["Bytes", "KB", "MB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const copyToClipboard = async () => {
+    if (!generatedNewsletter?.content) return;
+
+    try {
+      // Convert markdown to plain text with basic formatting
+      const plainText = generatedNewsletter.content
+        .replace(/^#{1}\s+(.+)$/gm, '$1\n') // H1
+        .replace(/^#{2}\s+(.+)$/gm, '$1\n') // H2
+        .replace(/^#{3}\s+(.+)$/gm, '$1\n') // H3
+        .replace(/\*\*(.+?)\*\*/g, '$1') // Bold
+        .replace(/\*(.+?)\*/g, '$1') // Italic
+        .replace(/^[\s]*[-\*\+]\s+(.+)$/gm, '• $1') // Unordered lists
+        .replace(/^[\s]*\d+\.\s+(.+)$/gm, '$1') // Ordered lists
+        .replace(/^>\s+(.+)$/gm, '$1') // Blockquotes
+        .replace(/---/g, '\n') // Horizontal rules
+        .replace(/\n{3,}/g, '\n\n'); // Multiple line breaks
+
+      await navigator.clipboard.writeText(plainText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
   };
 
   return (
@@ -427,7 +588,11 @@ export default function NewsletterGenerator() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setUploadedFiles([])}
+                        onClick={() => {
+                          setUploadedFiles([]);
+                          setProcessedImages([]);
+                          setConversionProgress([]);
+                        }}
                         className="text-green-600 hover:text-green-700 h-auto p-1"
                       >
                         Limpiar todo
@@ -461,6 +626,59 @@ export default function NewsletterGenerator() {
                         </div>
                       ))}
                     </div>
+                    
+                    {/* Images Preview */}
+                    {processedImages.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-green-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-xs font-medium text-green-900">
+                            Imágenes generadas ({processedImages.length})
+                          </h5>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setProcessedImages([])}
+                            className="text-green-600 hover:text-green-700 h-auto p-1 text-xs"
+                          >
+                            Limpiar imágenes
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                          {processedImages.map((image) => (
+                            <div key={image.id} className="group relative bg-white rounded border border-green-100 overflow-hidden">
+                              <div className="aspect-[3/4] bg-gray-100">
+                                <img
+                                  src={image.dataUrl}
+                                  alt={image.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <div className="bg-white rounded-md px-2 py-1">
+                                    <p className="text-xs font-medium text-gray-900 text-center">
+                                      Página {image.pageNumber}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="absolute top-1 right-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setProcessedImages(prev => prev.filter(img => img.id !== image.id));
+                                  }}
+                                  className="w-5 h-5 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -637,8 +855,9 @@ export default function NewsletterGenerator() {
                   onClick={handleGenerate}
                   disabled={
                     isGenerating ||
+                    isProcessingPDFs ||
                     (!selectedContent.length &&
-                      !uploadedFiles.length &&
+                      !processedImages.length &&
                       !newsletterData.content.trim())
                   }
                   className="text-white h-12 text-base font-medium"
@@ -658,13 +877,19 @@ export default function NewsletterGenerator() {
                 </Button>
 
                 {!selectedContent.length &&
-                  !uploadedFiles.length &&
+                  !processedImages.length &&
                   !newsletterData.content.trim() && (
                     <p className="text-xs text-center text-gray-500">
                       Selecciona artículos de WordPress, sube archivos PDF o agrega
                       instrucciones para comenzar
                     </p>
                   )}
+                
+                {isProcessingPDFs && (
+                  <p className="text-xs text-center text-blue-600">
+                    Procesando PDFs automáticamente...
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -674,21 +899,93 @@ export default function NewsletterGenerator() {
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="w-5 h-5" />
-                Vista Previa
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  Vista Previa
+                </CardTitle>
+                {generatedNewsletter && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyToClipboard}
+                    className="flex items-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-600" />
+                        <span className="text-green-600">Copiado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copiar</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="border rounded-lg p-4 bg-white min-h-[400px] flex flex-col">
                 {generatedNewsletter ? (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">{generatedNewsletter.title}</h3>
-                    <div className="prose max-w-none">
-                      {generatedNewsletter.content}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-4">
-                      Generado: {new Date(generatedNewsletter.generatedAt).toLocaleString()}
+                    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-blockquote:text-gray-600 prose-blockquote:border-l-gray-300">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-xl font-semibold text-gray-900 mb-3">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-gray-700 mb-3 leading-relaxed">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside text-gray-700 mb-3 space-y-1">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside text-gray-700 mb-3 space-y-1">
+                              {children}
+                            </ol>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-gray-300 pl-4 py-2 mb-3 text-gray-600 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-gray-900">
+                              {children}
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-gray-700">
+                              {children}
+                            </em>
+                          ),
+                          hr: () => (
+                            <hr className="border-gray-200 my-6" />
+                          ),
+                        }}
+                      >
+                        {generatedNewsletter.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 ) : (

@@ -25,7 +25,7 @@ export function ToolCard({ tool, tagColors, onEdit }: ToolCardProps) {
         </div>
         <p className="text-sm text-gray-500 line-clamp-3 mb-3">
           {tool.prompts && Array.isArray(tool.prompts)
-            ? tool.prompts.find((prompt) => prompt.title === "Principal")?.content || ""
+            ? tool.prompts[0]?.content || ""
             : ""}
         </p>
         <div className="flex flex-wrap gap-1 mb-3">
