@@ -181,103 +181,45 @@ export default function Dashboard() {
             <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               <div className="space-y-3 pr-2">
                 <a
-                  href="https://www.grammarly.com"
+                  href="https://notebooklm.google/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                 >
                   <div>
-                    <p className="font-medium">Grammarly</p>
+                    <p className="font-medium">NotebookLM</p>
                     <p className="text-sm text-gray-500">
-                      Corrector gramatical avanzado
+                      Asistente de investigación con IA para analizar documentos y generar pódcasts
                     </p>
                   </div>
                   <ExternalLink className="h-4 w-4 text-gray-400" />
                 </a>
 
                 <a
-                  href="https://www.canva.com"
+                  href="https://journaliststudio.google.com/pinpoint/about/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                 >
                   <div>
-                    <p className="font-medium">Canva</p>
+                    <p className="font-medium">Pinpoint</p>
                     <p className="text-sm text-gray-500">
-                      Diseño gráfico para redes sociales
+                      Herramienta para analizar grandes cantidades de datos
                     </p>
                   </div>
                   <ExternalLink className="h-4 w-4 text-gray-400" />
                 </a>
 
                 <a
-                  href="https://unsplash.com"
+                  href="https://godds.ads.northwestern.edu/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                 >
                   <div>
-                    <p className="font-medium">Unsplash</p>
+                    <p className="font-medium">GODDS</p>
                     <p className="text-sm text-gray-500">
-                      Banco de imágenes gratuitas
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://www.deepl.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">DeepL</p>
-                    <p className="text-sm text-gray-500">Traductor con IA</p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://hemingwayapp.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">Hemingway Editor</p>
-                    <p className="text-sm text-gray-500">
-                      Mejora la legibilidad de textos
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://www.notion.so"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">Notion</p>
-                    <p className="text-sm text-gray-500">
-                      Gestión de proyectos y notas
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://www.typeform.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">Typeform</p>
-                    <p className="text-sm text-gray-500">
-                      Creador de encuestas interactivas
+                      Sistema de detección de deepfakes para verificar autenticidad de contenido multimedia
                     </p>
                   </div>
                   <ExternalLink className="h-4 w-4 text-gray-400" />
