@@ -546,48 +546,16 @@ export default function GeneradorResumenes() {
       />
       <h1 className="text-2xl font-bold mb-6">Generador de resúmenes</h1>
 
-      {/* Aviso sobre configuración de WordPress */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start">
-          <svg
-            className="w-5 h-5 text-blue-600 mt-0.5 mr-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <div>
-            <p className="text-sm text-blue-800 flex flex-col gap-2">
-              <strong>Configuración requerida:</strong> Este generador de
-              resúmenes utiliza la API de WordPress para funcionar. Asegúrate de
-              configurar la conexión a WordPress antes de usar esta herramienta.
-            </p>
-            <Link
-              href="/dashboard/settings/wordpress"
-              className="text-blue-600 hover:text-blue-800 underline text-sm mt-1 inline-block"
-            >
-              Configurar WordPress →
-            </Link>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Formulario */}
         <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-1">
-          <h2 className="text-lg font-semibold mb-4">Configuración</h2>
+          <h2 className="text-lg font-semibold mb-4">Resumir contenido</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Mode Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Seleccionar contenido por:
+                Elegir articulos:
               </label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
@@ -599,7 +567,7 @@ export default function GeneradorResumenes() {
                       : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
-                  Selección manual
+                  De forma manual
                 </button>
                 <button
                   type="button"
@@ -610,7 +578,7 @@ export default function GeneradorResumenes() {
                       : "text-gray-600 hover:text-gray-800"
                   }`}
                 >
-                  Selección automática
+                  Con IA
                 </button>
               </div>
             </div>

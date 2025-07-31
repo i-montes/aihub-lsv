@@ -352,13 +352,7 @@ export function WordPressSearchDialog({
             }`}
           >
             <div className="flex items-center">
-              <Image
-                src="/wordpress-logo.png"
-                alt="WordPress Logo"
-                width={20}
-                height={20}
-                className="mr-2"
-              />
+              <ExternalLink className="w-4 h-4 mr-2" />
               {buttonLabel}
             </div>
           </Button>

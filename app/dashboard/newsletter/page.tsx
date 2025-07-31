@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Select,
   SelectContent,
@@ -15,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Mail,
   Eye,
@@ -27,6 +35,8 @@ import {
   X,
   Copy,
   Check,
+  Edit3,
+  ExternalLink,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
@@ -120,8 +130,12 @@ export default function NewsletterGenerator() {
     }[]
   >([]);
   const [generatedNewsletter, setGeneratedNewsletter] = useState<any>(null);
-  const [conversionProgress, setConversionProgress] = useState<ConversionProgress[]>([]);
+  const [conversionProgress, setConversionProgress] = useState<
+    ConversionProgress[]
+  >([]);
   const [copied, setCopied] = useState(false);
+  const [customContentDialog, setCustomContentDialog] = useState(false);
+  const [tempCustomContent, setTempCustomContent] = useState("");
 
   const templates = [
     {
@@ -136,7 +150,10 @@ export default function NewsletterGenerator() {
     },
   ];
 
-  const convertPDFToImages = async (file: File, fileId: string): Promise<ProcessedImage[]> => {
+  const convertPDFToImages = async (
+    file: File,
+    fileId: string
+  ): Promise<ProcessedImage[]> => {
     try {
       const pdfjsLib = await loadPdfJs();
       const arrayBuffer = await file.arrayBuffer();
@@ -144,106 +161,110 @@ export default function NewsletterGenerator() {
       const images: ProcessedImage[] = [];
 
       // Initialize progress
-      setConversionProgress(prev => [...prev, {
-        fileId,
-        fileName: file.name,
-        currentPage: 0,
-        totalPages: pdf.numPages,
-        isConverting: true,
-        isCompleted: false
-      }]);
+      setConversionProgress((prev) => [
+        ...prev,
+        {
+          fileId,
+          fileName: file.name,
+          currentPage: 0,
+          totalPages: pdf.numPages,
+          isConverting: true,
+          isCompleted: false,
+        },
+      ]);
 
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         // Update progress
-        setConversionProgress(prev => 
-          prev.map(p => p.fileId === fileId 
-            ? { ...p, currentPage: pageNum }
-            : p
+        setConversionProgress((prev) =>
+          prev.map((p) =>
+            p.fileId === fileId ? { ...p, currentPage: pageNum } : p
           )
         );
 
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.5 });
-        
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
         const renderContext = {
           canvasContext: context,
-          viewport: viewport
+          viewport: viewport,
         };
 
         await page.render(renderContext).promise;
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL("image/png");
 
         images.push({
           id: `${fileId}-page-${pageNum}`,
           name: `${file.name} - Página ${pageNum}`,
           dataUrl,
           sourceFile: file.name,
-          pageNumber: pageNum
+          pageNumber: pageNum,
         });
       }
 
       // Mark as completed
-      setConversionProgress(prev => 
-        prev.map(p => p.fileId === fileId 
-          ? { ...p, isConverting: false, isCompleted: true }
-          : p
+      setConversionProgress((prev) =>
+        prev.map((p) =>
+          p.fileId === fileId
+            ? { ...p, isConverting: false, isCompleted: true }
+            : p
         )
       );
 
       return images;
     } catch (error: any) {
       console.error(`Error converting PDF ${file.name} to images:`, error);
-      
+
       // Mark as error
-      setConversionProgress(prev => 
-        prev.map(p => p.fileId === fileId 
-          ? { ...p, isConverting: false, error: error.message }
-          : p
+      setConversionProgress((prev) =>
+        prev.map((p) =>
+          p.fileId === fileId
+            ? { ...p, isConverting: false, error: error.message }
+            : p
         )
       );
-      
+
       throw error;
     }
   };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
+
     try {
       // Use already processed images
       const images = processedImages;
 
       // Prepare WordPress content
-      const wordpressContent = selectedContent.map(post => ({
+      const wordpressContent = selectedContent.map((post) => ({
         title: post.title.rendered.replace(/<[^>]*>/g, ""),
         content: post.content.rendered,
         excerpt: post.excerpt.rendered,
         date: post.date,
-        link: post.link
+        link: post.link,
       }));
 
       // Call generateNewsletter with processed images
       const result = await generateNewsletter({
-        images: images.map(img => ({
+        images: images.map((img) => ({
           id: img.id,
           name: img.name,
           dataUrl: img.dataUrl,
-          sourceFile: img.sourceFile
+          sourceFile: img.sourceFile,
         })),
         wordpressContent,
         customContent: newsletterData.content,
         template: newsletterData.template,
-        selectedModel
+        selectedModel,
       });
 
       setGeneratedNewsletter(result);
     } catch (error) {
-      console.error('Error calling generateNewsletter:', error);
+      console.error("Error calling generateNewsletter:", error);
     } finally {
       setIsGenerating(false);
     }
@@ -380,7 +401,9 @@ export default function NewsletterGenerator() {
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ALLOWED_FILE_TYPES = ["application/pdf"];
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (!files) return;
 
@@ -409,7 +432,7 @@ export default function NewsletterGenerator() {
         name: file.name,
         size: file.size,
         type: file.type,
-        file: file
+        file: file,
       };
 
       validFiles.push(uploadedFile);
@@ -427,16 +450,19 @@ export default function NewsletterGenerator() {
     // Automatically convert PDFs to images
     if (validFiles.length > 0) {
       setIsProcessingPDFs(true);
-      
+
       try {
         for (const uploadedFile of validFiles) {
-          if (uploadedFile.file && uploadedFile.type === 'application/pdf') {
-            const images = await convertPDFToImages(uploadedFile.file, uploadedFile.id);
-            setProcessedImages(prev => [...prev, ...images]);
+          if (uploadedFile.file && uploadedFile.type === "application/pdf") {
+            const images = await convertPDFToImages(
+              uploadedFile.file,
+              uploadedFile.id
+            );
+            setProcessedImages((prev) => [...prev, ...images]);
           }
         }
       } catch (error) {
-        console.error('Error processing PDFs:', error);
+        console.error("Error processing PDFs:", error);
       } finally {
         setIsProcessingPDFs(false);
       }
@@ -447,16 +473,14 @@ export default function NewsletterGenerator() {
   };
 
   const removeUploadedFile = (fileId: string) => {
-    const fileToRemove = uploadedFiles.find(f => f.id === fileId);
+    const fileToRemove = uploadedFiles.find((f) => f.id === fileId);
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId));
-    
+
     if (fileToRemove) {
-      setProcessedImages(prev => 
-        prev.filter(img => img.sourceFile !== fileToRemove.name)
+      setProcessedImages((prev) =>
+        prev.filter((img) => img.sourceFile !== fileToRemove.name)
       );
-      setConversionProgress(prev => 
-        prev.filter(p => p.fileId !== fileId)
-      );
+      setConversionProgress((prev) => prev.filter((p) => p.fileId !== fileId));
     }
   };
 
@@ -474,23 +498,41 @@ export default function NewsletterGenerator() {
     try {
       // Convert markdown to plain text with basic formatting
       const plainText = generatedNewsletter.content
-        .replace(/^#{1}\s+(.+)$/gm, '$1\n') // H1
-        .replace(/^#{2}\s+(.+)$/gm, '$1\n') // H2
-        .replace(/^#{3}\s+(.+)$/gm, '$1\n') // H3
-        .replace(/\*\*(.+?)\*\*/g, '$1') // Bold
-        .replace(/\*(.+?)\*/g, '$1') // Italic
-        .replace(/^[\s]*[-\*\+]\s+(.+)$/gm, '• $1') // Unordered lists
-        .replace(/^[\s]*\d+\.\s+(.+)$/gm, '$1') // Ordered lists
-        .replace(/^>\s+(.+)$/gm, '$1') // Blockquotes
-        .replace(/---/g, '\n') // Horizontal rules
-        .replace(/\n{3,}/g, '\n\n'); // Multiple line breaks
+        .replace(/^#{1}\s+(.+)$/gm, "$1\n") // H1
+        .replace(/^#{2}\s+(.+)$/gm, "$1\n") // H2
+        .replace(/^#{3}\s+(.+)$/gm, "$1\n") // H3
+        .replace(/\*\*(.+?)\*\*/g, "$1") // Bold
+        .replace(/\*(.+?)\*/g, "$1") // Italic
+        .replace(/^[\s]*[-\*\+]\s+(.+)$/gm, "• $1") // Unordered lists
+        .replace(/^[\s]*\d+\.\s+(.+)$/gm, "$1") // Ordered lists
+        .replace(/^>\s+(.+)$/gm, "$1") // Blockquotes
+        .replace(/---/g, "\n") // Horizontal rules
+        .replace(/\n{3,}/g, "\n\n"); // Multiple line breaks
 
       await navigator.clipboard.writeText(plainText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
+      console.error("Error copying to clipboard:", error);
     }
+  };
+
+  const handleOpenCustomContentDialog = () => {
+    setTempCustomContent(newsletterData.content);
+    setCustomContentDialog(true);
+  };
+
+  const handleSaveCustomContent = () => {
+    setNewsletterData({
+      ...newsletterData,
+      content: tempCustomContent,
+    });
+    setCustomContentDialog(false);
+  };
+
+  const handleCancelCustomContent = () => {
+    setTempCustomContent("");
+    setCustomContentDialog(false);
   };
 
   return (
@@ -519,22 +561,18 @@ export default function NewsletterGenerator() {
                 <CardTitle className="flex items-center gap-2">
                   Contenido
                 </CardTitle>
-                <Badge variant="secondary" className="text-xs">
-                  {selectedContent.length} artículos seleccionados
-                </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Sección de búsqueda y contenido fuente */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span className="text-sm font-medium text-gray-700">
-                    Contenido fuente
+                    Agregar fuentes de información
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   <WordPressSearchDialog
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
@@ -558,8 +596,8 @@ export default function NewsletterGenerator() {
                       disabled={isUploading}
                     />
                     <Button
-                      variant="outline"
-                      className="w-full"
+                      variant="ghost"
+                      className="w-full shadow-sm hover:shadow-lg transition-all hover:!opacity-90 border"
                       disabled={isUploading}
                     >
                       {isUploading ? (
@@ -569,7 +607,7 @@ export default function NewsletterGenerator() {
                         </>
                       ) : (
                         <>
-                          <Paperclip className="w-4 h-4 mr-2" />
+                          <ExternalLink className="w-4 h-4 mr-2" />
                           Subir archivos PDF
                         </>
                       )}
@@ -625,7 +663,7 @@ export default function NewsletterGenerator() {
                         </div>
                       ))}
                     </div>
-                    
+
                     {/* Images Preview */}
                     {processedImages.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-green-200">
@@ -644,7 +682,10 @@ export default function NewsletterGenerator() {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                           {processedImages.map((image) => (
-                            <div key={image.id} className="group relative bg-white rounded border border-green-100 overflow-hidden">
+                            <div
+                              key={image.id}
+                              className="group relative bg-white rounded border border-green-100 overflow-hidden"
+                            >
                               <div className="aspect-[3/4] bg-gray-100">
                                 <img
                                   src={image.dataUrl}
@@ -666,7 +707,9 @@ export default function NewsletterGenerator() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => {
-                                    setProcessedImages(prev => prev.filter(img => img.id !== image.id));
+                                    setProcessedImages((prev) =>
+                                      prev.filter((img) => img.id !== image.id)
+                                    );
                                   }}
                                   className="w-5 h-5 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
@@ -730,46 +773,87 @@ export default function NewsletterGenerator() {
                 )}
               </div>
 
-              {/* Separador visual */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">
-                    Transcripciones o contenido personalizado
-                  </span>
+              {/* Sección de contenido personalizado con botón */}
+              <div className="space-y-4 !mt-3 relative">
+                <div className="flex flex-col gap-3">
+                  <Button
+                    variant="ghost"
+                    className="w-full shadow-sm hover:shadow-lg transition-all hover:opacity-90 border "
+                    onClick={handleOpenCustomContentDialog}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    {newsletterData.content ? "Editar texto" : "Pegar texto"}
+                  </Button>
+
+                  {newsletterData.content && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-purple-900">
+                          Contenido personalizado agregado
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setNewsletterData({
+                              ...newsletterData,
+                              content: "",
+                            })
+                          }
+                          className="text-purple-600 hover:text-purple-700 h-auto p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-purple-700 truncate">
+                        {newsletterData.content.substring(0, 100)}
+                        {newsletterData.content.length > 100 ? "..." : ""}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Textarea para instrucciones */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-700">
-                    Contenido personalizado (opcional)
-                  </span>
-                </div>
-
-                <Textarea
-                  placeholder="Proporciona información adicional para la generación del newsletter."
-                  className="min-h-[120px] resize-none"
-                  value={newsletterData.content}
-                  onChange={(e) =>
-                    setNewsletterData({
-                      ...newsletterData,
-                      content: e.target.value,
-                    })
-                  }
-                />
-              </div>
+              {/* Dialog para contenido personalizado */}
+              <Dialog
+                open={customContentDialog}
+                onOpenChange={setCustomContentDialog}
+              >
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Contenido personalizado</DialogTitle>
+                    <DialogDescription>
+                      Proporciona información adicional para la generación del
+                      newsletter.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Textarea
+                      placeholder="Escribe aquí cualquier información adicional o contexto que quieras incluir en la generación del newsletter..."
+                      className="min-h-[200px] resize-none"
+                      value={tempCustomContent}
+                      onChange={(e) => setTempCustomContent(e.target.value)}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelCustomContent}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSaveCustomContent}>
+                      Guardar contenido
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Configuración de generación */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-sm font-medium text-gray-700">
-                    Configuración de generación
+                    Configurar la generación
                   </span>
                 </div>
 
@@ -879,11 +963,11 @@ export default function NewsletterGenerator() {
                   !processedImages.length &&
                   !newsletterData.content.trim() && (
                     <p className="text-xs text-center text-gray-500">
-                      Selecciona artículos de WordPress, sube archivos PDF o agrega
-                      instrucciones para comenzar
+                      Selecciona artículos de WordPress, sube archivos PDF o
+                      agrega instrucciones para comenzar
                     </p>
                   )}
-                
+
                 {isProcessingPDFs && (
                   <p className="text-xs text-center text-blue-600">
                     Procesando PDFs automáticamente...
@@ -974,13 +1058,9 @@ export default function NewsletterGenerator() {
                             </strong>
                           ),
                           em: ({ children }) => (
-                            <em className="italic text-gray-700">
-                              {children}
-                            </em>
+                            <em className="italic text-gray-700">{children}</em>
                           ),
-                          hr: () => (
-                            <hr className="border-gray-200 my-6" />
-                          ),
+                          hr: () => <hr className="border-gray-200 my-6" />,
                         }}
                       >
                         {generatedNewsletter.content}
@@ -996,8 +1076,8 @@ export default function NewsletterGenerator() {
                       Newsletter Preview
                     </h3>
                     <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
-                      Aquí se mostrará la vista previa de tu newsletter una vez que
-                      sea generado por el asistente de IA.
+                      Aquí se mostrará la vista previa de tu newsletter una vez
+                      que sea generado por el asistente de IA.
                     </p>
                     <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
                       <Sparkles className="w-4 h-4" />
