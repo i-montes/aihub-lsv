@@ -544,7 +544,7 @@ export default function GeneradorResumenes() {
         isOpen={!apiKeyStatus.hasApiKey}
         isAdmin={apiKeyStatus.isAdmin}
       />
-      <h1 className="text-2xl font-bold mb-6">Generador de Resúmenes</h1>
+      <h1 className="text-2xl font-bold mb-6">Generador de resúmenes</h1>
 
       {/* Aviso sobre configuración de WordPress */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -787,14 +787,14 @@ export default function GeneradorResumenes() {
               {isGenerating
                 ? "Generando..."
                 : selectionMode === "wordpress"
-                ? `Generar Resumen${
+                ? `Generar resumen${
                     selectedContent.length > 0
                       ? ` (${selectedContent.length} artículo${
                           selectedContent.length > 1 ? "s" : ""
                         })`
                       : ""
                   }`
-                : `Generar Resumen${
+                : `Generar resumen${
                     formData.fechaDesde && formData.fechaHasta
                       ? ` (${formData.fechaDesde} - ${formData.fechaHasta})`
                       : ""

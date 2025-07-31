@@ -503,9 +503,9 @@ export default function NewsletterGenerator() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold ">Generador de Newsletter</h1>
+          <h1 className="text-3xl font-bold ">Generador de newsletter</h1>
           <p className="text-muted-foreground mt-2">
-            Crea newsletters profesionales con IA en minutos
+            Crea newsletter con formatos personalizados.
           </p>
         </div>
       </div>
@@ -517,7 +517,6 @@ export default function NewsletterGenerator() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Type className="w-5 h-5" />
                   Contenido
                 </CardTitle>
                 <Badge variant="secondary" className="text-xs">

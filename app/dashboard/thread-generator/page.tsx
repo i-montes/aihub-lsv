@@ -284,7 +284,7 @@ export default function ThreadGenerator() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Generador de Hilos para X
+            Generador de hilos para X
           </h1>
         </div>
 
@@ -344,7 +344,7 @@ export default function ThreadGenerator() {
                 {/* Formato de Salida */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Formato de Salida
+                    Formato de salida
                   </label>
                   <Select
                     value={outputFormat}
@@ -389,7 +389,7 @@ export default function ThreadGenerator() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Ingresa el título del contenido..."
+                    placeholder="Ingresa el título del contenido"
                     className="w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={sourceTitle}
                     onChange={(e) => setSourceTitle(e.target.value)}
@@ -402,7 +402,7 @@ export default function ThreadGenerator() {
                     Contenido
                   </label>
                   <Textarea
-                    placeholder="Pega aquí el contenido para generar el hilo o utiliza la búsqueda de WordPress..."
+                    placeholder="Pega aquí el contenido para generar el hilo o utiliza la búsqueda de WordPress"
                     className="min-h-[300px] resize-none"
                     value={sourceContent}
                     onChange={(e) => setSourceContent(e.target.value)}
@@ -438,7 +438,9 @@ export default function ThreadGenerator() {
           <div className="lg:col-span-3">
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden h-full flex flex-col">
               <div className="p-5 border-b bg-muted/30 flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Vista previa del hilo</h2>
+                <h2 className="text-xl font-semibold">
+                  Vista previa del hilo para X
+                </h2>
 
                 <div className="flex items-center gap-2">
                   {(generatedThread.length > 0 ||
@@ -636,9 +638,9 @@ export default function ThreadGenerator() {
                         Genera tu hilo para X
                       </h3>
                       <p className="text-muted-foreground text-sm">
-                        Aquí sucederá la magia La IA te va a proponer un
-                        borrador de hilo para que corrijas y uses. Ojo: revisa
-                        con cuidado. A veces las máquinas dicen cualquier cosa.
+                        La IA te va a proponer un borrador de hilo para que
+                        corrijas. Ojo: revisa con cuidado. A veces las máquinas
+                        dicen cualquier cosa.
                       </p>
                     </div>
                   </div>

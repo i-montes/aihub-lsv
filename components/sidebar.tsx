@@ -33,10 +33,10 @@ export function Sidebar() {
         <div className="flex flex-col">
           {/* Logo del dashboard */}
           <div className="flex justify-center items-center mb-6">
-            <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-              <span className="text-white font-bold">P</span>
-            </div>
-            {isExpanded && <span className="ml-2 font-bold text-lg transition-opacity duration-200">PressAI</span>}
+          {isExpanded && <span className="mr-2 font-bold text-lg transition-opacity duration-200">KIT.AI</span>}
+            {/* <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
+              <span className="text-white font-bold">AI</span>
+            </div> */}
           </div>
 
           {/* Botón para expandir/contraer */}

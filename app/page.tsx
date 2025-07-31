@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -8,21 +9,12 @@ import { Input } from "@/components/ui/input"
 import { ArrowRight, Check, Edit3, FileText, Layers, MessageSquare, Zap } from "lucide-react"
 
 export default function LandingPage() {
-  useEffect(() => {
-    // Ensure scroll is enabled
-    document.body.style.overflow = "auto"
-    document.body.style.height = "auto"
-    document.documentElement.style.overflow = "auto"
-    document.documentElement.style.height = "auto"
+  const router = useRouter()
 
-    return () => {
-      // Restore original styles when unmounting
-      document.body.style.overflow = ""
-      document.body.style.height = ""
-      document.documentElement.style.overflow = ""
-      document.documentElement.style.height = ""
-    }
-  }, [])
+  useEffect(() => {
+    // Redirect to login page
+    router.push("/login")
+  }, [router])
 
   return (
     <div className="min-h-full bg-white">
