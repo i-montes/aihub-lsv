@@ -10,7 +10,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     return errorResponse("Email is required", 400)
   }
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: redirectTo || `${req.nextUrl.origin}/reset-password/update`,
