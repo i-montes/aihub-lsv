@@ -1,4 +1,4 @@
-# AI HUB - PressAI
+# KIT.AI
 
 *AI-powered tools for modern journalism and content creation*
 
@@ -42,9 +42,9 @@ AI HUB es una plataforma completa de herramientas impulsadas por IA para periodi
 ### Pasos de Instalación
 
 1. **Clonar el repositorio**
-```bash
+```
 git clone https://github.com/la-silla-vacia/v0-aihub.git
-cd aihub-lsv
+cd v0-aihub
 ```
 
 2. **Instalar dependencias**

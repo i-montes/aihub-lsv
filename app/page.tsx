@@ -24,7 +24,7 @@ export default function LandingPage() {
           <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
             <span className="text-white font-bold">P</span>
           </div>
-          <span className="font-bold text-xl">PressAI</span>
+          <span className="font-bold text-xl">KIT.AI</span>
         </div>
 
         <div className="hidden md:flex items-center space-x-8">
@@ -91,7 +91,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                 </div>
-                <div className="text-sm text-gray-500 flex-1 text-center">PressAI Editor</div>
+                <div className="text-sm text-gray-500 flex-1 text-center">KIT.AI Editor</div>
               </div>
 
               <div className="space-y-4">
@@ -242,7 +242,7 @@ export default function LandingPage() {
 
       {/* How It Works Section */}
       <section id="how-it-works" className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-4">How PressAI Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-4">How KIT.AI Works</h2>
         <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
           Our platform seamlessly integrates into your workflow, helping you create better content with less effort.
         </p>
@@ -282,7 +282,7 @@ export default function LandingPage() {
             <div className="w-full md:w-1/2">
               <Image
                 src="/placeholder-irelj.png"
-                alt="Journalist using PressAI"
+                alt="Journalist using KIT.AI"
                 width={400}
                 height={300}
                 className="rounded-lg"
@@ -291,7 +291,7 @@ export default function LandingPage() {
             <div className="w-full md:w-1/2">
               <h3 className="text-2xl font-bold mb-4">Designed for Journalists</h3>
               <p className="text-gray-600 mb-4">
-                PressAI was built by journalists for journalists. We understand the unique challenges of modern
+                KIT.AI was built by journalists for journalists. We understand the unique challenges of modern
                 newsrooms and content creation.
               </p>
               <ul className="space-y-3">
@@ -317,7 +317,7 @@ export default function LandingPage() {
       <section id="testimonials" className="container mx-auto px-4 py-16 bg-gray-50">
         <h2 className="text-3xl font-bold text-center mb-4">Trusted by Journalists Worldwide</h2>
         <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
-          See what professional journalists and content creators are saying about PressAI.
+          See what professional journalists and content creators are saying about KIT.AI.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -332,7 +332,7 @@ export default function LandingPage() {
               </div>
             </div>
             <p className="text-gray-700">
-              "PressAI has transformed our newsroom workflow. The style guide integration alone has saved us countless
+              "KIT.AI has transformed our newsroom workflow. The style guide integration alone has saved us countless
               hours of editing time, and the thread generator helps us reach new audiences on social media."
             </p>
           </div>
@@ -348,7 +348,7 @@ export default function LandingPage() {
               </div>
             </div>
             <p className="text-gray-700">
-              "As a freelancer, I need to be efficient with my time. PressAI helps me write faster and better, and the
+              "As a freelancer, I need to be efficient with my time. KIT.AI helps me write faster and better, and the
               newsletter generator has helped me grow my subscriber base by 40% in just three months."
             </p>
           </div>
@@ -364,7 +364,7 @@ export default function LandingPage() {
               </div>
             </div>
             <p className="text-gray-700">
-              "The AI suggestions are surprisingly insightful. PressAI doesn't just check grammar—it helps improve the
+              "The AI suggestions are surprisingly insightful. KIT.AI doesn't just check grammar—it helps improve the
               substance of our reporting with relevant context and fact-checking assistance."
             </p>
           </div>
@@ -376,7 +376,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Journalism?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join thousands of journalists who are using PressAI to create better content, faster.
+            Join thousands of journalists who are using KIT.AI to create better content, faster.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto">
             <Input
@@ -401,7 +401,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
                   <span className="text-white font-bold">P</span>
                 </div>
-                <span className="font-bold text-xl">PressAI</span>
+                <span className="font-bold text-xl">KIT.AI</span>
               </div>
               <p className="text-gray-600">AI-powered tools for modern journalism and content creation.</p>
             </div>
@@ -481,7 +481,7 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-gray-300 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-600">© 2023 PressAI. All rights reserved.</p>
+            <p className="text-gray-600">© 2023 KIT.AI. All rights reserved.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
               <Link href="#" className="text-gray-600 hover:text-primary-600">
                 Terms

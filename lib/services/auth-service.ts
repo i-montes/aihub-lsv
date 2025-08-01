@@ -100,8 +100,8 @@ export const AuthService = {
     await api.post("/auth/reset-password", { email, redirectTo })
   },
 
-  async updatePassword(password: string): Promise<void> {
-    await api.post("/auth/update-password", { password })
+  async updatePassword(code: string, newPassword: string, confirmPassword: string): Promise<void> {
+    await api.put("/auth/reset-password/update", { code, newPassword, confirmPassword })
   },
 
   async getProfile(): Promise<{ profile: Profile }> {

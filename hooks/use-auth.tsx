@@ -14,7 +14,7 @@ type AuthContextType = {
   session: Session | null
   loading: boolean
   isAuthenticated: boolean
-  signIn: (email: string, password: string) => Promise<void | { success: boolean; error?: string }>
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (
     email: string,
     password: string,
@@ -23,7 +23,7 @@ type AuthContextType = {
   ) => Promise<{ success: boolean; error?: AuthError }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
-  updatePassword: (password: string) => Promise<void>
+  updatePassword: (code: string, newPassword: string, confirmPassword: string) => Promise<void>
   isLoading: boolean
 }
 
@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   isAuthenticated: false,
-  signIn: async () => {},
+  signIn: async () => ({ success: false }),
   signUp: async () => ({ success: false }),
   signOut: async () => {},
   resetPassword: async () => {},
@@ -243,10 +243,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updatePassword = async (password: string) => {
+  const updatePassword = async (code: string, newPassword: string, confirmPassword: string) => {
     setIsLoading(true)
     try {
-      await AuthService.updatePassword(password)
+      await AuthService.updatePassword(code, newPassword, confirmPassword)
 
       toast.success("Contraseña actualizada exitosamente")
       router.push("/login")

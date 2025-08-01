@@ -4,10 +4,10 @@ import type { NextRequest } from "next/server"
 
 export const PUT = createApiHandler(async (req: NextRequest) => {
   const body = await req.json()
-  const { newPassword, confirmPassword } = body
+  const { newPassword, confirmPassword, code } = body
 
   // Validar que todos los campos requeridos estén presentes
-  if (!newPassword || !confirmPassword) {
+  if (!newPassword || !confirmPassword || !code) {
     return errorResponse("Todos los campos son requeridos", 400)
   }
 
@@ -20,30 +20,26 @@ export const PUT = createApiHandler(async (req: NextRequest) => {
     // Obtener el cliente de Supabase
     const supabase = await getSupabaseServer()
 
-    // Verificar el usuario actual de manera segura
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // Intercambiar el código por una sesión
+    const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!user) {
-      return errorResponse("No hay sesión activa", 401)
+    if (sessionError) {
+      console.error("Error al intercambiar código por sesión:", sessionError.message)
+      return errorResponse("Código de verificación inválido o expirado", 400)
     }
 
-    // Usar updateUser con el parámetro de contraseña actual
-    // Este método verifica automáticamente que la contraseña actual sea correcta
-    const { error } = await supabase.auth.updateUser({
+    if (!sessionData.session) {
+      return errorResponse("No se pudo establecer la sesión", 400)
+    }
+
+    // Ahora que tenemos una sesión válida, actualizar la contraseña
+    const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     })
 
-    if (error) {
-      console.error("Error al actualizar contraseña:", error.message)
-
-      // Si el error es porque la contraseña actual es incorrecta
-      if (error.message.includes("password") || error.message.includes("credentials")) {
-        return errorResponse("La contraseña actual es incorrecta", 401)
-      }
-
-      return errorResponse(error.message, 400)
+    if (updateError) {
+      console.error("Error al actualizar contraseña:", updateError.message)
+      return errorResponse(updateError.message, 400)
     }
 
     return successResponse({

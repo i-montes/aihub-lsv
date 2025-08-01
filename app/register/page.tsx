@@ -151,14 +151,14 @@ export default function RegisterPage() {
               <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
                 <span className="text-white font-bold text-xl">P</span>
               </div>
-              <span className="font-bold text-2xl">PressAI</span>
+              <span className="font-bold text-2xl">KIT.AI</span>
             </div>
           </div>
 
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
             <div className="mb-6 text-center">
               <h1 className="text-2xl font-bold mb-2">Crear cuenta</h1>
-              <p className="text-gray-500">Regístrate para comenzar a usar PressAI</p>
+              <p className="text-gray-500">Regístrate para comenzar a usar KIT.AI</p>
             </div>
 
             {renderErrorAlert()}
@@ -290,7 +290,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="mt-8 text-center text-sm text-gray-500">
-            <p>© 2023 PressAI. Todos los derechos reservados.</p>
+            <p>© 2023 KIT.AI. Todos los derechos reservados.</p>
           </div>
         </div>
       </div>

@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
               <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
                 <span className="text-white font-bold text-xl">P</span>
               </div>
-              <span className="font-bold text-2xl">PressAI</span>
+              <span className="font-bold text-2xl">KIT.AI</span>
             </div>
           </div>
 
@@ -104,7 +104,7 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="mt-8 text-center text-sm text-gray-500">
-            <p>© 2023 PressAI. Todos los derechos reservados.</p>
+            <p>© 2023 KIT.AI. Todos los derechos reservados.</p>
           </div>
         </div>
       </div>

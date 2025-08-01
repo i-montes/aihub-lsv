@@ -8,7 +8,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "PressAI - Herramientas de periodismo",
+  title: "KIT.AI - Herramientas de periodismo",
   description: "Plataforma de herramientas de IA para periodismo digital",
     generator: 'v0.dev'
 }
