@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Check, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
-export default function UpdatePasswordPage() {
+function UpdatePasswordForm() {
   const searchParams = useSearchParams()
   const code = searchParams.get('code')
   
@@ -157,5 +157,38 @@ export default function UpdatePasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Loading component for Suspense fallback
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col justify-center items-center p-4 sm:p-6 md:p-8">
+        <div className="w-full max-w-md">
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
+                <span className="text-white font-bold text-xl">P</span>
+              </div>
+              <span className="font-bold text-2xl">KIT.AI</span>
+            </div>
+          </div>
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function UpdatePasswordPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <UpdatePasswordForm />
+    </Suspense>
   )
 }
