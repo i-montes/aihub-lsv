@@ -56,12 +56,46 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   }
 
   try {
+    // Function to detect if query is a URL and extract slug
+    const isUrl = (str: string): boolean => {
+      try {
+        new URL(str);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    const extractSlugFromUrl = (url: string): string | null => {
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        // Remove leading and trailing slashes, then get the last segment
+        const segments = pathname.split('/').filter(segment => segment.length > 0);
+        return segments.length > 0 ? segments[segments.length - 1] : null;
+      } catch {
+        return null;
+      }
+    }
+
     // Construct WordPress API URL with pagination, order and date filters
     let wpApiUrl = `${site_url}${api_path}/posts?per_page=${perPage}&page=${page}&order=desc&orderby=date&_embed=true&status=any`
 
-    // Add search parameter only if query is not "*"
+    // Check if query is a URL and search by slug, otherwise search normally
     if (query !== "*") {
-      wpApiUrl += `&search=${encodeURIComponent(query)}`
+      if (isUrl(query)) {
+        const slug = extractSlugFromUrl(query);
+        if (slug) {
+          // Search by slug using the 'slug' parameter
+          wpApiUrl += `&slug=${encodeURIComponent(slug)}`;
+        } else {
+          // Fallback to regular search if slug extraction fails
+          wpApiUrl += `&search=${encodeURIComponent(query)}`;
+        }
+      } else {
+        // Regular text search
+        wpApiUrl += `&search=${encodeURIComponent(query)}`;
+      }
     }
 
     if (categories) {

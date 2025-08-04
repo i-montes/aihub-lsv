@@ -63,6 +63,29 @@ const stripHtml = (html: string) => {
   return html.replace(/<[^>]*>?/gm, "");
 };
 
+// Función para detectar si el texto es una URL
+const isUrl = (str: string): boolean => {
+  try {
+    new URL(str);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Función para extraer el slug de una URL
+const extractSlugFromUrl = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    // Remove leading and trailing slashes, then get the last segment
+    const segments = pathname.split('/').filter(segment => segment.length > 0);
+    return segments.length > 0 ? segments[segments.length - 1] : null;
+  } catch {
+    return null;
+  }
+};
+
 export function WordPressSearchDialog({
   open,
   onOpenChange,
@@ -79,7 +102,7 @@ export function WordPressSearchDialog({
   buttonSize = "sm",
   dialogTitle = "Buscar en WordPress",
   dialogDescription = "Busca artículos y contenido en tu sitio de WordPress",
-  placeholder = "Escribe tu búsqueda...",
+  placeholder = "Escribe tu búsqueda o pega una URL...",
   noConnectionMessage = "No hay conexión a WordPress",
   noResultsMessage = "No se encontraron resultados para",
   hideButton = false,
@@ -286,8 +309,8 @@ export function WordPressSearchDialog({
     if (searchQuery.trim()) {
       // Resetear paginación al hacer nueva búsqueda
       setCurrentPage(1);
-      if (onSearch) {
-        onSearch(searchQuery, 1, perPage);
+      if (externalOnSearch) {
+        externalOnSearch(searchQuery, 1, perPage);
       } else {
         internalOnSearch(searchQuery, 1);
       }
@@ -297,10 +320,10 @@ export function WordPressSearchDialog({
   // Funciones de paginación
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages && page !== currentPage) {
-      if (onSearch) {
+      if (externalOnSearch) {
         // Si se usa búsqueda externa, pasar parámetros de paginación
         setCurrentPage(page);
-        onSearch(searchQuery, page, perPage);
+        externalOnSearch(searchQuery, page, perPage);
       } else {
         internalOnSearch(searchQuery, page);
       }
@@ -453,12 +476,26 @@ export function WordPressSearchDialog({
           <>
             <form onSubmit={handleSearch} className="mt-4">
               <div className="flex items-center space-x-2">
-                <Input
-                  placeholder={placeholder}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1"
-                />
+                <div className="flex-1">
+                  <Input
+                    placeholder={placeholder}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full"
+                  />
+                  {/* Indicador de URL detectada */}
+                  {searchQuery && isUrl(searchQuery) && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center text-sm text-blue-700">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        <span className="font-medium">URL detectada:</span>
+                        <span className="ml-1">
+                          Buscando por slug "{extractSlugFromUrl(searchQuery)}"
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <Button type="submit" disabled={isSearching} className="text-white">
                   {isSearching ? (
                     <>
