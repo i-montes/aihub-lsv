@@ -104,7 +104,7 @@ export function WordPressSearch({ onSelectContent }: WordPressSearchProps) {
     ]
   }
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = async (query: string, page: number = 1, perPage: number = 10) => {
     if (!query.trim()) {
       return
     }
@@ -113,8 +113,8 @@ export function WordPressSearch({ onSelectContent }: WordPressSearchProps) {
     setSearchError(null)
 
     try {
-      // Intentar hacer la búsqueda real
-      const response = await fetch(`/api/wordpress/search?query=${encodeURIComponent(query)}`)
+      // Intentar hacer la búsqueda real con parámetros de paginación
+      const response = await fetch(`/api/wordpress/search?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`)
 
       // Verificar el tipo de contenido
       const contentType = response.headers.get("content-type")
@@ -129,7 +129,7 @@ export function WordPressSearch({ onSelectContent }: WordPressSearchProps) {
       const data = await response.json()
 
       if (response.ok) {
-        setSearchResults(data.posts || [])
+        setSearchResults(data.data || data.posts || [])
       } else {
         console.warn("Error en la búsqueda, usando resultados simulados:", data.message)
         // Usar resultados simulados en caso de error

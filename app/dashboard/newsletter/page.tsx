@@ -43,6 +43,7 @@ import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-m
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import generateNewsletter from "@/actions/generate-newsletter";
 import { loadPdfJs } from "@/lib/load-pdfjs";
+import { MODELS } from "@/lib/utils";
 
 interface NewsletterData {
   content: string;
@@ -917,7 +918,7 @@ export default function NewsletterGenerator() {
                             >
                               <div className="flex flex-row items-center justify-between gap-2">
                                 <span className="font-medium">
-                                  {modelInfo.model}
+                                  {MODELS[modelInfo.model as keyof typeof MODELS]}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   {getProviderDisplayName(modelInfo.provider)}

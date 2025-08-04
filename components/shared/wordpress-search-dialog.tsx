@@ -1,8 +1,7 @@
 "use client";
 
 import type React from "react";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,15 +20,19 @@ import {
   ExternalLink,
   Check,
   X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { WordPressPost, WordPressConnection } from "@/types/proofreader";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-interface WordPressSearchDialogProps {
+export interface WordPressSearchDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onSearch?: (query: string) => Promise<void>;
+  onSearch?: (query: string, page?: number, perPage?: number) => Promise<void>;
   onNavigateToSettings?: () => void;
   onInsertContent?: (post: WordPressPost) => void;
   onInsertMultipleContent?: (posts: WordPressPost[]) => void;
@@ -112,6 +115,15 @@ export function WordPressSearchDialog({
   // Estados para selección múltiple
   const [selectedPosts, setSelectedPosts] = useState<Set<number>>(new Set());
 
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const [perPage] = useState(10); // Número de resultados por página
+
+  // Referencia para el scroll automático
+  const resultsRef = useRef<HTMLDivElement>(null);
+
   // Usar estados externos si se proporcionan, de lo contrario usar los internos
   const searchResults = externalSearchResults || internalSearchResults;
   const isSearching =
@@ -188,7 +200,7 @@ export function WordPressSearchDialog({
   };
 
   // Función interna para buscar en WordPress
-  const internalOnSearch = async (query: string) => {
+  const internalOnSearch = async (query: string, page: number = 1) => {
     if (!wordpressConnection.exists || !wordpressConnection.connectionData) {
       setInternalSearchError("No hay conexión a WordPress configurada");
       return;
@@ -198,15 +210,13 @@ export function WordPressSearchDialog({
       setInternalIsSearching(true);
       setInternalSearchError(null);
 
-      let apiUrl = `/api/wordpress/search?query=${encodeURIComponent(query)}`;
+      let apiUrl = `/api/wordpress/search?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
 
       if (categories) {
         apiUrl += `&categories=${encodeURIComponent(categories)}`;
       }
 
-      const response = await fetch(
-        apiUrl
-      );
+      const response = await fetch(apiUrl);
 
       // Verificar si la respuesta es JSON
       const contentType = response.headers.get("content-type");
@@ -223,13 +233,27 @@ export function WordPressSearchDialog({
       if (!response.ok || !data.success) {
         setInternalSearchError(data.message || "Error al buscar en WordPress");
         setInternalSearchResults([]);
+        setTotalPages(1);
+        setTotalResults(0);
+        setCurrentPage(1);
       } else {
         setInternalSearchResults(data?.data || []);
+        // Actualizar información de paginación
+        setTotalPages(data?.total?.pages || 1);
+        setTotalResults(data?.total?.count || 0);
+        setCurrentPage(page);
+        // Hacer scroll a los resultados si hay resultados
+        if (data?.data && data.data.length > 0) {
+          scrollToResults();
+        }
       }
     } catch (error) {
       console.error("Error al buscar en WordPress:", error);
       setInternalSearchError("Error al conectar con WordPress");
       setInternalSearchResults([]);
+      setTotalPages(1);
+      setTotalResults(0);
+      setCurrentPage(1);
     } finally {
       setInternalIsSearching(false);
       setInternalHasSearched(true);
@@ -257,9 +281,47 @@ export function WordPressSearchDialog({
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(searchQuery);
+    if (searchQuery.trim()) {
+      // Resetear paginación al hacer nueva búsqueda
+      setCurrentPage(1);
+      if (onSearch) {
+        onSearch(searchQuery, 1, perPage);
+      } else {
+        internalOnSearch(searchQuery, 1);
+      }
+    }
+  };
+
+  // Funciones de paginación
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      if (onSearch) {
+        // Si se usa búsqueda externa, pasar parámetros de paginación
+        setCurrentPage(page);
+        onSearch(searchQuery, page, perPage);
+      } else {
+        internalOnSearch(searchQuery, page);
+      }
+    }
+  };
+
+  const goToFirstPage = () => goToPage(1);
+  const goToLastPage = () => goToPage(totalPages);
+  const goToPreviousPage = () => goToPage(currentPage - 1);
+  const goToNextPage = () => goToPage(currentPage + 1);
+
+  // Función para hacer scroll automático a los resultados
+  const scrollToResults = () => {
+    setTimeout(() => {
+      if (resultsRef.current) {
+        resultsRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100); // Pequeño delay para asegurar que el DOM se haya actualizado
   };
 
   // Función para manejar la selección de posts
@@ -412,7 +474,19 @@ export function WordPressSearchDialog({
                 </Button>
               </div>
             </form>
-            <div className="mt-4 max-h-[400px] overflow-y-auto">
+            <div className="mt-4 max-h-[400px] min-h-[200px] overflow-y-auto relative" ref={resultsRef}>
+              {/* Mostrar loader cuando está buscando */}
+              {isSearching ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="flex flex-col items-center space-y-2">
+                    <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+                    <p className="text-sm text-gray-600">Buscando contenido...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Contenido normal cuando no está buscando */}
+
               {searchError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                   <p className="text-sm text-red-700">{searchError}</p>
@@ -518,12 +592,84 @@ export function WordPressSearchDialog({
                       </Button>
                     </div>
                   )}
+
+                  {/* Paginación */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {((currentPage - 1) * perPage) + 1} - {Math.min(currentPage * perPage, totalResults)} de {totalResults} resultados
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToFirstPage}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToPreviousPage}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        
+                        {/* Números de página */}
+                        {(() => {
+                          const pages = [];
+                          const startPage = Math.max(1, currentPage - 2);
+                          const endPage = Math.min(totalPages, currentPage + 2);
+                          
+                          for (let i = startPage; i <= endPage; i++) {
+                            pages.push(
+                              <Button
+                                key={i}
+                                variant={i === currentPage ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => goToPage(i)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {i}
+                              </Button>
+                            );
+                          }
+                          return pages;
+                        })()}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToNextPage}
+                          disabled={currentPage === totalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToLastPage}
+                          disabled={currentPage === totalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : hasSearched && !isSearching ? (
                 <div className="text-center py-8 text-gray-500">
                   {noResultsMessage} "{searchQuery}"
                 </div>
               ) : null}
+                </>
+              )}
             </div>
           </>
         ) : (

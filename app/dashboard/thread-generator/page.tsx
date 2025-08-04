@@ -35,6 +35,7 @@ import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-m
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { WordPressPost } from "@/types/proofreader";
 import { threadsGenerator } from "@/actions/generate-threads";
+import { MODELS } from "@/lib/utils";
 
 export default function ThreadGenerator() {
   const [sourceContent, setSourceContent] = useState("");
@@ -328,7 +329,7 @@ export default function ThreadGenerator() {
                           >
                             <div className="flex flex-row items-center justify-between gap-2">
                               <span className="font-medium">
-                                {modelInfo.model}
+                                {MODELS[modelInfo.model as keyof typeof MODELS]}
                               </span>
                               <span className="text-xs text-gray-500">
                                 {getProviderDisplayName(modelInfo.provider)}

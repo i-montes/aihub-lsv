@@ -71,8 +71,6 @@ export const GET = createApiHandler(async (req: NextRequest) => {
       }
     }
 
-    console.log('WordPress API URL:', wpApiUrl)
-
     // Add date filters if provided
     if (startDate) {
       wpApiUrl += `&after=${encodeURIComponent(startDate)}T00:00:00`
@@ -121,8 +119,6 @@ export const GET = createApiHandler(async (req: NextRequest) => {
       link: post.link,
       status: post.status
     }))
-
-    console.log('WordPress search results:', transformedPosts.length, 'posts found')
 
     return successResponse(transformedPosts, 200, {
       count: parseInt(totalCount),

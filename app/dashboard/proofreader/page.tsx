@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MODELS } from "@/lib/utils";
 
 const getProviderDisplayName = (provider: string): string => {
   switch (provider.toLowerCase()) {
@@ -904,70 +905,67 @@ export default function ProofreaderPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
           <div className="lg:col-span-2 overflow-hidden flex flex-col">
-            {models.length > 1 ||
-              (isAnalyzed && debugLogs.length > 0 && (
-                <div className="flex items-center justify-between mb-4 bg-gray-50 p-2 rounded-lg shadow-sm border border-gray-100">
-                  <div className="flex items-center space-x-2">
-                    {isAnalyzed && (
-                      <Button
-                        onClick={handleBackToEditor}
-                        variant="outline"
-                        size="sm"
-                        className="bg-white border-gray-200 hover:bg-gray-50"
-                      >
-                        ← Volver
-                      </Button>
-                    )}
-                    <span className="text-sm font-medium text-gray-700">
-                      {isAnalyzed ? "Texto Corregido" : "Editor de Texto"}
-                    </span>
-                  </div>
-                  {models.length > 1 && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">Modelo:</span>
-                      <Select
-                        value={
-                          selectedModel.model
-                            ? `${selectedModel.model}|${selectedModel.provider}`
-                            : ""
+            <div className="flex items-center justify-between mb-4 bg-gray-50 p-2 rounded-lg shadow-sm border border-gray-100">
+              <div className="flex items-center space-x-2">
+                {isAnalyzed && (
+                  <Button
+                    onClick={handleBackToEditor}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white border-gray-200 hover:bg-gray-50"
+                  >
+                    ← Volver
+                  </Button>
+                )}
+                <span className="text-sm font-medium text-gray-700">
+                  {isAnalyzed ? "Texto Corregido" : ""}
+                </span>
+              </div>
+              {models.length > 1 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Modelo:</span>
+                  <Select
+                    value={
+                      selectedModel.model
+                        ? `${selectedModel.model}|${selectedModel.provider}`
+                        : ""
+                    }
+                    onValueChange={(value) => {
+                      const [model, provider] = value.split("|");
+                      setSelectedModel({ model, provider });
+                    }}
+                    disabled={models.length === 0 || apiKeyStatus.isLoading}
+                  >
+                    <SelectTrigger className="w-auto min-w-48 bg-white border-gray-200 hover:bg-gray-50">
+                      <SelectValue
+                        placeholder={
+                          apiKeyStatus.isLoading
+                            ? "Cargando..."
+                            : "Seleccionar modelo"
                         }
-                        onValueChange={(value) => {
-                          const [model, provider] = value.split("|");
-                          setSelectedModel({ model, provider });
-                        }}
-                        disabled={models.length === 0 || apiKeyStatus.isLoading}
-                      >
-                        <SelectTrigger className="w-auto min-w-48 bg-white border-gray-200 hover:bg-gray-50">
-                          <SelectValue
-                            placeholder={
-                              apiKeyStatus.isLoading
-                                ? "Cargando..."
-                                : "Seleccionar modelo"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {models.map((modelInfo) => (
-                            <SelectItem
-                              key={`${modelInfo.model}|${modelInfo.provider}`}
-                              value={`${modelInfo.model}|${modelInfo.provider}`}
-                            >
-                              <div className="flex flex-row items-center justify-between gap-2">
-                                <span className="font-medium">
-                                  {modelInfo.model}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {getProviderDisplayName(modelInfo.provider)}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {models.map((modelInfo) => (
+                        <SelectItem
+                          key={`${modelInfo.model}|${modelInfo.provider}`}
+                          value={`${modelInfo.model}|${modelInfo.provider}`}
+                        >
+                          <div className="flex flex-row items-center justify-between gap-2">
+                            <span className="font-medium">
+                              {MODELS[modelInfo.model as keyof typeof MODELS]}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {getProviderDisplayName(modelInfo.provider)}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+              )}
+            </div>
 
             <Card className="flex-1 overflow-hidden border-0 shadow-lg flex flex-col h-full">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">

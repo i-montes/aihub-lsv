@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Link from "next/link";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { SelectedContentModal } from "@/components/shared/selected-content-modal";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { marked } from "marked";
+import { MODELS } from "@/lib/utils";
 
 export type WordPressPost = {
   id: number;
@@ -68,8 +68,8 @@ export default function GeneradorResumenes() {
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
   const [selectedContentModalOpen, setSelectedContentModalOpen] =
     useState(false);
-  const [selectionMode, setSelectionMode] = useState<"wordpress" | "dateRange">(
-    "wordpress"
+  const [selectionMode, setSelectionMode] = useState<"wordpress" | "dateRange" | null>(
+    null
   );
   const [selectedModel, setSelectedModel] = useState<{
     model: string;
@@ -555,30 +555,40 @@ export default function GeneradorResumenes() {
             {/* Mode Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Elegir articulos:
+                Elegir artículos:
               </label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+              <div className="space-y-3">
                 <button
                   type="button"
                   onClick={() => setSelectionMode("wordpress")}
-                  className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border-2 ${
                     selectionMode === "wordpress"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-800"
+                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-md"
+                      : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  De forma manual
+                  <div className="text-left">
+                    <div className="font-semibold">De forma manual</div>
+                    <div className="text-xs opacity-75 mt-1">
+                      Selecciona artículos específicos de WordPress
+                    </div>
+                  </div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectionMode("dateRange")}
-                  className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border-2 ${
                     selectionMode === "dateRange"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-800"
+                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-md"
+                      : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  Con IA
+                  <div className="text-left">
+                    <div className="font-semibold">Con IA</div>
+                    <div className="text-xs opacity-75 mt-1">
+                      Usa un rango de fechas para selección automática
+                    </div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -693,7 +703,7 @@ export default function GeneradorResumenes() {
               </div>
             )}
 
-            {models.length > 1 && (
+            {selectionMode && models.length > 1 && (
               <div>
                 <label
                   htmlFor="modelo"
@@ -729,7 +739,7 @@ export default function GeneradorResumenes() {
                         value={`${modelInfo.model}|${modelInfo.provider}`}
                       >
                         <div className="flex flex-row items-center justify-between gap-2">
-                          <span className="font-medium">{modelInfo.model}</span>
+                          <span className="font-medium">{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
                           <span className="text-xs text-gray-500">
                             {getProviderDisplayName(modelInfo.provider)}
                           </span>
@@ -745,6 +755,7 @@ export default function GeneradorResumenes() {
               type="submit"
               disabled={
                 isGenerating ||
+                !selectionMode ||
                 (selectionMode === "wordpress" &&
                   selectedContent.length === 0) ||
                 (selectionMode === "dateRange" &&
@@ -754,6 +765,8 @@ export default function GeneradorResumenes() {
             >
               {isGenerating
                 ? "Generando..."
+                : !selectionMode
+                ? "Selecciona un método primero"
                 : selectionMode === "wordpress"
                 ? `Generar resumen${
                     selectedContent.length > 0
