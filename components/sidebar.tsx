@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { usePathname } from "next/navigation"
-import { Home, BarChart, FileCheck, FileText, ChevronRight, ChevronLeft, Settings, RssIcon } from "lucide-react"
+import { Home, BarChart, FileCheck, FileText, ChevronRight, ChevronLeft, Settings, RssIcon, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -82,6 +82,13 @@ export function Sidebar() {
               label="Newsletter"
               href="/dashboard/newsletter"
               isActive={pathname === "/dashboard/newsletter"}
+              isExpanded={isExpanded}
+            />
+            <NavItem
+              icon={<BookOpen className="size-5" />}
+              label="Documentación"
+              href="/documentacion"
+              isActive={pathname === "/documentacion"}
               isExpanded={isExpanded}
             />
             {/* <NavItem

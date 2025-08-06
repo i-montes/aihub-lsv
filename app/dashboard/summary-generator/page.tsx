@@ -118,6 +118,7 @@ export default function GeneradorResumenes() {
         end_date: endDate,
         page: "1",
         per_page: "20",
+        categories: "4932",
       });
 
       setGenerationProgress({
