@@ -68,9 +68,9 @@ export default function GeneradorResumenes() {
   const [selectedContent, setSelectedContent] = useState<WordPressPost[]>([]);
   const [selectedContentModalOpen, setSelectedContentModalOpen] =
     useState(false);
-  const [selectionMode, setSelectionMode] = useState<"wordpress" | "dateRange" | null>(
-    null
-  );
+  const [selectionMode, setSelectionMode] = useState<
+    "wordpress" | "dateRange" | null
+  >(null);
   const [selectedModel, setSelectedModel] = useState<{
     model: string;
     provider: string;
@@ -178,6 +178,7 @@ export default function GeneradorResumenes() {
             end_date: endDate,
             page: page.toString(),
             per_page: "20",
+            categories: "4932",
           });
 
           pagePromises.push(
@@ -740,7 +741,9 @@ export default function GeneradorResumenes() {
                         value={`${modelInfo.model}|${modelInfo.provider}`}
                       >
                         <div className="flex flex-row items-center justify-between gap-2">
-                          <span className="font-medium">{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
+                          <span className="font-medium">
+                            {MODELS[modelInfo.model as keyof typeof MODELS]}
+                          </span>
                           <span className="text-xs text-gray-500">
                             {getProviderDisplayName(modelInfo.provider)}
                           </span>

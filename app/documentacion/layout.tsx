@@ -13,7 +13,15 @@ import {
   ChevronLeft,
   Home,
   Search,
-  Menu
+  Menu,
+  Plug,
+  Wrench,
+  Users,
+  Building,
+  User,
+  Shield,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -37,43 +45,81 @@ interface DocNavItemProps {
   href: string
   isActive?: boolean
   isExpanded?: boolean
+  isSubItem?: boolean
 }
 
-function DocNavItem({ icon, label, href, isActive = false, isExpanded = false }: DocNavItemProps) {
+function DocNavItem({ icon, label, href, isActive = false, isExpanded = false, isSubItem = false }: DocNavItemProps) {
   return (
     <Link href={href} className="w-full">
       <div
-        className={`flex items-center py-3 px-3 rounded-xl cursor-pointer transition-all duration-200
-          ${isActive ? "bg-primary-600 text-white" : "text-gray-500 hover:text-primary-600 hover:bg-gray-100"}
+        className={`flex items-center py-2 px-3 rounded-lg cursor-pointer transition-all duration-200
+          ${isActive ? "bg-primary-600 text-white" : "text-gray-600 hover:text-primary-600 hover:bg-gray-100"}
           ${isExpanded ? "justify-start" : "justify-center"}
+          ${isSubItem ? "ml-4 py-1.5" : ""}
         `}
       >
         <div className="flex-shrink-0">{icon}</div>
-        {isExpanded && <span className={`ml-3 font-medium transition-opacity duration-200`}>{label}</span>}
+        {isExpanded && <span className={`ml-3 font-medium transition-opacity duration-200 ${isSubItem ? "text-sm" : ""}`}>{label}</span>}
       </div>
     </Link>
+  )
+}
+
+interface DocSectionProps {
+  title: string
+  icon: React.ReactNode
+  isExpanded: boolean
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}
+
+function DocSection({ title, icon, isExpanded, isOpen, onToggle, children }: DocSectionProps) {
+  return (
+    <div className="mb-2">
+      {isExpanded && (
+        <button
+          onClick={onToggle}
+          className="w-full flex items-center justify-between py-2 px-3 text-gray-700 hover:text-primary-600 font-semibold text-sm"
+        >
+          <div className="flex items-center">
+            {icon}
+            <span className="ml-2">{title}</span>
+          </div>
+          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+      )}
+      {(!isExpanded || isOpen) && (
+        <div className={`${isExpanded ? "ml-2" : ""} space-y-1`}>
+          {children}
+        </div>
+      )}
+    </div>
   )
 }
 
 function DocSidebar() {
   const pathname = usePathname()
   const [isExpanded, setIsExpanded] = useState(true)
+  const [openSections, setOpenSections] = useState({
+    configuraciones: true,
+    cuenta: false,
+    herramientas: false
+  })
 
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded)
   }
 
-  const sections = [
-    { id: "overview", label: "Resumen", icon: <BookOpen className="size-5" /> },
-    { id: "corrector", label: "Corrector", icon: <FileCheck className="size-5" /> },
-    { id: "hilos", label: "Hilos", icon: <XIcon className="size-5" /> },
-    { id: "resumenes", label: "Resúmenes", icon: <FileText className="size-5" /> },
-    { id: "newsletter", label: "Newsletter", icon: <RssIcon className="size-5" /> },
-    { id: "configuracion", label: "Configuración", icon: <Settings className="size-5" /> },
-  ]
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
 
   return (
-    <div className={`h-full py-4 sm:py-6 transition-all duration-300 ml-2 ${isExpanded ? "w-[200px]" : "w-[70px]"}`}>
+    <div className={`h-full py-4 sm:py-6 transition-all duration-300 ml-2 ${isExpanded ? "w-[280px]" : "w-[70px]"}`}>
       <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm py-4 px-2 relative justify-between">
         {/* Contenido superior */}
         <div className="flex flex-col">
@@ -90,18 +136,114 @@ function DocSidebar() {
             {isExpanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
 
-          {/* Navegación de secciones */}
-          <div className="flex flex-col items-center gap-2 mt-4">
-            {sections.map((section) => (
+          {/* Navegación por secciones */}
+          <div className="flex flex-col mt-4 space-y-2">
+            {/* Sección Configuraciones */}
+            <DocSection
+              title="Configuraciones"
+              icon={<Settings className="size-4" />}
+              isExpanded={isExpanded}
+              isOpen={openSections.configuraciones}
+              onToggle={() => toggleSection('configuraciones')}
+            >
               <DocNavItem
-                key={section.id}
-                icon={section.icon}
-                label={section.label}
-                href={`#${section.id}`}
-                isActive={false} // Se puede implementar lógica para detectar sección activa
+                icon={<Plug className="size-4" />}
+                label="Integraciones"
+                href="/documentacion/configuraciones/integraciones"
                 isExpanded={isExpanded}
+                isSubItem={true}
               />
-            ))}
+              <DocNavItem
+                icon={<Wrench className="size-4" />}
+                label="Herramientas"
+                href="/documentacion/configuraciones/herramientas"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<BookOpen className="size-4" />}
+                label="WordPress"
+                href="/documentacion/configuraciones/wordpress"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<Users className="size-4" />}
+                label="Lista de Usuarios"
+                href="/documentacion/configuraciones/usuarios"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<Building className="size-4" />}
+                label="Información General"
+                href="/documentacion/configuraciones/organizacion"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+            </DocSection>
+
+            {/* Sección Cuenta */}
+            <DocSection
+              title="Cuenta"
+              icon={<User className="size-4" />}
+              isExpanded={isExpanded}
+              isOpen={openSections.cuenta}
+              onToggle={() => toggleSection('cuenta')}
+            >
+              <DocNavItem
+                icon={<User className="size-4" />}
+                label="Perfil Personal"
+                href="/documentacion/cuenta/perfil"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<Shield className="size-4" />}
+                label="Seguridad"
+                href="/documentacion/cuenta/seguridad"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+            </DocSection>
+
+            {/* Sección Herramientas */}
+            <DocSection
+              title="Herramientas"
+              icon={<Wrench className="size-4" />}
+              isExpanded={isExpanded}
+              isOpen={openSections.herramientas}
+              onToggle={() => toggleSection('herramientas')}
+            >
+              <DocNavItem
+                icon={<FileCheck className="size-4" />}
+                label="Corrector"
+                href="/documentacion/herramientas/corrector"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<XIcon className="size-4" />}
+                label="Hilos"
+                href="/documentacion/herramientas/hilos"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<FileText className="size-4" />}
+                label="Resúmenes"
+                href="/documentacion/herramientas/resumenes"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+              <DocNavItem
+                icon={<RssIcon className="size-4" />}
+                label="Newsletter"
+                href="/documentacion/herramientas/newsletter"
+                isExpanded={isExpanded}
+                isSubItem={true}
+              />
+            </DocSection>
           </div>
         </div>
 
