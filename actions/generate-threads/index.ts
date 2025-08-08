@@ -16,7 +16,8 @@ export async function threadsGenerator(
   title: string,
   text: string,
   format: "tesis" | "investigacion" | "lista",
-  selectedModel: { model: string; provider: string }
+  selectedModel: { model: string; provider: string },
+  link: string
 ): Promise<{
   success: boolean;
   error?: string;
@@ -167,6 +168,9 @@ CREA UN HILO DE TWITTER A PARTIR DEL SIGUIENTE TEXTO:
 TÍTULO: 
 ${title}
 
+LINK DEL ARTÍCULO:
+${link}
+
 ARTÍCULO:
 ${text}
 
@@ -184,7 +188,6 @@ Debes responder con un objeto JSON que contenga un array de hilos con el siguien
 INSTRUCCIONES ADICIONALES:
 - Cada hilo debe ser breve y conciso, idealmente de 280 caracteres o menos.
 - Genera un hilo de Twitter/X siguiendo estrictamente las instrucciones. Incluye la URL proporcionada en el hilo.
-- No incluyas mas de 15 hilos. 
 `;
 
     

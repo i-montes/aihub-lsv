@@ -40,6 +40,8 @@ import { MODELS } from "@/lib/utils";
 export default function ThreadGenerator() {
   const [sourceContent, setSourceContent] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
+  const [sourceLink, setSourceLink] = useState("");
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [outputFormat, setOutputFormat] = useState<
@@ -103,7 +105,10 @@ export default function ThreadGenerator() {
         sourceTitle,
         sourceContent,
         outputFormat,
-        selectedModel
+        selectedModel,
+        sourceLink || "[Link del artículo]"
+
+
       );
 
       if (result.success && result.threads) {
@@ -234,6 +239,7 @@ export default function ThreadGenerator() {
   const insertPostContent = (post: WordPressPost) => {
     setSourceContent(post.content?.rendered || "");
     setSourceTitle(post.title?.rendered || "");
+    setSourceLink(post.link || "");
     setDialogOpen(false);
     toast.success("Contenido insertado desde WordPress");
   };
