@@ -12,9 +12,21 @@ export default function LandingPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // Check if current domain is aihub.lasillavacia.com and redirect to www.elkit.ai
+    if (typeof window !== 'undefined') {
+      const currentUrl = window.location
+      if (currentUrl.hostname === 'aihub.lasillavacia.com') {
+        const newUrl = `https://www.elkit.ai${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+        window.location.href = newUrl
+        return
+      }
+    }
+    
     // Redirect to login page
     router.push("/login")
   }, [router])
+
+  return null
 
   return (
     <div className="min-h-full bg-white">

@@ -107,8 +107,6 @@ export default function ThreadGenerator() {
         outputFormat,
         selectedModel,
         sourceLink || "[Link del artículo]"
-
-
       );
 
       if (result.success && result.threads) {

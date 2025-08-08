@@ -7,6 +7,12 @@ const accessTokenCookie = projectRef ? `sb-${projectRef}-auth-token` : "sb-acces
 const refreshTokenCookie = projectRef ? `sb-${projectRef}-refresh-token` : "sb-refresh-token"
 
 export async function middleware(req: NextRequest) {
+  // Check if current domain is aihub.lasillavacia.com and redirect to www.elkit.ai
+  if (req.nextUrl.hostname === 'aihub.lasillavacia.com') {
+    const newUrl = new URL(req.nextUrl.pathname + req.nextUrl.search + req.nextUrl.hash, 'https://www.elkit.ai')
+    return NextResponse.redirect(newUrl, 301)
+  }
+
   const res = NextResponse.next()
 
   // Check if the user is trying to access auth routes with active auth cookies
@@ -28,5 +34,14 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/register", "/reset-password/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }
