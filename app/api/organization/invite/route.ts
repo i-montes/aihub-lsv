@@ -37,7 +37,7 @@ export const POST = createApiHandler(async (req) => {
     }
 
     // Crear la URL de redirección con información adicional
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite?email=${encodeURIComponent(email)}&organizationId=${organizationId}`
+    const redirectTo = `https://www.elkit.ai/auth/invite?email=${encodeURIComponent(email)}&organizationId=${organizationId}`
 
     // Invitar al usuario usando la API de administrador de Supabase
     const { data: invitedUserData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
