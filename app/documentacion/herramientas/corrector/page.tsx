@@ -157,71 +157,12 @@ export default function CorrectorPage() {
                 <p className="text-gray-700">Puedes introducir texto de varias maneras:</p>
                 <ul className="list-disc list-inside text-gray-700 space-y-1">
                   <li><strong>Escribir directamente:</strong> Escribe o pega tu texto en el área de entrada</li>
-                  <li><strong>Cargar archivo:</strong> Sube archivos .txt, .docx, o .pdf</li>
-                  <li><strong>Importar desde URL:</strong> Extrae texto de páginas web</li>
-                  <li><strong>Desde WordPress:</strong> Importa directamente desde tus posts</li>
                 </ul>
               </div>
             </div>
-            
+          
             <div>
-              <h3 className="font-semibold">Paso 2: Configurar Parámetros</h3>
-              <div className="ml-4 space-y-3">
-                <div>
-                  <h4 className="font-medium">Nivel de Corrección</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="border rounded p-3">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <Badge variant="outline">Básico</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">Solo ortografía y gramática básica</p>
-                    </div>
-                    <div className="border rounded p-3">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <Badge variant="outline">Intermedio</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">Incluye estilo y coherencia</p>
-                    </div>
-                    <div className="border rounded p-3">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <Badge variant="outline">Avanzado</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">Análisis completo y reestructuración</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium">Tipo de Texto</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="border rounded p-2 text-center">
-                      <p className="font-medium">Formal</p>
-                      <p className="text-xs text-gray-600">Documentos oficiales</p>
-                    </div>
-                    <div className="border rounded p-2 text-center">
-                      <p className="font-medium">Informal</p>
-                      <p className="text-xs text-gray-600">Blogs y redes sociales</p>
-                    </div>
-                    <div className="border rounded p-2 text-center">
-                      <p className="font-medium">Académico</p>
-                      <p className="text-xs text-gray-600">Artículos científicos</p>
-                    </div>
-                    <div className="border rounded p-2 text-center">
-                      <p className="font-medium">Creativo</p>
-                      <p className="text-xs text-gray-600">Contenido narrativo</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium">Idioma y Región</h4>
-                  <p className="text-gray-700">Selecciona el idioma principal y la variante regional (ej: Español de España vs. México)</p>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold">Paso 3: Ejecutar Corrección</h3>
+              <h3 className="font-semibold">Paso 2: Ejecutar Corrección</h3>
               <div className="ml-4 space-y-2">
                 <ol className="list-decimal list-inside text-gray-700 space-y-1">
                   <li>Haz clic en el botón <strong>"Corregir Texto"</strong></li>
