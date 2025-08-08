@@ -119,6 +119,22 @@ export default function IntegracionesPage() {
             </div>
           </div>
 
+          {/* Google Gemini */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold text-lg mb-2 flex items-center space-x-2">
+              <div className="w-6 h-6 bg-blue-600 rounded"></div>
+              <span>Google Gemini</span>
+            </h3>
+            <p className="text-gray-700 mb-3">
+              Modelos de IA de Google, destacados por su capacidad multimodal y razonamiento avanzado.
+            </p>
+            <div className="space-y-2">
+              <p className="text-sm"><strong>Modelos disponibles:</strong> Gemini Pro, Gemini Pro Vision, Gemini Ultra</p>
+              <p className="text-sm"><strong>Ideal para:</strong> Análisis multimodal, generación de contenido y tareas complejas</p>
+              <p className="text-sm"><strong>Costo:</strong> Por tokens utilizados</p>
+            </div>
+          </div>
+
           <div className="bg-gray-100 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-2"><strong>[Imagen Captura]</strong></p>
             <p className="text-sm text-gray-600">
@@ -163,6 +179,17 @@ export default function IntegracionesPage() {
                   <li>Ve a "API Keys"</li>
                   <li>Genera una nueva clave</li>
                   <li>Copia la clave generada</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="font-medium">Para Google Gemini:</h4>
+                <ol className="list-decimal list-inside text-sm text-gray-700 ml-4">
+                  <li>Ve a <a href="https://makersuite.google.com/app/apikey" className="text-blue-600 underline">Google AI Studio</a></li>
+                  <li>Inicia sesión con tu cuenta de Google</li>
+                  <li>Haz clic en "Create API Key"</li>
+                  <li>Selecciona un proyecto de Google Cloud o crea uno nuevo</li>
+                  <li>Copia la API Key generada</li>
                 </ol>
               </div>
             </div>
