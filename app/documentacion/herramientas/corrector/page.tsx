@@ -165,9 +165,9 @@ export default function CorrectorPage() {
               <h3 className="font-semibold">Paso 2: Ejecutar Corrección</h3>
               <div className="ml-4 space-y-2">
                 <ol className="list-decimal list-inside text-gray-700 space-y-1">
-                  <li>Haz clic en el botón <strong>"Corregir Texto"</strong></li>
+                  <li>Haz clic en el botón <strong>"Analizar texto"</strong></li>
                   <li>Espera mientras la IA procesa tu texto (puede tomar 10-30 segundos)</li>
-                  <li>Revisa la barra de progreso y las estadísticas en tiempo real</li>
+                  <li>Revisa los cambios sugeridos en el panel de resultados</li>
                 </ol>
               </div>
             </div>
@@ -205,10 +205,7 @@ export default function CorrectorPage() {
               <div className="ml-4 space-y-2">
                 <p className="text-gray-700">Tienes varias opciones para aplicar las correcciones:</p>
                 <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  <li><strong>Aceptar todo:</strong> Aplica todas las sugerencias automáticamente</li>
                   <li><strong>Revisar una por una:</strong> Acepta o rechaza cada sugerencia individualmente</li>
-                  <li><strong>Aceptar por categoría:</strong> Aplica solo ciertos tipos de correcciones</li>
-                  <li><strong>Modo comparación:</strong> Ve el antes y después lado a lado</li>
                 </ul>
               </div>
             </div>
