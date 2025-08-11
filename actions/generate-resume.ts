@@ -425,8 +425,8 @@ const selectImportantNews = async (
     const schema = z.object({
       links: z.array(
         z.object({
-          link: z.string(),
           title: z.string(),
+          link: z.string(),
           reason: z.string(),
         })
       ),
@@ -443,8 +443,7 @@ const selectImportantNews = async (
         result = await generateObject({
           model: openai(model),
           prompt: prompt,
-          maxTokens: 4096,
-          maxRetries: 3, // Intentar hasta 3 veces en caso de error
+          maxRetries: 5, // Intentar hasta 3 veces en caso de error
           schema: schema,
         });
         break;
@@ -457,9 +456,8 @@ const selectImportantNews = async (
         result = await generateObject({
           model: anthropic(model),
           prompt: prompt,
-          maxTokens: 4096,
           schema: schema,
-          maxRetries: 3, // Intentar hasta 3 veces en caso de error
+          maxRetries: 5, // Intentar hasta 3 veces en caso de error
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
@@ -475,9 +473,8 @@ const selectImportantNews = async (
         result = await generateObject({
           model: google(model),
           prompt: prompt,
-          maxTokens: 4096,
           schema: schema,
-          maxRetries: 3, // Intentar hasta 3 veces en caso de error
+          maxRetries: 5, // Intentar hasta 3 veces en caso de error
         });
         break;
       default:
