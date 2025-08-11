@@ -234,44 +234,41 @@ export default async function generateResume({
     );
 
     const importantNewsLinks = importantNews.flatMap((news) =>
-      news.links.map((link) => ({
+      news.map((link) => ({
         link: link.link,
         title: link.title,
-        reason: link.reason,
       }))
     );
 
     let selectedNews = await selectImportantNews(
       importantNewsLinks
         .map((news) => {
-          return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+          const finder = content.find((n) => n.link == news.link) || null;
+          return `Título: ${news.title} \nLink: ${news.link} \nContenido: ${finder?.content?.rendered}`;
         })
-        .join(" --- "),
+        .join("\n\n ----------- \n\n"),
       selectionPrompt,
       debugLogger,
       selectedModel,
       apiKeyData.key
     );
 
-    selectedNews = {
-      links: selectedNews.links.map((news: any) => {
-        const finder = content.find((n) => n.link == news.link) || null;
-        console.log(finder, news);
-        return {
-          link: news.link,
-          title: news.title,
-          reason: news.reason,
-          content:
-            finder?.content?.rendered
-              .replace(/<[^>]*>/g, "") // Remover tags HTML
-              .replace(/\n/g, " ") // Remover saltos de línea
-              .replace(/\r/g, " ") // Remover retornos de carro
-              .replace(/\s+/g, " ") // Múltiples espacios en uno solo
-              .trim() || "",
-          date: finder?.date,
-        };
-      }),
-    };
+    selectedNews = selectedNews.map((news: any) => {
+      const finder = content.find((n) => n.link == news.link) || null;
+      console.log(finder, news);
+      return {
+        link: news.link,
+        title: news.title,
+        content:
+          finder?.content?.rendered
+            .replace(/<[^>]*>/g, "") // Remover tags HTML
+            .replace(/\n/g, " ") // Remover saltos de línea
+            .replace(/\r/g, " ") // Remover retornos de carro
+            .replace(/\s+/g, " ") // Múltiples espacios en uno solo
+            .trim() || "",
+        date: finder?.date,
+      };
+    });
 
     debugLogger.info(
       `Contenido dividido en ${contentBatches.length} batches de máximo ${batchSize} posts cada uno`
@@ -282,7 +279,7 @@ INSTRUCCIONES:
 ${principalPrompt}    
     
 ARTICULOS SELECCIONADOS:
-${selectedNews.links
+${selectedNews
   .map((news: any) => {
     return `Título: ${news.title} \nFecha: ${news.date} \nLink: ${news.link} \nContenido: ${news.content}`;
   })
@@ -381,21 +378,19 @@ const selectImportantNews = async (
   ${batch}
 
   FORMATO DE RESPUESTA:
-  {
-    "links": [
-      {
-        "link": "https://example.com/noticia-1",
-        "title": "Título de la noticia",
-        "reason": "Breve explicación de por qué seleccionaste esta noticia"
-      },
-      {
-        "link": "https://example.com/noticia-2",
-        "title": "Título de la noticia 2",
-        "reason": "Breve explicación de por qué seleccionaste esta noticia"
-      },
-      // ... hasta completar 5 noticias
-    ]
-  }
+  [
+    {
+      "link": "https://example.com/noticia-1",
+      "title": "Título de la noticia",
+      "reason": "Breve explicación de por qué seleccionaste esta noticia"
+    },
+    {
+      "link": "https://example.com/noticia-2",
+      "title": "Título de la noticia 2",
+      "reason": "Breve explicación de por qué seleccionaste esta noticia"
+    },
+    // ... hasta completar 5 noticias
+  ]
 `;
 
   try {
@@ -422,15 +417,13 @@ const selectImportantNews = async (
       provider: selectedModel.provider,
     });
 
-    const schema = z.object({
-      links: z.array(
-        z.object({
-          link: z.string(),
-          title: z.string(),
-          reason: z.string(),
-        })
-      ),
-    });
+    const schema = z.array(
+      z.object({
+        link: z.string(),
+        title: z.string(),
+        reason: z.string(),
+      })
+    );
 
     let result;
     switch (selectedModel.provider.toLowerCase()) {
@@ -484,16 +477,13 @@ const selectImportantNews = async (
 
     debugLogger.info("Selección de noticias completada", {
       duration: Date.now() - startTime,
-      responseLength: result.object.links.length,
+      responseLength: result.object.length,
     });
 
-    return {
-      links: result.object.links.map((link: any) => ({
-        link: link.link,
-        title: link.title,
-        reason: link.reason,
-      })),
-    };
+    return result.object.map((link: any) => ({
+      link: link.link,
+      title: link.title,
+    }));
   } catch (error) {
     console.log("Error al seleccionar noticias importantes:", error);
     debugLogger.error("Error al seleccionar noticias importantes:", error);
