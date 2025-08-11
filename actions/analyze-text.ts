@@ -187,9 +187,14 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       "suggestion": "corrección sugerida",
       "type": "spelling|grammar|style|punctuation",
       "explanation": "explicación de la corrección"
-    }
+    },
+    ...
   ]
 }
+
+FORMATO DE SALIDA CUANDO NO HAY SUGERENCIAS:
+Si el texto no contiene *ningún* error de ortografía, gramática, puntuación o estilo periodístico según la jerarquía normativa, responde exactamente con este JSON:
+{"correcciones":[]}
 `;
 
     debugLogger.info(combinedPrompt);

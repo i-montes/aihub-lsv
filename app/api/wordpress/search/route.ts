@@ -154,6 +154,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
       status: post.status
     }))
 
+
     return successResponse(transformedPosts, 200, {
       count: parseInt(totalCount),
       pages: parseInt(totalPages)

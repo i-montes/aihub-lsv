@@ -24,6 +24,8 @@ export type WordPressPost = {
   }
   link: string
   date: string
+  status: string
+
 }
 
 export type WordPressConnection = {
