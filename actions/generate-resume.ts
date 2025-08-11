@@ -32,7 +32,6 @@ type GenerateResumeParams = {
   endDate?: string;
 };
 
-
 export default async function generateResume({
   manual = false,
   content = [],
@@ -242,19 +241,41 @@ export default async function generateResume({
       }))
     );
 
-    const selectedNews = await selectImportantNews(
-      importantNewsLinks
-        .map((news) => {
-          return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
-        })
-        .join(" --- "),
-      selectionPrompt,
-      debugLogger,
-      selectedModel,
-      apiKeyData.key
-    );
+    let selectedNews: any = importantNewsLinks;
 
-    console.log("NOTICIAS IMPORTANTES:", selectedNews);
+    if (importantNews.length > 5) {
+      selectedNews = await selectImportantNews(
+        importantNewsLinks
+          .map((news) => {
+            return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+          })
+          .join(" --- "),
+        selectionPrompt,
+        debugLogger,
+        selectedModel,
+        apiKeyData.key
+      );
+    }
+
+    selectedNews = {
+      links: selectedNews.map((news: any) => {
+        const finder = content.find((n) => n.link == news.link) || null;
+        console.log(finder, news);
+        return {
+          link: news.link,
+          title: news.title,
+          reason: news.reason,
+          content:
+            finder?.content?.rendered
+              .replace(/<[^>]*>/g, "") // Remover tags HTML
+              .replace(/\n/g, " ") // Remover saltos de línea
+              .replace(/\r/g, " ") // Remover retornos de carro
+              .replace(/\s+/g, " ") // Múltiples espacios en uno solo
+              .trim() || "",
+          date: finder?.date,
+        };
+      }),
+    };
 
     debugLogger.info(
       `Contenido dividido en ${contentBatches.length} batches de máximo ${batchSize} posts cada uno`
@@ -266,10 +287,10 @@ ${principalPrompt}
     
 ARTICULOS SELECCIONADOS:
 ${selectedNews.links
-  .map((news) => {
-    return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+  .map((news: any) => {
+    return `Título: ${news.title} \nFecha: ${news.date} \nLink: ${news.link} \nContenido: ${news.content}`;
   })
-  .join(" ---------- ")}
+  .join("\n\n----------\n\n")}
 `;
     debugLogger.info(combinedPrompt);
 
@@ -294,9 +315,9 @@ ${selectedNews.links
         result = await generateText({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          maxTokens: 2048,
-          topP: top_p,
+          // temperature,
+          // maxTokens: 2048,
+          // topP: top_p,
         });
         break;
       case "anthropic":
@@ -379,7 +400,6 @@ const selectImportantNews = async (
       // ... hasta completar 5 noticias
     ]
   }
-
 `;
 
   try {
@@ -481,21 +501,6 @@ const selectImportantNews = async (
         reason: link.reason,
       })),
     };
-
-    // // Aquí se llamaría al modelo para procesar el prompt
-    // const { object } = await generateObject({
-    //   model: openai("gpt-4o-mini"),
-    //   schema: newsSelectionSchema,
-    //   prompt: fullPrompt,
-    //   maxTokens: 2048, // Aumentar límite de tokens para manejar más contenido
-    // });
-
-    // debugLogger.info("Selección de noticias completada", {
-    //   selectedCount: response.links.length,
-    //   duration: Date.now() - startTime,
-    // });
-
-    // return response;
   } catch (error) {
     console.log("Error al seleccionar noticias importantes:", error);
     debugLogger.error("Error al seleccionar noticias importantes:", error);

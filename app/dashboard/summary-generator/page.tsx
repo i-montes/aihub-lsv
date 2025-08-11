@@ -961,7 +961,7 @@ export default function GeneradorResumenes() {
                         {new Date(log.timestamp).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-sm font-medium">{log.message}</p>
+                    <p className="text-sm font-medium whitespace-pre-line">{log.message}</p>
                     {log.data && (
                       <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
                         {JSON.stringify(log.data, null, 2)}
