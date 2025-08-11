@@ -241,24 +241,20 @@ export default async function generateResume({
       }))
     );
 
-    let selectedNews: any = importantNewsLinks;
-
-    if (importantNews.length > 5) {
-      selectedNews = await selectImportantNews(
-        importantNewsLinks
-          .map((news) => {
-            return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
-          })
-          .join(" --- "),
-        selectionPrompt,
-        debugLogger,
-        selectedModel,
-        apiKeyData.key
-      );
-    }
+    let selectedNews = await selectImportantNews(
+      importantNewsLinks
+        .map((news) => {
+          return `Título: ${news.title} | Link: ${news.link} | Contenido: ${news.reason}`;
+        })
+        .join(" --- "),
+      selectionPrompt,
+      debugLogger,
+      selectedModel,
+      apiKeyData.key
+    );
 
     selectedNews = {
-      links: selectedNews.map((news: any) => {
+      links: selectedNews.links.map((news: any) => {
         const finder = content.find((n) => n.link == news.link) || null;
         console.log(finder, news);
         return {
