@@ -211,13 +211,16 @@ export default async function generateResume({
             .trim();
           const date = new Date(post.date).toLocaleString("es-ES");
 
-          return `Título: ${title} | Fecha: ${date} | Link: ${post.link} | Contenido: ${cleanContent}`;
+          if (!cleanContent) {
+            return "";
+          }
+
+          return `Título: ${title} \nFecha: ${date} \nLink: ${post.link} \nContenido: ${cleanContent}`;
         })
-        .join(" --- ");
+        .filter((post) => post !== "")
+        .join("\n\n ----------- \n\n");
 
       contentBatches.push(batchContent);
-
-      // Llamar a la función selectImportantNews para cada batch
     }
 
     const importantNews = await Promise.all(
@@ -244,7 +247,11 @@ export default async function generateResume({
       importantNewsLinks
         .map((news) => {
           const finder = content.find((n) => n.link == news.link) || null;
-          return `Título: ${news.title} \nLink: ${news.link} \nContenido: ${finder?.content?.rendered}`;
+          return `Título: ${news.title} \nFecha: ${new Date(
+            finder?.date || ""
+          ).toLocaleString("es-ES")} \nLink: ${news.link} \nContenido: ${
+            finder?.content?.rendered
+          }`;
         })
         .join("\n\n ----------- \n\n"),
       selectionPrompt,
@@ -255,7 +262,6 @@ export default async function generateResume({
 
     selectedNews = selectedNews.map((news: any) => {
       const finder = content.find((n) => n.link == news.link) || null;
-      console.log(finder, news);
       return {
         link: news.link,
         title: news.title,
@@ -308,9 +314,8 @@ ${selectedNews
         result = await generateText({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          // temperature,
-          // maxTokens: 2048,
-          // topP: top_p,
+          temperature,
+          topP: top_p,
         });
         break;
       case "anthropic":
@@ -324,7 +329,6 @@ ${selectedNews
           prompt: combinedPrompt,
           temperature,
           topP: top_p,
-          maxTokens: 2048,
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
@@ -341,7 +345,6 @@ ${selectedNews
           model: google(selectedModel.model),
           prompt: combinedPrompt,
           temperature,
-          maxTokens: 2048,
           topP: top_p,
         });
         break;
@@ -378,19 +381,21 @@ const selectImportantNews = async (
   ${batch}
 
   FORMATO DE RESPUESTA:
-  [
-    {
-      "link": "https://example.com/noticia-1",
-      "title": "Título de la noticia",
-      "reason": "Breve explicación de por qué seleccionaste esta noticia"
-    },
-    {
-      "link": "https://example.com/noticia-2",
-      "title": "Título de la noticia 2",
-      "reason": "Breve explicación de por qué seleccionaste esta noticia"
-    },
-    // ... hasta completar 5 noticias
-  ]
+  {
+    "selected": [
+      {
+        "link": "https://example.com/noticia-1",
+        "title": "Título de la noticia",
+        "reason": "Breve explicación de por qué seleccionaste esta noticia"
+      },
+      {
+        "link": "https://example.com/noticia-2",
+        "title": "Título de la noticia 2",
+        "reason": "Breve explicación de por qué seleccionaste esta noticia"
+      },
+      // ... hasta completar 5 noticias
+    ]
+  }
 `;
 
   try {
@@ -417,13 +422,15 @@ const selectImportantNews = async (
       provider: selectedModel.provider,
     });
 
-    const schema = z.array(
-      z.object({
-        link: z.string(),
-        title: z.string(),
-        reason: z.string(),
-      })
-    );
+    const schema = z.object({
+      selected: z.array(
+        z.object({
+          link: z.string(),
+          title: z.string(),
+          reason: z.string(),
+        })
+      ),
+    });
 
     let result;
     switch (selectedModel.provider.toLowerCase()) {
@@ -477,13 +484,15 @@ const selectImportantNews = async (
 
     debugLogger.info("Selección de noticias completada", {
       duration: Date.now() - startTime,
-      responseLength: result.object.length,
+      responseLength: result.object.selected.length,
     });
 
-    return result.object.map((link: any) => ({
-      link: link.link,
-      title: link.title,
-    }));
+    return result.object.selected.map(
+      (link: { link: string; title: string; reason?: string }) => ({
+        link: link.link,
+        title: link.title,
+      })
+    );
   } catch (error) {
     console.log("Error al seleccionar noticias importantes:", error);
     debugLogger.error("Error al seleccionar noticias importantes:", error);
