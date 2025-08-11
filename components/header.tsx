@@ -1,7 +1,8 @@
 "use client"
 
-import { Search, ChevronDown, Settings, LogOut, Bell } from "lucide-react"
+import { Search, ChevronDown, Settings, LogOut, Bell, HelpCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
@@ -137,6 +138,13 @@ export function Header() {
               </div>
             )}
           </div> */}
+
+          <Link href="/dashboard/support">
+            <Button variant="ghost" className="flex items-center gap-2">
+              <HelpCircle size={16} />
+              ¿Necesitas ayuda?
+            </Button>
+          </Link>
 
           <div className="relative">
             <div

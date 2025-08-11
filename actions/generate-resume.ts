@@ -1,6 +1,6 @@
 "use server";
 
-import { getSupabaseClient } from "@/lib/supabase/client";
+import { DebugLogger, DebugLogTypes } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { MINI_MODELS } from "@/lib/utils";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -32,55 +32,6 @@ type GenerateResumeParams = {
   endDate?: string;
 };
 
-// Debug logging system
-interface DebugLog {
-  timestamp: string;
-  level: "info" | "error" | "warn";
-  message: string;
-  data?: any;
-}
-
-class DebugLogger {
-  private logs: DebugLog[] = [];
-
-  info(message: string, data?: any) {
-    this.logs.push({
-      timestamp: new Date().toISOString(),
-      level: "info",
-      message,
-      data,
-    });
-    console.log(`[INFO] ${message}`, data);
-  }
-
-  error(message: string, data?: any) {
-    this.logs.push({
-      timestamp: new Date().toISOString(),
-      level: "error",
-      message,
-      data,
-    });
-    console.error(`[ERROR] ${message}`, data);
-  }
-
-  warn(message: string, data?: any) {
-    this.logs.push({
-      timestamp: new Date().toISOString(),
-      level: "warn",
-      message,
-      data,
-    });
-    console.warn(`[WARN] ${message}`, data);
-  }
-
-  getLogs() {
-    return this.logs;
-  }
-
-  clear() {
-    this.logs = [];
-  }
-}
 
 export default async function generateResume({
   manual = false,
@@ -92,7 +43,7 @@ export default async function generateResume({
   success: boolean;
   resume?: string;
   error?: string;
-  logs?: DebugLog[];
+  logs?: DebugLogTypes[];
 }> {
   // Implementación de la función para generar un resumen
   const debugLogger = new DebugLogger();

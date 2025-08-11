@@ -4,7 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { DebugLogger } from "@/lib/utils";
+import { DebugLogger } from "@/lib/logger";
 
 // Schema para la respuesta del modelo
 const ProofreaderResponseSchema = z.object({

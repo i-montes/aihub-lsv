@@ -1,11 +1,11 @@
 "use server";
 
-import { DebugLogger, DebugLogTypes, MINI_MODELS } from "@/lib/utils";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { DebugLogger, DebugLogTypes } from "@/lib/logger";
 
 interface WordPressContent {
   title: string;
