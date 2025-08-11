@@ -425,8 +425,8 @@ const selectImportantNews = async (
     const schema = z.object({
       links: z.array(
         z.object({
-          title: z.string(),
           link: z.string(),
+          title: z.string(),
           reason: z.string(),
         })
       ),
