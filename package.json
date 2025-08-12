@@ -40,6 +40,7 @@
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
+    "@supabase/realtime-js": "^2.15.1",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@tiptap/core": "latest",
