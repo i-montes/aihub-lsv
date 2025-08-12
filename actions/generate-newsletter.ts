@@ -48,7 +48,11 @@ export default async function generateNewsletter({
   debugLogs?: DebugLogTypes[];
 }> {
   try {
-    const debugLogger = new DebugLogger();
+    // Inicializar logger con contexto específico de newsletter
+    const debugLogger = new DebugLogger({
+      toolIdentity: "newsletter",
+      source: "generate-newsletter-action",
+    });
 
     try {
       debugLogger.info("Iniciando generación de newsletter", {
@@ -70,9 +74,65 @@ export default async function generateNewsletter({
       } = await supabase.auth.getUser();
 
       if (userAuthError || !user) {
-        debugLogger.error("Error de autenticación", userAuthError);
+        await debugLogger.logAuth(
+          "Authentication failed",
+          "failed",
+          undefined,
+          {
+            message: userAuthError?.message || "No user authenticated",
+            code: userAuthError?.code || "AUTH_ERROR",
+            context: { userAuthError },
+          }
+        );
+        await debugLogger.finalize("failed", {
+          error: { message: "No hay usuario autenticado", code: "AUTH_ERROR" },
+        });
         throw new Error("No hay usuario autenticado");
       }
+
+      const { data: profile, error: profileError } = await supabase
+
+        .from("profiles")
+        .select("organizationId, role")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) {
+        await debugLogger.logAuth(
+          "Authentication failed",
+          "failed",
+          undefined,
+          {
+            message: userAuthError?.message || "No user authenticated",
+            code: userAuthError?.code || "AUTH_ERROR",
+            context: { userAuthError },
+          }
+        );
+
+        // Finalizar con estado fallido
+        await debugLogger.finalize("failed", {
+          error: {
+            message: "No hay usuario autenticado",
+            code: "AUTH_ERROR",
+          },
+        });
+
+        throw new Error("No hay usuario autenticado");
+      }
+
+      await debugLogger.logAuth(
+        "User authenticated successfully",
+        "authenticated",
+        {
+          userId: user.id,
+          organizationId: profile?.organizationId,
+          email: user.email,
+        }
+      );
+      debugLogger.updateContext({
+        userId: user.id,
+        organizationId: profile?.organizationId,
+      });
 
       debugLogger.info("Usuario autenticado correctamente", {
         userId: user.id,
@@ -110,7 +170,26 @@ export default async function generateNewsletter({
         .single();
 
       if (apiKeyError || !apiKeyData) {
-        debugLogger.error("Error al obtener la API key", apiKeyError);
+        await debugLogger.logApiKey(
+          "API key not found",
+          "not_found",
+          {
+            provider: selectedModel.provider as any,
+            status: "not_found",
+            hasValue: false,
+          },
+          {
+            message: "No se pudo obtener la API key para este proveedor",
+            code: "API_KEY_NOT_FOUND",
+            context: { apiKeyError },
+          }
+        );
+        await debugLogger.finalize("failed", {
+          error: {
+            message: "No se pudo obtener la API key para este proveedor",
+            code: "API_KEY_NOT_FOUND",
+          },
+        });
         return {
           success: false,
           error: "No se pudo obtener la API key para este proveedor",
@@ -120,13 +199,37 @@ export default async function generateNewsletter({
 
       // Verificar que la clave API no esté vacía
       if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-        debugLogger.error("La API key está vacía o no es válida");
+        await debugLogger.logApiKey(
+          "API key is empty",
+          "empty",
+          {
+            provider: selectedModel.provider as any,
+            status: "empty",
+            hasValue: false,
+          },
+          {
+            message: "La API key está vacía o no es válida",
+            code: "API_KEY_EMPTY",
+          }
+        );
+        await debugLogger.finalize("failed", {
+          error: {
+            message: "La API key está vacía o no es válida",
+            code: "API_KEY_EMPTY",
+          },
+        });
         return {
           success: false,
           error: "La API key está vacía o no es válida",
           debugLogs: debugLogger.getLogs(),
         };
       }
+
+      await debugLogger.logApiKey("API key retrieved successfully", "found", {
+        provider: selectedModel.provider as any,
+        status: "found",
+        hasValue: true,
+      });
 
       debugLogger.info("API key obtenida correctamente", {
         provider: apiKeyData.provider,
@@ -144,6 +247,18 @@ export default async function generateNewsletter({
       // Si no existe, obtener la configuración por defecto
       let tool;
       if (toolError) {
+        await debugLogger.logToolConfig(
+          "Using default tool configuration",
+          "using_default",
+          {
+            identity: "newsletter",
+            isCustom: false,
+            promptsCount: 0,
+            temperature: undefined,
+            topP: undefined,
+            hasSchema: false,
+          }
+        );
         debugLogger.warn(
           "No se encontró configuración personalizada, usando configuración por defecto"
         );
@@ -155,10 +270,22 @@ export default async function generateNewsletter({
             .single();
 
         if (defaultToolError || !defaultToolData) {
-          debugLogger.error(
-            "Error al obtener la configuración de la herramienta",
-            defaultToolError
+          await debugLogger.logToolConfig(
+            "Tool configuration not found",
+            "not_found",
+            undefined,
+            {
+              message: "No se pudo obtener la configuración de la herramienta",
+              code: "TOOL_CONFIG_NOT_FOUND",
+              context: { defaultToolError },
+            }
           );
+          await debugLogger.finalize("failed", {
+            error: {
+              message: "No se pudo obtener la configuración de la herramienta",
+              code: "TOOL_CONFIG_NOT_FOUND",
+            },
+          });
           return {
             success: false,
             error: "No se pudo obtener la configuración de la herramienta",
@@ -169,6 +296,19 @@ export default async function generateNewsletter({
 
         tool = defaultToolData;
       } else {
+        await debugLogger.logToolConfig(
+          "Custom tool configuration found",
+          "found_custom",
+          {
+            identity: "newsletter",
+            isCustom: true,
+            promptsCount: toolData.prompts?.length || 0,
+            temperature: toolData.temperature,
+            topP: toolData.top_p,
+            hasSchema: !!toolData.schema,
+            promptTitles: toolData.prompts?.map((p: any) => p.title) || [],
+          }
+        );
         tool = toolData;
         debugLogger.info("Configuración personalizada obtenida");
       }
@@ -317,12 +457,43 @@ ${articlesContent}`
           debugLogger.error(
             `Proveedor no soportado: ${selectedModel.provider}`
           );
+          await debugLogger.finalize("failed", {
+            error: {
+              message: `Proveedor no soportado: ${selectedModel.provider}`,
+              code: "UNSUPPORTED_PROVIDER",
+            },
+          });
           throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
       }
 
       debugLogger.info(
         `Respuesta del modelo recibida (${result.text.length} caracteres)`
       );
+
+      await debugLogger.finalize("completed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature: tool.temperature,
+          topP: tool.top_p,
+        },
+        metrics: {
+          inputLength: combinedPrompt.length,
+          outputLength: result.text.length,
+          tokensUsed: result.usage?.totalTokens,
+          processingTime: 0,
+        },
+        template,
+        inputSources: [
+          images.length > 0
+            ? "image"
+            : customContent
+            ? "text"
+            : wordpressContent.length > 0
+            ? "text"
+            : "text",
+        ],
+      });
 
       return {
         success: true,

@@ -1,3 +1,4 @@
+import { DebugLogger, DebugLogTypes } from "@/lib/logger";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -22,15 +23,25 @@ export async function threadsGenerator(
   success: boolean;
   error?: string;
   threads: string[];
-  logs: string[];
+  logs: DebugLogTypes[];
 }> {
-  let logs = [];
+  const debugLogger = new DebugLogger({
+    toolIdentity: "thread-generator",
+    source: "generate-threads-action"
+  });
+
   try {
-    logs.push("Iniciando generación de hilos");
+    debugLogger.info("Iniciando generación de hilos", {
+      title,
+      textLength: text.length,
+      format,
+      selectedModel,
+      link
+    });
 
     // 1. Obtener la información del usuario autenticado de forma segura
+    await debugLogger.logAuth("Authenticating user", "authenticating");
     const supabase = getSupabaseClient();
-    logs.push("Cliente Supabase inicializado");
 
     // Usar getUser() en lugar de getSession() para mayor seguridad
     const {
@@ -39,11 +50,16 @@ export async function threadsGenerator(
     } = await supabase.auth.getUser();
 
     if (userAuthError || !user) {
-      logs.push("Error de autenticación detectado");
-      console.error("Error de autenticación:", userAuthError);
+      await debugLogger.logAuth("Authentication failed", "failed", undefined, {
+        message: "No hay usuario autenticado",
+        code: "AUTH_FAILED",
+        context: { userAuthError }
+      });
+      await debugLogger.finalize("failed", {
+        error: { message: "No hay usuario autenticado", code: "AUTH_FAILED" }
+      });
       throw new Error("No hay usuario autenticado");
     }
-    logs.push(`Usuario autenticado: ${user.id}`);
 
     // Obtener el ID de la organización
     const { data: userData, error: userError } = await supabase
@@ -53,16 +69,30 @@ export async function threadsGenerator(
       .single();
 
     if (userError || !userData?.organizationId) {
-      logs.push("Error al obtener perfil del usuario");
-      console.error("Error al obtener el perfil del usuario:", userError);
+      await debugLogger.logAuth("Organization ID not found", "missing_organization", undefined, {
+        message: "No se pudo obtener el ID de la organización",
+        code: "ORG_ID_NOT_FOUND",
+        context: { userError }
+      });
+      await debugLogger.finalize("failed", {
+        error: { message: "No se pudo obtener el ID de la organización", code: "ORG_ID_NOT_FOUND" }
+      });
       throw new Error("No se pudo obtener el ID de la organización");
     }
 
     const organizationId = userData.organizationId;
-    logs.push(`ID de organización obtenido: ${organizationId}`);
+    await debugLogger.logAuth("User authenticated successfully", "authenticated", {
+      userId: user.id,
+      organizationId,
+      role: userData.role,
+      email: user.email
+    });
+    
+    // Update logger context
+    debugLogger.updateContext({ userId: user.id, organizationId });
 
     // 2. Obtener la API key para el proveedor seleccionado
-    logs.push(`Buscando API key para proveedor: ${selectedModel.provider}`);
+    await debugLogger.logApiKey("Fetching API key", "fetching", { provider: selectedModel.provider as any, status: "fetching", hasValue: false });
     const { data: apiKeyData, error: apiKeyError } = await supabase
       .from("api_key_table")
       .select("key, provider")
@@ -72,30 +102,36 @@ export async function threadsGenerator(
       .single();
 
     if (apiKeyError || !apiKeyData) {
-      logs.push("Error al obtener API key");
-      console.error("Error al obtener la API key:", apiKeyError);
+      await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, {
+        message: "No se pudo obtener la API key para este proveedor",
+        code: "API_KEY_NOT_FOUND",
+        context: { apiKeyError }
+      });
+      await debugLogger.finalize("failed", { error: { message: "No se pudo obtener la API key para este proveedor", code: "API_KEY_NOT_FOUND" } });
       return {
         success: false,
         error: "No se pudo obtener la API key para este proveedor",
         threads: [],
-        logs,
+        logs: debugLogger.getLogs(),
       };
     }
 
     // Verificar que la clave API no esté vacía
     if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-      logs.push("API key vacía o inválida");
-      console.error("La API key está vacía o no es válida");
+      await debugLogger.logApiKey("API key is empty or invalid", "empty", { provider: selectedModel.provider as any, status: "empty", hasValue: false });
+      await debugLogger.finalize("failed", { error: { message: "La API key está vacía o no es válida", code: "API_KEY_EMPTY" } });
       return {
         success: false,
         error: "La API key está vacía o no es válida",
         threads: [],
-        logs,
+        logs: debugLogger.getLogs(),
       };
     }
-    logs.push("API key válida obtenida");
 
-    logs.push("Obteniendo configuración de herramienta threads_generator");
+    await debugLogger.logApiKey("API key retrieved successfully", "found", { provider: selectedModel.provider as any, status: "active", hasValue: true });
+
+    // 3. Obtener la configuración de la herramienta "threads_generator"
+    await debugLogger.logToolConfig("Fetching tool configuration", "fetching", { identity: "thread-generator", isCustom: false, promptsCount: 0 });
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
       .select("prompts, temperature, top_p, schema")
@@ -103,14 +139,10 @@ export async function threadsGenerator(
       .eq("identity", "threads_generator")
       .single();
 
-    console.log(toolData)
-
     // Si no existe, obtener la configuración por defecto
     let tool;
     if (toolError) {
-      logs.push(
-        "Configuración personalizada no encontrada, usando configuración por defecto"
-      );
+      await debugLogger.logToolConfig("Using default tool configuration", "using_default", { identity: "thread-generator", isCustom: false, promptsCount: 0 });
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
         .select("prompts, temperature, top_p, schema")
@@ -118,26 +150,21 @@ export async function threadsGenerator(
         .single();
 
       if (defaultToolError || !defaultToolData) {
-        logs.push("Error al obtener configuración por defecto");
-        console.error(
-          "Error al obtener la configuración de la herramienta:",
-          defaultToolError
-        );
+        await debugLogger.logToolConfig("Tool configuration not found", "not_found", undefined, { message: "No se pudo obtener la configuración de la herramienta", code: "TOOL_CONFIG_NOT_FOUND", context: { defaultToolError } });
+        await debugLogger.finalize("failed", { error: { message: "No se pudo obtener la configuración de la herramienta", code: "TOOL_CONFIG_NOT_FOUND" } });
         return {
           success: false,
           error: "No se pudo obtener la configuración de la herramienta",
           threads: [],
-          logs,
+          logs: debugLogger.getLogs(),
         };
       }
 
       tool = defaultToolData;
     } else {
-      logs.push("Configuración personalizada obtenida");
+      await debugLogger.logToolConfig("Custom tool configuration found", "found_custom", { identity: "thread-generator", isCustom: true, promptsCount: toolData.prompts?.length || 0, temperature: toolData.temperature, topP: toolData.top_p, hasSchema: !!toolData.schema, promptTitles: toolData.prompts?.map((p: any) => p.title) || [] });
       tool = toolData;
     }
-
-    console.log(toolData)
 
     const prompts = tool.prompts;
     const principalPrompt =
@@ -190,26 +217,24 @@ INSTRUCCIONES ADICIONALES:
 - Genera un hilo de Twitter/X siguiendo estrictamente las instrucciones. Incluye la URL proporcionada en el hilo.
 `;
 
-    
-
     // 5. Crear la conexión con el proveedor adecuado
     let result;
     const temperature = tool.temperature;
     const top_p = tool.top_p;
     const apiKey = apiKeyData.key;
 
-    logs.push(
+    debugLogger.info(
       `Iniciando generación con modelo: ${selectedModel.model} (${selectedModel.provider})`
     );
-    logs.push(
+    debugLogger.info(
       `Parámetros - Temperature: ${temperature}, Top P: ${top_p}, Provider: ${selectedModel.provider}, Model: ${selectedModel.model}, Format: ${format}`
     );
 
-    logs.push(combinedPrompt);
+    debugLogger.info(combinedPrompt);
 
     switch (selectedModel.provider.toLowerCase()) {
       case "openai":
-        logs.push("Configurando conexión con OpenAI");
+        debugLogger.info("Configurando conexión con OpenAI");
         // Crear una instancia de OpenAI con la API key
         const openai = createOpenAI({
           apiKey: apiKey,
@@ -224,7 +249,7 @@ INSTRUCCIONES ADICIONALES:
         });
         break;
       case "anthropic":
-        logs.push("Configurando conexión con Anthropic");
+        debugLogger.info("Configurando conexión con Anthropic");
         // Crear una instancia de Anthropic con la API key
         const anthropic = createAnthropic({
           apiKey: apiKey,
@@ -243,7 +268,7 @@ INSTRUCCIONES ADICIONALES:
         });
         break;
       case "google":
-        logs.push("Configurando conexión con Google");
+        debugLogger.info("Configurando conexión con Google");
         // Crear una instancia de Google con la API key
         const google = createGoogleGenerativeAI({
           apiKey: apiKey,
@@ -258,32 +283,33 @@ INSTRUCCIONES ADICIONALES:
         });
         break;
       default:
-        logs.push(`Proveedor no soportado: ${selectedModel.provider}`);
+        await debugLogger.finalize("failed", { error: { message: `Proveedor no soportado: ${selectedModel.provider}`, code: "UNSUPPORTED_PROVIDER" } });
         throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
     }
 
-    logs.push(
-      `Generación completada exitosamente. Hilos generados: ${
-        result?.object?.threads?.length || 0
-      }`
-    );
+    await debugLogger.finalize("completed", {
+      model: { provider: selectedModel.provider as any, model: selectedModel.model, temperature: tool.temperature, topP: tool.top_p },
+      metrics: {
+        inputLength: combinedPrompt.length,
+        outputLength: (result?.object?.threads?.join("\n") || "").length,
+        processingTime: 0
+      },
+      template: undefined,
+      inputSources: ["text"]
+    });
 
     return {
       success: true,
       threads: result?.object?.threads || [],
-      logs,
+      logs: debugLogger.getLogs(),
     };
   } catch (error: any) {
-    logs.push(`Error en el procesamiento: ${error}`);
-    console.error(
-      "[THREADS_GENERATOR] Error en el procesamiento del texto:",
-      error
-    );
+    debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", error);
     return {
       success: false,
       error: "Error en el procesamiento del texto",
       threads: [],
-      logs,
+      logs: debugLogger.getLogs(),
     };
   }
 }

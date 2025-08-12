@@ -1,10 +1,12 @@
-import { getSupabaseClient } from "@/lib/supabase/client";
+"use server";
+
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 // Schema para la respuesta del modelo
 const ProofreaderResponseSchema = z.object({
@@ -24,7 +26,11 @@ export async function analyzeText(
   text: string,
   selectedModel: { model: string; provider: string }
 ) {
-  const debugLogger = new DebugLogger();
+  // Inicializar logger con contexto específico de proofreader
+  const debugLogger = new DebugLogger({
+    toolIdentity: "proofreader",
+    source: "analyze-text-action",
+  });
 
   try {
     debugLogger.info("Iniciando análisis de texto", {
@@ -34,7 +40,7 @@ export async function analyzeText(
 
     // 1. Obtener la información del usuario autenticado de forma segura
     debugLogger.info("Obteniendo información del usuario autenticado");
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseServer();
 
     // Usar getUser() en lugar de getSession() para mayor seguridad
     const {
@@ -43,9 +49,65 @@ export async function analyzeText(
     } = await supabase.auth.getUser();
 
     if (userAuthError || !user) {
-      debugLogger.error("Error de autenticación", userAuthError);
+      // Log del error de autenticación
+      await debugLogger.logAuth("Authentication failed", "failed", undefined, {
+        message: userAuthError?.message || "No user authenticated",
+        code: userAuthError?.code || "AUTH_ERROR",
+        context: { userAuthError },
+      });
+
+      // Finalizar con estado fallido
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "No hay usuario autenticado",
+          code: "AUTH_ERROR",
+        },
+      });
+
       throw new Error("No hay usuario autenticado");
     }
+
+    const { data: profile, error: profileError } = await supabase
+
+      .from("profiles")
+      .select("organizationId, role")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      await debugLogger.logAuth("Authentication failed", "failed", undefined, {
+        message: userAuthError?.message || "No user authenticated",
+        code: userAuthError?.code || "AUTH_ERROR",
+        context: { userAuthError },
+      });
+
+      // Finalizar con estado fallido
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "No hay usuario autenticado",
+          code: "AUTH_ERROR",
+        },
+      });
+
+      throw new Error("No hay usuario autenticado");
+    }
+
+    // Log exitoso de autenticación
+    await debugLogger.logAuth(
+      "User authenticated successfully",
+      "authenticated",
+      {
+        userId: user.id,
+        organizationId: profile.organizationId,
+        email: user.email,
+      }
+    );
+
+    // Actualizar contexto del logger con información del usuario
+    debugLogger.updateContext({
+      userId: user.id,
+      organizationId: profile?.organizationId,
+    });
 
     debugLogger.info("Usuario autenticado correctamente", { userId: user.id });
 
@@ -81,7 +143,28 @@ export async function analyzeText(
       .single();
 
     if (apiKeyError || !apiKeyData) {
-      debugLogger.error("Error al obtener la API key", apiKeyError);
+      await debugLogger.logApiKey(
+        "API key not found",
+        "not_found",
+        {
+          provider: selectedModel.provider as any,
+          status: "not_found",
+          hasValue: false,
+        },
+        {
+          message: "No se pudo obtener la API key para este proveedor",
+          code: "API_KEY_NOT_FOUND",
+          context: { apiKeyError },
+        }
+      );
+
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "No se pudo obtener la API key para este proveedor",
+          code: "API_KEY_NOT_FOUND",
+        },
+      });
+
       return {
         success: false,
         error: "No se pudo obtener la API key para este proveedor",
@@ -92,7 +175,27 @@ export async function analyzeText(
 
     // Verificar que la clave API no esté vacía
     if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-      debugLogger.error("La API key está vacía o no es válida");
+      await debugLogger.logApiKey(
+        "API key is empty",
+        "empty",
+        {
+          provider: selectedModel.provider as any,
+          status: "empty",
+          hasValue: false,
+        },
+        {
+          message: "La API key está vacía o no es válida",
+          code: "API_KEY_EMPTY",
+        }
+      );
+
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "La API key está vacía o no es válida",
+          code: "API_KEY_EMPTY",
+        },
+      });
+
       return {
         success: false,
         error: "La API key está vacía o no es válida",
@@ -100,6 +203,12 @@ export async function analyzeText(
         debugLogs: debugLogger.getLogs(),
       };
     }
+
+    await debugLogger.logApiKey("API key retrieved successfully", "found", {
+      provider: selectedModel.provider as any,
+      status: "found",
+      hasValue: true,
+    });
 
     debugLogger.info("API key obtenida correctamente", {
       provider: apiKeyData.provider,
@@ -117,6 +226,19 @@ export async function analyzeText(
     // Si no existe, obtener la configuración por defecto
     let tool;
     if (toolError) {
+      await debugLogger.logToolConfig(
+        "Using default tool configuration",
+        "using_default",
+        {
+          identity: "proofreader",
+          isCustom: false,
+          promptsCount: 0,
+          temperature: undefined,
+          topP: undefined,
+          hasSchema: false,
+        }
+      );
+
       debugLogger.warn(
         "No se encontró configuración personalizada, usando configuración por defecto"
       );
@@ -127,10 +249,24 @@ export async function analyzeText(
         .single();
 
       if (defaultToolError || !defaultToolData) {
-        debugLogger.error(
-          "Error al obtener la configuración de la herramienta",
-          defaultToolError
+        await debugLogger.logToolConfig(
+          "Tool configuration not found",
+          "not_found",
+          undefined,
+          {
+            message: "No se pudo obtener la configuración de la herramienta",
+            code: "TOOL_CONFIG_NOT_FOUND",
+            context: { defaultToolError },
+          }
         );
+
+        await debugLogger.finalize("failed", {
+          error: {
+            message: "No se pudo obtener la configuración de la herramienta",
+            code: "TOOL_CONFIG_NOT_FOUND",
+          },
+        });
+
         return {
           success: false,
           error: "No se pudo obtener la configuración de la herramienta",
@@ -141,6 +277,20 @@ export async function analyzeText(
 
       tool = defaultToolData;
     } else {
+      await debugLogger.logToolConfig(
+        "Custom tool configuration found",
+        "found_custom",
+        {
+          identity: "proofreader",
+          isCustom: true,
+          promptsCount: toolData.prompts?.length || 0,
+          temperature: toolData.temperature,
+          topP: toolData.top_p,
+          hasSchema: !!toolData.schema,
+          promptTitles: toolData.prompts?.map((p: any) => p.title) || [],
+        }
+      );
+
       tool = toolData;
       debugLogger.info("Configuración personalizada obtenida");
     }
@@ -251,8 +401,17 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         });
         break;
       default:
-        debugLogger.error(`Proveedor no soportado: ${selectedModel.provider}`);
-        throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
+        const errorMsg = `Proveedor no soportado: ${selectedModel.provider}`;
+        debugLogger.error(errorMsg);
+
+        await debugLogger.finalize("failed", {
+          error: {
+            message: errorMsg,
+            code: "UNSUPPORTED_PROVIDER",
+          },
+        });
+
+        throw new Error(errorMsg);
     }
 
     debugLogger.info("Texto generado exitosamente", {
@@ -268,6 +427,16 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
 
       if (!jsonMatch) {
+        const parseError = {
+          message: "No se pudo extraer JSON de la respuesta",
+          code: "JSON_PARSE_ERROR",
+          context: { textResponse },
+        };
+
+        await debugLogger.finalize("failed", {
+          error: parseError,
+        });
+
         debugLogger.error("No se pudo extraer JSON de la respuesta", {
           textResponse,
         });
@@ -338,12 +507,63 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         `Análisis completado exitosamente con ${correcciones.length} correcciones`
       );
 
+      // Preparar resultados de análisis para el log
+      const analysisResults = correcciones.reduce((acc: any[], corr: any) => {
+        const existing = acc.find((r) => r.type === corr.type);
+        if (existing) {
+          existing.count++;
+        } else {
+          acc.push({
+            type: corr.type,
+            count: 1,
+            severity:
+              corr.severity === 1
+                ? "low"
+                : corr.severity === 2
+                ? "medium"
+                : "high",
+          });
+        }
+        return acc;
+      }, []);
+
+      // Finalizar con éxito
+      await debugLogger.finalize("completed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
+        metrics: {
+          inputLength: text.length,
+          outputLength: result.text.length,
+          tokensUsed: result.usage?.totalTokens,
+          processingTime: debugLogger.getDuration(),
+          itemsProcessed: correcciones.length,
+        },
+        results: analysisResults,
+        inputData: {
+          type: "text",
+          length: text.length,
+          language: "es",
+        },
+      });
+
       return {
         success: true,
         correcciones,
         debugLogs: debugLogger.getLogs(),
       };
     } catch (error) {
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "Error al procesar la respuesta del modelo",
+          code: "RESPONSE_PARSE_ERROR",
+          context: { error },
+        },
+      });
+
       debugLogger.error("Error al parsear la respuesta", error);
       return {
         success: false,
@@ -353,6 +573,14 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       };
     }
   } catch (error) {
+    await debugLogger.finalize("failed", {
+      error: {
+        message: "Error en el procesamiento del texto",
+        code: "PROCESSING_ERROR",
+        context: { error },
+      },
+    });
+
     debugLogger.error("Error en el procesamiento del texto", error);
     return {
       success: false,
