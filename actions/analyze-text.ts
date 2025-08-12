@@ -1,4 +1,4 @@
-"use server";
+'use server'
 
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
