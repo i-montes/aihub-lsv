@@ -1,5 +1,6 @@
+'use server'
+
 import { DebugLogger, DebugLogTypes } from "@/lib/logger";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -8,6 +9,7 @@ import { z } from "zod";
 import { ExamplesTesis } from "./examples/tesis";
 import { ExamplesInvestigacion } from "./examples/investigacion";
 import { ExamplesLista } from "./examples/lista";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -41,7 +43,7 @@ export async function threadsGenerator(
 
     // 1. Obtener la información del usuario autenticado de forma segura
     await debugLogger.logAuth("Authenticating user", "authenticating");
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseServer();
 
     // Usar getUser() en lugar de getSession() para mayor seguridad
     const {
@@ -112,7 +114,7 @@ export async function threadsGenerator(
         success: false,
         error: "No se pudo obtener la API key para este proveedor",
         threads: [],
-        logs: debugLogger.getLogs(),
+        logs: debugLogger.getSerializableLogs(),
       };
     }
 
@@ -124,7 +126,7 @@ export async function threadsGenerator(
         success: false,
         error: "La API key está vacía o no es válida",
         threads: [],
-        logs: debugLogger.getLogs(),
+        logs: debugLogger.getSerializableLogs(),
       };
     }
 
@@ -156,7 +158,7 @@ export async function threadsGenerator(
           success: false,
           error: "No se pudo obtener la configuración de la herramienta",
           threads: [],
-          logs: debugLogger.getLogs(),
+          logs: debugLogger.getSerializableLogs(),
         };
       }
 
@@ -301,7 +303,7 @@ INSTRUCCIONES ADICIONALES:
     return {
       success: true,
       threads: result?.object?.threads || [],
-      logs: debugLogger.getLogs(),
+      logs: debugLogger.getSerializableLogs(),
     };
   } catch (error: any) {
     debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", error);
@@ -309,7 +311,7 @@ INSTRUCCIONES ADICIONALES:
       success: false,
       error: "Error en el procesamiento del texto",
       threads: [],
-      logs: debugLogger.getLogs(),
+      logs: debugLogger.getSerializableLogs(),
     };
   }
 }

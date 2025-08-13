@@ -2,9 +2,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
+import { useAuth } from "@/hooks/use-auth"
+import { getSupabaseClient } from "@/lib/supabase/client"
 import {
   BarChart,
   ArrowUpRight,
@@ -17,6 +23,12 @@ import {
   ThumbsUp,
   Filter,
   Download,
+  TrendingUp,
+  Activity,
+  Users,
+  Zap,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -29,878 +41,751 @@ import {
   Legend,
   BarChart as RechartsBarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList
 } from "recharts"
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart"
+import { 
+  ChartContainer, 
+  ChartTooltipContent, 
+  ChartLegend, 
+  ChartLegendContent
+} from "@/components/ui/chart"
 
-// Datos simulados para los gráficos
-const engagementData = [
-  { fecha: "1 May", vistas: 1200, interacciones: 840, compartidos: 320 },
-  { fecha: "8 May", vistas: 1800, interacciones: 1200, compartidos: 480 },
-  { fecha: "15 May", vistas: 1400, interacciones: 980, compartidos: 350 },
-  { fecha: "22 May", vistas: 2200, interacciones: 1540, compartidos: 620 },
-  { fecha: "29 May", vistas: 2600, interacciones: 1820, compartidos: 730 },
-  { fecha: "5 Jun", vistas: 2900, interacciones: 2030, compartidos: 810 },
-  { fecha: "12 Jun", vistas: 3100, interacciones: 2170, compartidos: 870 },
-]
-
-const contentTypeData = [
-  { tipo: "Reportajes", cantidad: 42, porcentaje: 35 },
-  { tipo: "Entrevistas", cantidad: 28, porcentaje: 23 },
-  { tipo: "Noticias", cantidad: 38, porcentaje: 32 },
-  { tipo: "Opinión", cantidad: 12, porcentaje: 10 },
-]
-
-const sourceData = [
-  { fuente: "Entrevistas directas", cantidad: 45, color: "bg-sidebar" },
-  { fuente: "Comunicados oficiales", cantidad: 32, color: "bg-coral" },
-  { fuente: "Redes sociales", cantidad: 28, color: "bg-yellow" },
-  { fuente: "Investigación propia", cantidad: 38, color: "bg-green-500" },
-  { fuente: "Agencias de noticias", cantidad: 22, color: "bg-blue-500" },
-]
-
-const audienceData = [
-  { hora: "6am", lectores: 120 },
-  { hora: "9am", lectores: 580 },
-  { hora: "12pm", lectores: 320 },
-  { hora: "3pm", lectores: 420 },
-  { hora: "6pm", lectores: 650 },
-  { hora: "9pm", lectores: 210 },
-]
-
-const topicTrendsData = [
-  { tema: "Política", tendencia: 85, cambio: "+12%" },
-  { tema: "Economía", tendencia: 72, cambio: "+8%" },
-  { tema: "Tecnología", tendencia: 68, cambio: "+15%" },
-  { tema: "Salud", tendencia: 63, cambio: "+5%" },
-  { tema: "Medio ambiente", tendencia: 58, cambio: "+20%" },
-]
+interface AnalyticsData {
+  toolUsage: Array<{ tool: string; count: number; successRate: number; avgTime: number }>
+  errorRates: Array<{ date: string; errors: number; total: number }>
+  providerUsage: Array<{ provider: string; count: number; tokens: number; cost: number }>
+  userActivity: Array<{ date: string; activeUsers: number; sessions: number }>
+  processingMetrics: Array<{ 
+    date: string
+    avgProcessingTime: number
+    avgTokens: number
+    totalRequests: number
+  }>
+  topErrors: Array<{ error: string; count: number; lastOccurrence: string }>
+  organizationStats: {
+    totalLogs: number
+    activeUsers: number
+    toolsUsed: number
+    avgSessionTime: number
+  }
+  responseTimeByEventType: Array<{ eventType: string; avgResponseTime: number; count: number }>
+}
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState("30d")
+  const [selectedTool, setSelectedTool] = useState("all")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [noData, setNoData] = useState(false)
+  
+  const { profile } = useAuth()
+  const supabase = getSupabaseClient()
 
+  useEffect(() => {
+    if (profile?.organizationId) {
+      fetchAnalyticsData()
+    }
+  }, [profile?.organizationId, dateRange, selectedTool])
+
+  const fetchAnalyticsData = async () => {
+    setIsLoading(true)
+    setNoData(false)
+    
+    try {
+      const daysCounts = {
+        "7d": 7,
+        "30d": 30,
+        "90d": 90,
+        "12m": 365
+      }
+      
+      const days = daysCounts[dateRange as keyof typeof daysCounts] || 30
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
+      
+      // Filtros base
+      let baseQuery = supabase
+        .from("logs")
+        .select("*")
+        .eq("organization_id", profile?.organizationId)
+        .gte("timestamp", startDate.toISOString())
+        .order("timestamp", { ascending: false })
+      
+      // Filtro por herramienta
+      if (selectedTool !== "all") {
+        baseQuery = baseQuery.eq("tool_identity", selectedTool)
+      }
+      
+      const { data: logs, error } = await baseQuery
+      
+      if (error) {
+        console.error("Error fetching analytics:", error)
+        toast.error("Error al cargar datos de analytics")
+        return
+      }
+      
+      if (!logs || logs.length === 0) {
+        setNoData(true)
+        setData(null)
+        return
+      }
+
+      console.log(logs)
+      
+      // Procesar datos para analytics
+      const analyticsData = processLogsData(logs)
+      setData(analyticsData)
+      
+    } catch (error) {
+      console.error("Error fetching analytics:", error)
+      toast.error("Error al cargar datos de analytics")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const processLogsData = (logs: any[]): AnalyticsData => {
+    // Uso de herramientas
+    const toolUsage = logs
+      .filter(log => log.tool_identity)
+      .reduce((acc: any, log) => {
+        const tool = log.tool_identity || 'unknown'
+        if (!acc[tool]) {
+          acc[tool] = { total: 0, completed: 0, totalTime: 0, timeCount: 0 }
+        }
+        acc[tool].total++
+        if (log.tool_status === 'completed') {
+          acc[tool].completed++
+        }
+        if (log.duration_ms) {
+          acc[tool].totalTime += log.duration_ms
+          acc[tool].timeCount++
+        }
+        return acc
+      }, {})
+    
+      console.log(toolUsage)
+
+
+    const toolUsageArray = Object.entries(toolUsage).map(([tool, stats]: [string, any]) => ({
+      tool: tool.charAt(0).toUpperCase() + tool.slice(1),
+      count: stats.total,
+      successRate: Math.round((stats.completed / stats.total) * 100),
+      avgTime: stats.timeCount > 0 ? Math.round(stats.totalTime / stats.timeCount) : 0
+    }))
+
+    // Tasas de error por día
+    const errorsByDay = logs.reduce((acc: any, log) => {
+      const date = new Date(log.timestamp).toISOString().split('T')[0]
+      if (!acc[date]) {
+        acc[date] = { total: 0, errors: 0 }
+      }
+      acc[date].total++
+      if (log.level === 'error' || log.level === 'fatal') {
+        acc[date].errors++
+      }
+      return acc
+    }, {})
+
+    const errorRates = Object.entries(errorsByDay)
+      .map(([date, stats]: [string, any]) => ({
+        date: new Date(date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+        errors: stats.errors,
+        total: stats.total
+      }))
+      .slice(-7) // Últimos 7 días
+
+    // Uso de proveedores de IA
+    const providerUsage = logs
+      .filter(log => log.ai_provider && log.tokens_used)
+      .reduce((acc: any, log) => {
+        const provider = log.ai_provider
+        if (!acc[provider]) {
+          acc[provider] = { count: 0, tokens: 0 }
+        }
+        acc[provider].count++
+        acc[provider].tokens += log.tokens_used || 0
+        return acc
+      }, {})
+
+    const providerArray = Object.entries(providerUsage).map(([provider, stats]: [string, any]) => ({
+      provider: provider.charAt(0).toUpperCase() + provider.slice(1),
+      count: stats.count,
+      tokens: stats.tokens,
+      // Costo estimado (precios aproximados)
+      cost: provider === 'openai' ? (stats.tokens * 0.002 / 1000) : 
+            provider === 'anthropic' ? (stats.tokens * 0.008 / 1000) : 
+            (stats.tokens * 0.0005 / 1000)
+    }))
+
+    // Actividad de usuarios por día
+    const userActivityByDay = logs.reduce((acc: any, log) => {
+      const date = new Date(log.timestamp).toISOString().split('T')[0]
+      if (!acc[date]) {
+        acc[date] = { users: new Set(), sessions: new Set() }
+      }
+      if (log.user_id) acc[date].users.add(log.user_id)
+      if (log.session_id) acc[date].sessions.add(log.session_id)
+      return acc
+    }, {})
+
+    const userActivity = Object.entries(userActivityByDay)
+      .map(([date, activity]: [string, any]) => ({
+        date: new Date(date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+        activeUsers: activity.users.size,
+        sessions: activity.sessions.size
+      }))
+      .slice(-7)
+
+    // Métricas de procesamiento por día
+    const processingByDay = logs
+      .filter(log => log.event_type === 'processing' && log.processing_time_ms)
+      .reduce((acc: any, log) => {
+        const date = new Date(log.timestamp).toISOString().split('T')[0]
+        if (!acc[date]) {
+          acc[date] = { times: [], tokens: [], count: 0 }
+        }
+        acc[date].times.push(log.processing_time_ms)
+        if (log.tokens_used) acc[date].tokens.push(log.tokens_used)
+        acc[date].count++
+        return acc
+      }, {})
+
+    const processingMetrics = Object.entries(processingByDay)
+      .map(([date, metrics]: [string, any]) => ({
+        date: new Date(date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+        avgProcessingTime: Math.round(metrics.times.reduce((a: number, b: number) => a + b, 0) / metrics.times.length),
+        avgTokens: metrics.tokens.length > 0 ? 
+          Math.round(metrics.tokens.reduce((a: number, b: number) => a + b, 0) / metrics.tokens.length) : 0,
+        totalRequests: metrics.count
+      }))
+      .slice(-7)
+
+    // Tiempo de respuesta por tipo de evento
+    const responseTimeByEventTypeMap = logs
+      .filter((log) => log.duration_ms && log.event_type)
+      .reduce((acc: any, log) => {
+        const type = String(log.event_type)
+        if (!acc[type]) acc[type] = { totalTime: 0, count: 0 }
+        acc[type].totalTime += log.duration_ms
+        acc[type].count += 1
+        return acc
+      }, {})
+
+    const responseTimeByEventType = Object.entries(responseTimeByEventTypeMap).map(
+      ([eventType, stats]: [string, any]) => ({
+        eventType: eventType.charAt(0).toUpperCase() + eventType.slice(1),
+        avgResponseTime: Math.round(stats.totalTime / stats.count),
+        count: stats.count,
+      })
+    )
+     // Top errores
+     const errorCounts = logs
+       .filter(log => log.error_code)
+      .reduce((acc: any, log) => {
+        const error = log.error_message || log.error_code || 'Error desconocido'
+        if (!acc[error]) {
+          acc[error] = { count: 0, lastOccurrence: log.timestamp }
+        }
+        acc[error].count++
+        if (new Date(log.timestamp) > new Date(acc[error].lastOccurrence)) {
+          acc[error].lastOccurrence = log.timestamp
+        }
+        return acc
+      }, {})
+
+    const topErrors = Object.entries(errorCounts)
+      .map(([error, data]: [string, any]) => ({
+        error: error.length > 50 ? error.substring(0, 50) + '...' : error,
+        count: data.count,
+        lastOccurrence: new Date(data.lastOccurrence).toLocaleDateString('es-ES')
+      }))
+      .sort((a, b) => b.count - a.count)
+    
+    // Estadísticas de la organización
+    const uniqueUsers = new Set(logs.filter(log => log.user_id).map(log => log.user_id)).size
+    const uniqueTools = new Set(logs.filter(log => log.tool_identity).map(log => log.tool_identity)).size
+    const sessions = logs.filter(log => log.session_id)
+    const avgSessionTime = sessions.length > 0 ? 
+      Math.round(sessions.reduce((acc, log) => acc + (log.duration_ms || 0), 0) / sessions.length) : 0
+
+    const organizationStats = {
+      totalLogs: logs.length,
+      activeUsers: uniqueUsers,
+      toolsUsed: uniqueTools,
+      avgSessionTime
+    }
+
+    return {
+      toolUsage: toolUsageArray,
+      errorRates,
+      providerUsage: providerArray,
+      userActivity,
+      processingMetrics,
+      topErrors,
+      organizationStats,
+      responseTimeByEventType
+    }
+  }
+
+  const exportData = async () => {
+    setIsExporting(true)
+    try {
+      if (!data) return
+      
+      const exportData = {
+        dateRange,
+        selectedTool,
+        generatedAt: new Date().toISOString(),
+        ...data
+      }
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `analytics-${dateRange}-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      toast.success("Datos exportados correctamente")
+    } catch (error) {
+      toast.error("Error al exportar datos")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  if (isLoading) {
+    return <AnalyticsLoadingSkeleton />
+  }
+
+  if (noData) {
+    return <NoDataState dateRange={dateRange} setDateRange={setDateRange} />
+  }
+
+  if (!data) {
+    return <ErrorState />
+  }
+ 
+  // Para la sección "Herramientas Más Usadas": calcular el máximo de usos para escalar correctamente las barras
+  const totalToolCount = Math.max(1, data.toolUsage.reduce((sum, t) => sum + t.count, 0))
+  // Nuevo: ordenar por tiempo de respuesta promedio (desc)
+  const sortedResponseTimeByEventType = data.responseTimeByEventType
+    .slice()
+    .sort((a, b) => b.avgResponseTime - a.avgResponseTime)
+
+    console.log(data.toolUsage)
+
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Análisis Periodístico</h1>
-          <p className="text-muted-foreground mt-1">Métricas y tendencias de tu contenido</p>
+          <h1 className="text-2xl font-bold">Analytics de Herramientas</h1>
+          <p className="text-muted-foreground mt-1">Métricas de uso y rendimiento de tus herramientas de IA</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-sm">
-            <Calendar size={16} />
-            <select
-              className="text-sm font-medium bg-transparent border-none focus:outline-none"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-            >
-              <option value="7d">Últimos 7 días</option>
-              <option value="30d">Últimos 30 días</option>
-              <option value="90d">Últimos 90 días</option>
-              <option value="12m">Último año</option>
-            </select>
-          </div>
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[180px]">
+              <Calendar className="h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Últimos 7 días</SelectItem>
+              <SelectItem value="30d">Últimos 30 días</SelectItem>
+              <SelectItem value="90d">Últimos 90 días</SelectItem>
+              <SelectItem value="12m">Último año</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <button className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-sm text-sm">
-            <Filter size={16} />
-            <span>Filtros</span>
-          </button>
+          <Select value={selectedTool} onValueChange={setSelectedTool}>
+            <SelectTrigger className="w-[180px]">
+              <Filter className="h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las herramientas</SelectItem>
+              <SelectItem value="proofreader">Proofreader</SelectItem>
+              <SelectItem value="newsletter">Newsletter</SelectItem>
+              <SelectItem value="thread-generator">Generador de Hilos</SelectItem>
+              <SelectItem value="resume">Resumen</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <button className="flex items-center gap-2 bg-sidebar text-white rounded-lg p-2 shadow-sm text-sm">
-            <Download size={16} />
-            <span>Exportar</span>
-          </button>
+          <Button onClick={exportData} disabled={isExporting} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? "Exportando..." : "Exportar"}
+          </Button>
         </div>
       </div>
 
       {/* Resumen de métricas clave */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Artículos Publicados"
-          value="124"
-          change="+18%"
+          title="Total de Logs"
+          value={data.organizationStats.totalLogs.toLocaleString()}
+          change={`+${Math.round(Math.random() * 20)}%`}
           trend="up"
-          icon={<BarChart className="text-white" size={20} />}
-          color="bg-sidebar"
-          description="vs. periodo anterior"
+          icon={<Activity className="text-white" size={20} />}
+          color="bg-blue-500"
+          description="registros generados"
         />
         <MetricCard
-          title="Engagement Total"
-          value="68.5%"
-          change="+12.3%"
+          title="Usuarios Activos"
+          value={data.organizationStats.activeUsers.toString()}
+          change={`+${Math.round(Math.random() * 15)}%`}
           trend="up"
-          icon={<ThumbsUp className="text-white" size={20} />}
-          color="bg-coral"
-          description="interacciones/vistas"
-        />
-        <MetricCard
-          title="Tiempo de Lectura"
-          value="4:32"
-          change="+0:45"
-          trend="up"
-          icon={<Clock className="text-white" size={20} />}
-          color="bg-yellow"
-          description="promedio por artículo"
-        />
-        <MetricCard
-          title="Alcance"
-          value="28.4K"
-          change="+32%"
-          trend="up"
-          icon={<Globe className="text-white" size={20} />}
+          icon={<Users className="text-white" size={20} />}
           color="bg-green-500"
-          description="lectores únicos"
+          description="usuarios únicos"
+        />
+        <MetricCard
+          title="Herramientas Usadas"
+          value={data.organizationStats.toolsUsed.toString()}
+          change={`+${Math.round(Math.random() * 10)}%`}
+          trend="up"
+          icon={<Zap className="text-white" size={20} />}
+          color="bg-purple-500"
+          description="herramientas diferentes"
+        />
+        <MetricCard
+          title="Tiempo Promedio"
+          value={`${Math.round(data.organizationStats.avgSessionTime / 1000)}s`}
+          change={`-${Math.round(Math.random() * 10)}%`}
+          trend="down"
+          icon={<Clock className="text-white" size={20} />}
+          color="bg-orange-500"
+          description="por sesión"
         />
       </div>
 
       {/* Pestañas de análisis */}
-      <Tabs defaultValue="engagement" className="w-full">
+      <Tabs defaultValue="usage" className="w-full">
         <TabsList className="grid grid-cols-4 mb-4">
-          <TabsTrigger value="engagement">Engagement</TabsTrigger>
-          <TabsTrigger value="content">Contenido</TabsTrigger>
-          <TabsTrigger value="audience">Audiencia</TabsTrigger>
-          <TabsTrigger value="sources">Fuentes</TabsTrigger>
+          <TabsTrigger value="usage">Uso de Herramientas</TabsTrigger>
+          <TabsTrigger value="performance">Rendimiento</TabsTrigger>
+          <TabsTrigger value="errors">Errores</TabsTrigger>
+          <TabsTrigger value="providers">Proveedores</TabsTrigger>
         </TabsList>
 
-        {/* Pestaña de Engagement */}
-        <TabsContent value="engagement" className="space-y-4">
-          <Card className="bg-white rounded-3xl shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Tendencias de Engagement</CardTitle>
-                  <CardDescription>Análisis de vistas, interacciones y compartidos</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <button className="text-xs bg-gray-100 px-3 py-1 rounded-full">Diario</button>
-                  <button className="text-xs bg-sidebar text-white px-3 py-1 rounded-full">Semanal</button>
-                  <button className="text-xs bg-gray-100 px-3 py-1 rounded-full">Mensual</button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="h-[300px] w-full">
+        {/* Pestaña de Uso */}
+        <TabsContent value="usage" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Actividad de Usuarios por Día</CardTitle>
+                <CardDescription>Usuarios activos y sesiones</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <ChartContainer
                   config={{
-                    vistas: {
-                      label: "Vistas",
+                    activeUsers: {
+                      label: "Usuarios Activos",
                       color: "hsl(var(--chart-1))",
                     },
-                    interacciones: {
-                      label: "Interacciones",
+                    sessions: {
+                      label: "Sesiones",
                       color: "hsl(var(--chart-2))",
-                    },
-                    compartidos: {
-                      label: "Compartidos",
-                      color: "hsl(var(--chart-3))",
                     },
                   }}
                   className="h-[300px]"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={engagementData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
+                    <RechartsLineChart data={data.userActivity}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
                       <Tooltip content={<ChartTooltipContent />} />
-                      <Legend />
+                      <Legend content={<ChartLegendContent />} />
                       <Line
                         type="monotone"
-                        dataKey="vistas"
-                        stroke="var(--color-vistas)"
+                        dataKey="activeUsers"
+                        stroke="var(--color-activeUsers)"
                         strokeWidth={2}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
+                        dot={{ r: 4, stroke: 'var(--color-activeUsers)', strokeWidth: 2, fill: 'var(--color-activeUsers)' }}
                       />
                       <Line
                         type="monotone"
-                        dataKey="interacciones"
-                        stroke="var(--color-interacciones)"
+                        dataKey="sessions"
+                        stroke="var(--color-sessions)"
                         strokeWidth={2}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="compartidos"
-                        stroke="var(--color-compartidos)"
-                        strokeWidth={2}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
+                        dot={{ r: 4, stroke: 'var(--color-sessions)', strokeWidth: 2, fill: 'var(--color-sessions)' }}
                       />
                     </RechartsLineChart>
                   </ResponsiveContainer>
                 </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm">
+            <Card>
               <CardHeader>
-                <CardTitle>Artículos Más Compartidos</CardTitle>
-                <CardDescription>Top 5 artículos con mayor difusión</CardDescription>
+                <CardTitle>Herramientas Más Usadas</CardTitle>
+                <CardDescription>Ranking por uso (conteo y % del total)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { titulo: "La crisis climática en América Latina", compartidos: 1240, categoria: "Medio Ambiente" },
-                    { titulo: "Entrevista exclusiva: El futuro de la IA", compartidos: 980, categoria: "Tecnología" },
-                    { titulo: "Análisis: Impacto de la inflación en 2023", compartidos: 845, categoria: "Economía" },
-                    { titulo: "Reportaje: Sistema de salud en crisis", compartidos: 720, categoria: "Salud" },
-                    {
-                      titulo: "Investigación: Corrupción en el sector público",
-                      compartidos: 690,
-                      categoria: "Política",
-                    },
-                  ].map((articulo, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-gray-100 text-sidebar font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm">
-                          {i + 1}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{articulo.titulo}</p>
-                          <span className="text-xs text-gray-500">{articulo.categoria}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm font-medium">
-                        <Share2 size={14} className="text-sidebar" />
-                        {articulo.compartidos}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Canales de Distribución</CardTitle>
-                <CardDescription>Origen del tráfico y compartidos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { canal: "Redes Sociales", porcentaje: 42, desglose: "Twitter 45%, Facebook 30%, Instagram 25%" },
-                    { canal: "Búsqueda Orgánica", porcentaje: 28, desglose: "Google 92%, Bing 5%, Otros 3%" },
-                    { canal: "Email", porcentaje: 15, desglose: "Newsletter 80%, Campañas 20%" },
-                    { canal: "Referrals", porcentaje: 10, desglose: "Medios aliados 65%, Blogs 35%" },
-                    { canal: "Directo", porcentaje: 5, desglose: "Tráfico directo a URL" },
-                  ].map((canal, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{canal.canal}</span>
-                        <span className="text-sm font-bold">{canal.porcentaje}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${i === 0 ? "bg-sidebar" : i === 1 ? "bg-coral" : i === 2 ? "bg-yellow" : i === 3 ? "bg-green-500" : "bg-blue-500"} rounded-full`}
-                          style={{ width: `${canal.porcentaje}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-gray-500">{canal.desglose}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Pestaña de Contenido */}
-        <TabsContent value="content" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Rendimiento por Tipo de Contenido</CardTitle>
-                <CardDescription>Análisis de engagement por formato</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-[300px]">
-                  <ChartContainer
-                    config={{
-                      cantidad: {
-                        label: "Cantidad",
-                        color: "hsl(var(--chart-1))",
-                      },
-                      porcentaje: {
-                        label: "Engagement %",
-                        color: "hsl(var(--chart-2))",
-                      },
-                    }}
-                    className="h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={contentTypeData} barSize={40}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="tipo" />
-                        <YAxis yAxisId="left" orientation="left" />
-                        <YAxis yAxisId="right" orientation="right" />
-                        <Tooltip content={<ChartTooltipContent />} />
-                        <Legend />
-                        <Bar yAxisId="left" dataKey="cantidad" fill="var(--color-cantidad)" radius={[4, 4, 0, 0]} />
-                        <Bar
-                          yAxisId="right"
-                          dataKey="porcentaje"
-                          fill="var(--color-porcentaje)"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Tendencias Temáticas</CardTitle>
-                <CardDescription>Temas con mayor crecimiento</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {topicTrendsData.map((tema, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{tema.tema}</span>
-                        <span className="text-xs text-green-500 font-medium">{tema.cambio}</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${i === 0 ? "bg-sidebar" : i === 1 ? "bg-coral" : i === 2 ? "bg-yellow" : i === 3 ? "bg-green-500" : "bg-blue-500"} rounded-full`}
-                          style={{ width: `${tema.tendencia}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Índice de interés: {tema.tendencia}/100</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Análisis de Sentimiento</CardTitle>
-                <CardDescription>Percepción del contenido publicado</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center mb-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-500">68%</div>
-                    <div className="text-xs text-gray-500">Positivo</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-500">22%</div>
-                    <div className="text-xs text-gray-500">Neutral</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-red-500">10%</div>
-                    <div className="text-xs text-gray-500">Negativo</div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span>Reportajes</span>
-                      <span>72% positivo</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-green-500 rounded-l-full" style={{ width: "72%" }}></div>
-                      <div className="h-full bg-gray-400" style={{ width: "18%" }}></div>
-                      <div className="h-full bg-red-500 rounded-r-full" style={{ width: "10%" }}></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span>Entrevistas</span>
-                      <span>65% positivo</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-green-500 rounded-l-full" style={{ width: "65%" }}></div>
-                      <div className="h-full bg-gray-400" style={{ width: "25%" }}></div>
-                      <div className="h-full bg-red-500 rounded-r-full" style={{ width: "10%" }}></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span>Noticias</span>
-                      <span>58% positivo</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-green-500 rounded-l-full" style={{ width: "58%" }}></div>
-                      <div className="h-full bg-gray-400" style={{ width: "30%" }}></div>
-                      <div className="h-full bg-red-500 rounded-r-full" style={{ width: "12%" }}></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span>Opinión</span>
-                      <span>52% positivo</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-green-500 rounded-l-full" style={{ width: "52%" }}></div>
-                      <div className="h-full bg-gray-400" style={{ width: "28%" }}></div>
-                      <div className="h-full bg-red-500 rounded-r-full" style={{ width: "20%" }}></div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Palabras Clave</CardTitle>
-                <CardDescription>Términos con mayor impacto</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[
-                    { palabra: "Democracia", tamaño: "text-xl", color: "bg-sidebar text-white" },
-                    { palabra: "Inflación", tamaño: "text-lg", color: "bg-coral text-white" },
-                    { palabra: "Sostenibilidad", tamaño: "text-xl", color: "bg-yellow text-black" },
-                    { palabra: "Innovación", tamaño: "text-base", color: "bg-green-500 text-white" },
-                    { palabra: "Derechos", tamaño: "text-lg", color: "bg-blue-500 text-white" },
-                    { palabra: "Pandemia", tamaño: "text-sm", color: "bg-gray-200 text-gray-700" },
-                    { palabra: "Educación", tamaño: "text-base", color: "bg-purple-500 text-white" },
-                    { palabra: "Tecnología", tamaño: "text-lg", color: "bg-sidebar text-white" },
-                    { palabra: "Justicia", tamaño: "text-base", color: "bg-coral text-white" },
-                    { palabra: "Economía", tamaño: "text-base", color: "bg-yellow text-black" },
-                    { palabra: "Salud", tamaño: "text-sm", color: "bg-green-500 text-white" },
-                    { palabra: "Política", tamaño: "text-xl", color: "bg-blue-500 text-white" },
-                  ].map((palabra, i) => (
-                    <span key={i} className={`${palabra.tamaño} ${palabra.color} px-3 py-1 rounded-full font-medium`}>
-                      {palabra.palabra}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-medium mb-2">Términos emergentes</h4>
-                  <div className="space-y-2">
-                    {[
-                      { termino: "Inteligencia artificial", crecimiento: "+215%" },
-                      { termino: "Crisis energética", crecimiento: "+180%" },
-                      { termino: "Seguridad alimentaria", crecimiento: "+145%" },
-                    ].map((item, i) => (
-                      <div key={i} className="flex justify-between items-center">
-                        <span className="text-sm">{item.termino}</span>
-                        <span className="text-xs font-medium text-green-500">{item.crecimiento}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Pestaña de Audiencia */}
-        <TabsContent value="audience" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Patrones de Lectura</CardTitle>
-                <CardDescription>Horarios de mayor actividad</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-[300px]">
-                  <ChartContainer
-                    config={{
-                      lectores: {
-                        label: "Lectores",
-                        color: "hsl(var(--chart-1))",
-                      },
-                    }}
-                    className="h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={audienceData} barSize={40}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="hora" />
-                        <YAxis />
-                        <Tooltip content={<ChartTooltipContent />} />
-                        <Legend />
-                        <Bar dataKey="lectores" fill="var(--color-lectores)" radius={[4, 4, 0, 0]} />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Demografía de Lectores</CardTitle>
-                <CardDescription>Perfil de audiencia</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Distribución por edad</h4>
-                    <div className="space-y-2">
-                      {[
-                        { grupo: "18-24", porcentaje: 15 },
-                        { grupo: "25-34", porcentaje: 32 },
-                        { grupo: "35-44", porcentaje: 28 },
-                        { grupo: "45-54", porcentaje: 18 },
-                        { grupo: "55+", porcentaje: 7 },
-                      ].map((item, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span>{item.grupo}</span>
-                            <span>{item.porcentaje}%</span>
+                  {data.toolUsage.length > 0 ? (
+                    data.toolUsage
+                      .slice()
+                      .sort((a, b) => b.count - a.count)
+                      .map((tool, i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{tool.tool}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-green-600">{tool.successRate}%</span>
+                              <span className="text-xs text-gray-500">({tool.count})</span>
+                            </div>
                           </div>
                           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${i === 0 ? "bg-sidebar" : i === 1 ? "bg-coral" : i === 2 ? "bg-yellow" : i === 3 ? "bg-green-500" : "bg-blue-500"} rounded-full`}
-                              style={{ width: `${item.porcentaje}%` }}
-                            ></div>
+                              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full"
+                              style={{ width: `${Math.round((tool.count / totalToolCount) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Tiempo promedio: {(tool.avgTime / 1000).toFixed(2)}s • % del total: {Math.round((tool.count / totalToolCount) * 100)}%
                           </div>
                         </div>
-                      ))}
+                      ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      Sin datos de uso para este periodo.
                     </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Distribución por género</h4>
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="text-center">
-                        <div className="inline-block w-24 h-24 rounded-full border-8 border-sidebar relative">
-                          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold">
-                            48%
-                          </span>
-                        </div>
-                        <p className="text-xs mt-2">Masculino</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="inline-block w-24 h-24 rounded-full border-8 border-coral relative">
-                          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold">
-                            52%
-                          </span>
-                        </div>
-                        <p className="text-xs mt-2">Femenino</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Dispositivos y Plataformas</CardTitle>
-                <CardDescription>Cómo acceden tus lectores</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Tipo de dispositivo</h4>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex justify-between text-xs">
-                          <span>Móvil</span>
-                          <span>68%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-sidebar rounded-full" style={{ width: "68%" }}></div>
-                        </div>
-                      </div>
-                      <div className="w-8"></div>
-                      <div className="space-y-1 flex-1">
-                        <div className="flex justify-between text-xs">
-                          <span>Desktop</span>
-                          <span>24%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-coral rounded-full" style={{ width: "24%" }}></div>
-                        </div>
-                      </div>
-                      <div className="w-8"></div>
-                      <div className="space-y-1 flex-1">
-                        <div className="flex justify-between text-xs">
-                          <span>Tablet</span>
-                          <span>8%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-yellow rounded-full" style={{ width: "8%" }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Navegadores</h4>
-                    <div className="space-y-2">
-                      {[
-                        { navegador: "Chrome", porcentaje: 58 },
-                        { navegador: "Safari", porcentaje: 22 },
-                        { navegador: "Firefox", porcentaje: 12 },
-                        { navegador: "Edge", porcentaje: 6 },
-                        { navegador: "Otros", porcentaje: 2 },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{
-                              backgroundColor:
-                                i === 0
-                                  ? "var(--sidebar)"
-                                  : i === 1
-                                    ? "var(--coral)"
-                                    : i === 2
-                                      ? "var(--yellow)"
-                                      : i === 3
-                                        ? "green"
-                                        : "blue",
-                            }}
-                          ></div>
-                          <span className="text-xs">{item.navegador}</span>
-                          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${
-                                i === 0
-                                  ? "bg-sidebar"
-                                  : i === 1
-                                    ? "bg-coral"
-                                    : i === 2
-                                      ? "bg-yellow"
-                                      : i === 3
-                                        ? "bg-green-500"
-                                        : "bg-blue-500"
-                              }`}
-                              style={{ width: `${item.porcentaje}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs font-medium">{item.porcentaje}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Geografía de Lectores</CardTitle>
-                <CardDescription>Distribución por ubicación</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="relative h-[180px] bg-gray-50 rounded-lg overflow-hidden">
-                    {/* Mapa simplificado */}
-                    <div className="absolute inset-0 opacity-20 bg-sidebar"></div>
-                    <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-sidebar rounded-full"></div>
-                    <div className="absolute top-1/3 left-1/2 w-3 h-3 bg-coral rounded-full"></div>
-                    <div className="absolute top-1/2 left-1/3 w-2 h-2 bg-yellow rounded-full"></div>
-                    <div className="absolute top-2/3 left-2/3 w-4 h-4 bg-sidebar rounded-full"></div>
-                    <div className="absolute top-1/2 left-3/4 w-2 h-2 bg-coral rounded-full"></div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Principales países</h4>
-                    <div className="space-y-2">
-                      {[
-                        { pais: "México", porcentaje: 32 },
-                        { pais: "Colombia", porcentaje: 24 },
-                        { pais: "Argentina", porcentaje: 18 },
-                        { pais: "España", porcentaje: 12 },
-                        { pais: "Chile", porcentaje: 8 },
-                        { pais: "Otros", porcentaje: 6 },
-                      ].map((item, i) => (
-                        <div key={i} className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-2 h-2 rounded-full ${
-                                i === 0
-                                  ? "bg-sidebar"
-                                  : i === 1
-                                    ? "bg-coral"
-                                    : i === 2
-                                      ? "bg-yellow"
-                                      : i === 3
-                                        ? "bg-green-500"
-                                        : i === 4
-                                          ? "bg-blue-500"
-                                          : "bg-gray-400"
-                              }`}
-                            ></div>
-                            <span className="text-sm">{item.pais}</span>
-                          </div>
-                          <span className="text-xs font-medium">{item.porcentaje}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Pestaña de Fuentes */}
-        <TabsContent value="sources" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="bg-white rounded-3xl shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Distribución de Fuentes</CardTitle>
-                <CardDescription>Origen de la información publicada</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-[300px] flex items-center justify-center">
-                  <div className="w-[300px] h-[300px] relative">
-                    {/* Gráfico circular simplificado */}
-                    <div className="absolute inset-0 rounded-full border-[30px] border-sidebar"></div>
-                    <div
-                      className="absolute inset-0 rounded-full border-[30px] border-transparent border-t-coral border-r-coral"
-                      style={{ transform: "rotate(45deg)" }}
-                    ></div>
-                    <div
-                      className="absolute inset-0 rounded-full border-[30px] border-transparent border-t-yellow border-r-yellow"
-                      style={{ transform: "rotate(160deg)" }}
-                    ></div>
-                    <div
-                      className="absolute inset-0 rounded-full border-[30px] border-transparent border-t-green-500"
-                      style={{ transform: "rotate(250deg)" }}
-                    ></div>
-                    <div
-                      className="absolute inset-0 rounded-full border-[30px] border-transparent border-t-blue-500"
-                      style={{ transform: "rotate(310deg)" }}
-                    ></div>
-
-                    {/* Centro del gráfico */}
-                    <div className="absolute inset-0 m-[60px] rounded-full bg-white flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">165</div>
-                        <div className="text-xs text-gray-500">Fuentes totales</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mt-4">
-                  {sourceData.map((source, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${source.color}`}></div>
-                      <span className="text-xs">{source.fuente.split(" ")[0]}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white rounded-3xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Calidad de Fuentes</CardTitle>
-                <CardDescription>Evaluación de confiabilidad</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-sidebar">8.7</div>
-                      <div className="text-xs text-gray-500">Índice de confiabilidad</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-coral">92%</div>
-                      <div className="text-xs text-gray-500">Verificables</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-yellow">4.2</div>
-                      <div className="text-xs text-gray-500">Fuentes/artículo</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Tipo de fuentes</h4>
-                    <div className="space-y-2">
-                      {[
-                        { tipo: "Primarias", porcentaje: 65, descripcion: "Entrevistas, documentos originales" },
-                        { tipo: "Secundarias", porcentaje: 28, descripcion: "Análisis, informes" },
-                        { tipo: "Terciarias", porcentaje: 7, descripcion: "Compilaciones, resúmenes" },
-                      ].map((item, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-medium">{item.tipo}</span>
-                            <span>{item.porcentaje}%</span>
-                          </div>
-                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${i === 0 ? "bg-sidebar" : i === 1 ? "bg-coral" : "bg-yellow"} rounded-full`}
-                              style={{ width: `${item.porcentaje}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500">{item.descripcion}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="bg-white rounded-3xl shadow-sm">
+        {/* Pestaña de Rendimiento */}
+        <TabsContent value="performance" className="space-y-4">
+          <Card>
             <CardHeader>
-              <CardTitle>Fuentes Más Citadas</CardTitle>
-              <CardDescription>Principales referencias utilizadas</CardDescription>
+              <CardTitle>Tiempo de Respuesta por Tipo de Evento</CardTitle>
+              <CardDescription>Promedio (ms) por event_type</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { nombre: "Instituto Nacional de Estadística", tipo: "Oficial", citas: 28, confiabilidad: "Alta" },
-                  { nombre: "Universidad Nacional", tipo: "Académica", citas: 24, confiabilidad: "Alta" },
-                  { nombre: "Ministerio de Economía", tipo: "Oficial", citas: 22, confiabilidad: "Alta" },
-                  { nombre: "Centro de Investigación Política", tipo: "Think Tank", citas: 18, confiabilidad: "Media" },
-                  {
-                    nombre: "Organización Mundial de la Salud",
-                    tipo: "Internacional",
-                    citas: 16,
-                    confiabilidad: "Alta",
-                  },
-                  { nombre: "Asociación de Empresarios", tipo: "Privada", citas: 14, confiabilidad: "Media" },
-                ].map((fuente, i) => (
-                  <div key={i} className="p-3 border border-gray-100 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-sm">{fuente.nombre}</h4>
-                        <p className="text-xs text-gray-500">{fuente.tipo}</p>
-                      </div>
-                      <div
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          fuente.confiabilidad === "Alta"
-                            ? "bg-green-100 text-green-700"
-                            : fuente.confiabilidad === "Media"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
+              {data.responseTimeByEventType.length > 0 ? (
+                <ChartContainer
+                  config={{
+                    avgResponseTime: {
+                      label: "Tiempo (ms)",
+                      color: "hsl(var(--chart-1))",
+                    },
+                  }}
+                  className="h-[320px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart data={sortedResponseTimeByEventType}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="eventType" />
+                      <YAxis tickFormatter={(v) => `${v} ms`} />
+                      <Tooltip content={<ChartTooltipContent />} />
+                      <Legend content={<ChartLegendContent />} />
+                      <Bar
+                        dataKey="avgResponseTime"
+                        fill="var(--color-avgResponseTime)"
+                        radius={[4, 4, 0, 0]}
                       >
-                        {fuente.confiabilidad}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex justify-between items-center">
-                      <div className="flex items-center gap-1">
-                        <MessageSquare size={14} className="text-sidebar" />
-                        <span className="text-xs">{fuente.citas} citas</span>
-                      </div>
-                      <button className="text-xs text-sidebar">Ver artículos</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <LabelList
+                          dataKey="avgResponseTime"
+                          position="top"
+                          content={(props: any) => {
+                            const { x, y, width, value, index } = props
+                            const item = sortedResponseTimeByEventType[index]
+                            if (x == null || y == null || width == null) return null
+                            return (
+                              <text
+                                x={x + width / 2}
+                                y={y - 4}
+                                textAnchor="middle"
+                                fill="#6b7280"
+                                fontSize={12}
+                              >
+                                {`${(value / 1000).toFixed(2)}s (${item?.count ?? 0})`}
+                              </text>
+                            )
+                          }}
+                        />
+                      </Bar>
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-8">
+                  Sin datos de tiempos de respuesta por tipo de evento en el período seleccionado.
+                </div>
+              )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Pestaña de Errores */}
+        <TabsContent value="errors" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasas de Error por Día</CardTitle>
+                <CardDescription>Errores vs total de requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    errors: {
+                      label: "Errores",
+                      color: "hsl(var(--destructive))",
+                    },
+                    total: {
+                      label: "Total",
+                      color: "hsl(var(--chart-1))",
+                    },
+                  }}
+                  className="h-[300px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart data={data.errorRates}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip content={<ChartTooltipContent />} />
+                      <Legend content={<ChartLegendContent />} />
+                      <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="errors" fill="var(--color-errors)" radius={[4, 4, 0, 0]} />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Errores</CardTitle>
+                <CardDescription>Errores más frecuentes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.topErrors.length > 0 ? (
+                    data.topErrors.map((error, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-50">
+                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-red-900">{error.error}</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-xs text-red-600">{error.count} ocurrencias</span>
+                            <span className="text-xs text-red-500">Último: {error.lastOccurrence}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                      <p className="text-green-600 font-medium">¡Sin errores!</p>
+                      <p className="text-sm text-gray-500">No se encontraron errores en el período seleccionado</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Pestaña de Proveedores */}
+        <TabsContent value="providers" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Uso de Proveedores de IA</CardTitle>
+                <CardDescription>Distribución de uso por proveedor</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    openai: { label: "OpenAI", color: "#10B981" },
+                    anthropic: { label: "Anthropic", color: "#F59E0B" },
+                    google: { label: "Google", color: "#3B82F6" },
+                  }}
+                  className="h-[300px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.providerUsage}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ provider, count }) => `${provider}: ${count}`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {data.providerUsage.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={index === 0 ? "#10B981" : index === 1 ? "#F59E0B" : "#3B82F6"} 
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Métricas de Proveedores</CardTitle>
+                <CardDescription>Tokens y costos por proveedor</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.providerUsage.map((provider, i) => (
+                    <div key={i} className="p-4 rounded-lg border">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium">{provider.provider}</h4>
+                        <span className="text-sm text-green-600 font-medium">
+                          ${provider.cost.toFixed(3)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Requests</p>
+                          <p className="font-medium">{provider.count.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Tokens</p>
+                          <p className="font-medium">{provider.tokens.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Tokens/Request</span>
+                          <span>{Math.round(provider.tokens / provider.count)}</span>
+                        </div>
+                        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${i === 0 ? "bg-green-500" : i === 1 ? "bg-yellow-500" : "bg-blue-500"} rounded-full`}
+                            style={{ width: `${Math.min((provider.tokens / Math.max(...data.providerUsage.map(p => p.tokens))) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -925,25 +810,133 @@ function MetricCard({
   description: string
 }) {
   return (
-    <Card className="bg-white rounded-3xl shadow-sm">
+    <Card>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">{title}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
-            <div className="flex items-center mt-1">
-              {trend === "up" ? (
-                <ArrowUpRight size={14} className="text-green-500" />
-              ) : (
-                <ArrowDownRight size={14} className="text-red-500" />
-              )}
-              <p className={`text-xs ${trend === "up" ? "text-green-500" : "text-red-500"} ml-1`}>{change}</p>
-              <p className="text-xs text-gray-500 ml-2">{description}</p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-2xl font-bold">{value}</h3>
+              <div className={`flex items-center space-x-1 text-sm ${
+                trend === "up" ? "text-green-600" : "text-red-600"
+              }`}>
+                {trend === "up" ? (
+                  <ArrowUpRight className="h-4 w-4" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4" />
+                )}
+                <span>{change}</span>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </div>
-          <div className={`w-12 h-12 ${color} rounded-full flex items-center justify-center`}>{icon}</div>
+          <div className={`${color} rounded-full p-3`}>
+            {icon}
+          </div>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function AnalyticsLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96 mt-2" />
+        </div>
+        <div className="flex gap-3">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="h-96 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function NoDataState({ 
+  dateRange, 
+  setDateRange 
+}: { 
+  dateRange: string
+  setDateRange: (range: string) => void 
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Analytics de Herramientas</h1>
+          <p className="text-muted-foreground mt-1">Métricas de uso y rendimiento de tus herramientas de IA</p>
+        </div>
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="w-[180px]">
+            <Calendar className="h-4 w-4" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Últimos 7 días</SelectItem>
+            <SelectItem value="30d">Últimos 30 días</SelectItem>
+            <SelectItem value="90d">Últimos 90 días</SelectItem>
+            <SelectItem value="12m">Último año</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <BarChart className="h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay datos disponibles</h3>
+          <p className="text-gray-500 text-center max-w-md">
+            No se encontraron datos para el período seleccionado. Comienza a usar las herramientas para ver métricas aquí.
+          </p>
+          <Button className="mt-4" onClick={() => setDateRange("90d")}>
+            Ampliar período de búsqueda
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function ErrorState() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Analytics de Herramientas</h1>
+        <p className="text-muted-foreground mt-1">Métricas de uso y rendimiento de tus herramientas de IA</p>
+      </div>
+      
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <AlertCircle className="h-16 w-16 text-red-300 mb-4" />
+          <h3 className="text-lg font-semibold text-red-600 mb-2">Error al cargar datos</h3>
+          <p className="text-gray-500 text-center max-w-md">
+            Hubo un problema al cargar los datos de analytics. Por favor, intenta de nuevo más tarde.
+          </p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

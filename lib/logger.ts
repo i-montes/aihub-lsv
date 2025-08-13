@@ -1,4 +1,4 @@
-import { getSupabaseServer } from "@/lib/supabase/server";
+import { getSupabaseServer, getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { 
   LogEvent, 
   LogLevel, 
@@ -46,8 +46,8 @@ export class DebugLogger {
   private logs: DebugLogTypes[] = [];
   private context: LoggerContext;
   private startTime: number;
-  // Inicializamos el cliente de Supabase del servidor como una promesa
-  private supabasePromise = getSupabaseServer();
+  // Usar el cliente apropiado para server actions y route handlers
+  private supabasePromise = getSupabaseRouteHandler();
 
   constructor(context: LoggerContext = {}) {
     this.context = {
@@ -380,6 +380,17 @@ export class DebugLogger {
 
   getLogs(): DebugLogTypes[] {
     return this.logs;
+  }
+
+  // Método para obtener logs serializables para Server Actions y Client Components
+  getSerializableLogs(): DebugLogTypes[] {
+    return this.logs.map((log) => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+      // deep copy JSON-safe; elimina prototipos de clase y métodos
+      data: log.data ? JSON.parse(JSON.stringify(log.data)) : undefined,
+    }));
   }
 
   clear(): void {

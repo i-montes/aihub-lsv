@@ -78,6 +78,19 @@ export default function ThreadGenerator() {
   const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
 
+  // Ensure logs are strings for rendering
+  const formatLogEntry = (log: any): string => {
+    if (typeof log === "string") return log;
+    try {
+      const level = log?.level ? String(log.level).toUpperCase() : "INFO";
+      const message = log?.message ?? "";
+      const data = log?.data ? `\n${JSON.stringify(log.data, null, 2)}` : "";
+      return `[${level}] ${message}${data}`;
+    } catch {
+      return String(log);
+    }
+  };
+
   const generateThread = async () => {
     if (isGenerating) return; // Prevent multiple clicks
 
@@ -119,13 +132,13 @@ export default function ThreadGenerator() {
         setGeneratedThread(formattedThreads);
         // Store logs if they exist
         if (result.logs && Array.isArray(result.logs)) {
-          setGenerationLogs(result.logs);
+          setGenerationLogs(result.logs.map(formatLogEntry));
         }
         toast.success("Hilo generado exitosamente");
       } else {
         // Store logs even when there's an error
         if (result.logs && Array.isArray(result.logs)) {
-          setGenerationLogs(result.logs);
+          setGenerationLogs(result.logs.map(formatLogEntry));
         }
         toast.error(result.error || "Error al generar el hilo");
       }
