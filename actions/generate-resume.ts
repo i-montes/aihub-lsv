@@ -226,7 +226,7 @@ export default async function generateResume({
             .trim();
           const date = new Date(post.date).toLocaleString("es-ES");
 
-          if (!cleanContent) {
+          if (cleanContent.length < 100) {
             return "";
           }
 
