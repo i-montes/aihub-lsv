@@ -47,7 +47,7 @@ export default async function generateResume({
   // Implementación de la función para generar un resumen
   const debugLogger = new DebugLogger({
     toolIdentity: "resume",
-    source: "generate-resume-action"
+    source: "generate-resume-action",
   });
 
   try {
@@ -73,10 +73,10 @@ export default async function generateResume({
       await debugLogger.logAuth("Authentication failed", "failed", undefined, {
         message: "No hay usuario autenticado",
         code: "AUTH_FAILED",
-        context: { userAuthError }
+        context: { userAuthError },
       });
       await debugLogger.finalize("failed", {
-        error: { message: "No hay usuario autenticado", code: "AUTH_FAILED" }
+        error: { message: "No hay usuario autenticado", code: "AUTH_FAILED" },
       });
       throw new Error("No hay usuario autenticado");
     }
@@ -89,30 +89,46 @@ export default async function generateResume({
       .single();
 
     if (userError || !userData?.organizationId) {
-      await debugLogger.logAuth("Organization ID not found", "missing_organization", undefined, {
-        message: "No se pudo obtener el ID de la organización",
-        code: "ORG_ID_NOT_FOUND",
-        context: { userError }
-      });
+      await debugLogger.logAuth(
+        "Organization ID not found",
+        "missing_organization",
+        undefined,
+        {
+          message: "No se pudo obtener el ID de la organización",
+          code: "ORG_ID_NOT_FOUND",
+          context: { userError },
+        }
+      );
       await debugLogger.finalize("failed", {
-        error: { message: "No se pudo obtener el ID de la organización", code: "ORG_ID_NOT_FOUND" }
+        error: {
+          message: "No se pudo obtener el ID de la organización",
+          code: "ORG_ID_NOT_FOUND",
+        },
       });
       throw new Error("No se pudo obtener el ID de la organización");
     }
 
     const organizationId = userData.organizationId;
-    await debugLogger.logAuth("User authenticated successfully", "authenticated", {
-      userId: user.id,
-      organizationId,
-      role: userData.role,
-      email: user.email
-    });
-    
+    await debugLogger.logAuth(
+      "User authenticated successfully",
+      "authenticated",
+      {
+        userId: user.id,
+        organizationId,
+        role: userData.role,
+        email: user.email,
+      }
+    );
+
     // Update logger context
     debugLogger.updateContext({ userId: user.id, organizationId });
 
     // 2. Obtener la API key para el proveedor seleccionado
-    await debugLogger.logApiKey("Fetching API key", "fetching", { provider: selectedModel.provider as any, status: "fetching", hasValue: false });
+    await debugLogger.logApiKey("Fetching API key", "fetching", {
+      provider: selectedModel.provider as any,
+      status: "fetching",
+      hasValue: false,
+    });
     const { data: apiKeyData, error: apiKeyError } = await supabase
       .from("api_key_table")
       .select("key, provider")
@@ -122,12 +138,26 @@ export default async function generateResume({
       .single();
 
     if (apiKeyError || !apiKeyData) {
-      await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-        context: { apiKeyError }
+      await debugLogger.logApiKey(
+        "API key not found",
+        "not_found",
+        {
+          provider: selectedModel.provider as any,
+          status: "not_found",
+          hasValue: false,
+        },
+        {
+          message: "No se pudo obtener la API key para este proveedor",
+          code: "API_KEY_NOT_FOUND",
+          context: { apiKeyError },
+        }
+      );
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "No se pudo obtener la API key para este proveedor",
+          code: "API_KEY_NOT_FOUND",
+        },
       });
-      await debugLogger.finalize("failed", { error: { message: "No se pudo obtener la API key para este proveedor", code: "API_KEY_NOT_FOUND" } });
       return {
         success: false,
         error: "No se pudo obtener la API key para este proveedor",
@@ -138,8 +168,17 @@ export default async function generateResume({
 
     // Verificar que la clave API no esté vacía
     if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-      await debugLogger.logApiKey("API key is empty or invalid", "empty", { provider: selectedModel.provider as any, status: "empty", hasValue: false });
-      await debugLogger.finalize("failed", { error: { message: "La API key está vacía o no es válida", code: "API_KEY_EMPTY" } });
+      await debugLogger.logApiKey("API key is empty or invalid", "empty", {
+        provider: selectedModel.provider as any,
+        status: "empty",
+        hasValue: false,
+      });
+      await debugLogger.finalize("failed", {
+        error: {
+          message: "La API key está vacía o no es válida",
+          code: "API_KEY_EMPTY",
+        },
+      });
       return {
         success: false,
         error: "La API key está vacía o no es válida",
@@ -149,7 +188,11 @@ export default async function generateResume({
     }
 
     // 3. Obtener la configuración de la herramienta "resume"
-    await debugLogger.logToolConfig("Fetching tool configuration", "fetching", { identity: "resume", isCustom: false, promptsCount: 0 });
+    await debugLogger.logToolConfig("Fetching tool configuration", "fetching", {
+      identity: "resume",
+      isCustom: false,
+      promptsCount: 0,
+    });
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
       .select("prompts, temperature, top_p, schema")
@@ -160,7 +203,11 @@ export default async function generateResume({
     // Si no existe, obtener la configuración por defecto
     let tool;
     if (toolError) {
-      await debugLogger.logToolConfig("Using default tool configuration", "using_default", { identity: "resume", isCustom: false, promptsCount: 0 });
+      await debugLogger.logToolConfig(
+        "Using default tool configuration",
+        "using_default",
+        { identity: "resume", isCustom: false, promptsCount: 0 }
+      );
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
         .select("prompts, temperature, top_p, schema")
@@ -168,8 +215,22 @@ export default async function generateResume({
         .single();
 
       if (defaultToolError || !defaultToolData) {
-        await debugLogger.logToolConfig("Tool configuration not found", "not_found", undefined, { message: "No se pudo obtener la configuración de la herramienta", code: "TOOL_CONFIG_NOT_FOUND", context: { defaultToolError } });
-        await debugLogger.finalize("failed", { error: { message: "No se pudo obtener la configuración de la herramienta", code: "TOOL_CONFIG_NOT_FOUND" } });
+        await debugLogger.logToolConfig(
+          "Tool configuration not found",
+          "not_found",
+          undefined,
+          {
+            message: "No se pudo obtener la configuración de la herramienta",
+            code: "TOOL_CONFIG_NOT_FOUND",
+            context: { defaultToolError },
+          }
+        );
+        await debugLogger.finalize("failed", {
+          error: {
+            message: "No se pudo obtener la configuración de la herramienta",
+            code: "TOOL_CONFIG_NOT_FOUND",
+          },
+        });
         return {
           success: false,
           error: "No se pudo obtener la configuración de la herramienta",
@@ -180,7 +241,19 @@ export default async function generateResume({
 
       tool = defaultToolData;
     } else {
-      await debugLogger.logToolConfig("Custom tool configuration found", "found_custom", { identity: "resume", isCustom: true, promptsCount: toolData.prompts?.length || 0, temperature: toolData.temperature, topP: toolData.top_p, hasSchema: !!toolData.schema, promptTitles: toolData.prompts?.map((p: any) => p.title) || [] });
+      await debugLogger.logToolConfig(
+        "Custom tool configuration found",
+        "found_custom",
+        {
+          identity: "resume",
+          isCustom: true,
+          promptsCount: toolData.prompts?.length || 0,
+          temperature: toolData.temperature,
+          topP: toolData.top_p,
+          hasSchema: !!toolData.schema,
+          promptTitles: toolData.prompts?.map((p: any) => p.title) || [],
+        }
+      );
       tool = toolData;
     }
 
@@ -262,6 +335,22 @@ export default async function generateResume({
       importantNewsLinks
         .map((news) => {
           const finder = content.find((n) => n.link == news.link) || null;
+
+          if (!finder) {
+            return "";
+          }
+
+          const cleanContent = finder.content.rendered
+            .replace(/<[^>]*>/g, "") // Remover tags HTML
+            .replace(/\n/g, " ") // Remover saltos de línea
+            .replace(/\r/g, " ") // Remover retornos de carro
+            .replace(/\s+/g, " ") // Múltiples espacios en uno solo
+            .trim();
+
+          if (cleanContent.length < 100) {
+            return "";
+          }
+
           return `Título: ${news.title} \nFecha: ${new Date(
             finder?.date || ""
           ).toLocaleString("es-ES")} \nLink: ${news.link} \nContenido: ${
@@ -369,14 +458,19 @@ ${selectedNews
     }
 
     await debugLogger.finalize("completed", {
-      model: { provider: selectedModel.provider as any, model: selectedModel.model, temperature: tool.temperature, topP: tool.top_p },
+      model: {
+        provider: selectedModel.provider as any,
+        model: selectedModel.model,
+        temperature: tool.temperature,
+        topP: tool.top_p,
+      },
       metrics: {
         inputLength: combinedPrompt.length,
         outputLength: result.text.length,
-        processingTime: 0
+        processingTime: 0,
       },
       template: undefined,
-      inputSources: ["text"]
+      inputSources: ["text"],
     });
 
     return {

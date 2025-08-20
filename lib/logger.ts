@@ -49,6 +49,20 @@ export class DebugLogger {
   // Usar el cliente apropiado para server actions y route handlers
   private supabasePromise = getSupabaseRouteHandler();
 
+  // Función para mapear providers de minúsculas a mayúsculas
+  private mapProviderToUppercase(provider: string): string {
+    const providerMap: Record<string, string> = {
+      'openai': 'OPENAI',
+      'anthropic': 'ANTHROPIC',
+      'google': 'GOOGLE'
+    };
+    const result = providerMap[provider] || provider;
+    console.log('🔍 DEBUG - mapProviderToUppercase:', provider, '->', result);
+    return result;
+  }
+
+
+
   constructor(context: LoggerContext = {}) {
     this.context = {
       sessionId: this.generateId(),
@@ -80,7 +94,6 @@ export class DebugLogger {
   // Método principal para guardar eventos en la base de datos
   private async saveToDatabase(event: LogEvent): Promise<void> {
     try {
-      // Mapear el evento al formato de la tabla
       const dbRecord = {
         event_type: event.event,
         level: event.level,
@@ -108,11 +121,16 @@ export class DebugLogger {
           // Solo incluir provider si es válido (no vacío y está en la lista permitida)
           ...(event.apiKey?.provider && 
               ['openai', 'anthropic', 'google'].includes(event.apiKey.provider) && {
-            api_key_provider: event.apiKey.provider
+            api_key_provider: this.mapProviderToUppercase(event.apiKey.provider)
           }),
           api_key_has_value: event.apiKey?.hasValue,
           api_key_last_used: event.apiKey?.lastUsed
         }),
+        
+        // Debug logging for api_key provider
+        ...(event.event === "api_key" && event.apiKey?.provider && 
+            ['openai', 'anthropic', 'google'].includes(event.apiKey.provider) && 
+            console.log('🔍 DEBUG - api_key_provider set to:', this.mapProviderToUppercase(event.apiKey.provider))),
         
         ...(event.event === "tool_config" && {
           tool_config_status: event.status,
@@ -128,7 +146,7 @@ export class DebugLogger {
           tool_status: event.status,
           // Solo incluir ai_provider si es válido
           ...(event.model?.provider && ['openai', 'anthropic', 'google'].includes(event.model.provider) && {
-            ai_provider: event.model.provider
+            ai_provider: this.mapProviderToUppercase(event.model.provider)
           }),
           ai_model: event.model?.model,
           ai_temperature: event.model?.temperature,
@@ -147,19 +165,36 @@ export class DebugLogger {
           content_sources: event.content?.sources
         }),
         
+        // Debug logging for processing provider
+        ...(event.event === "processing" && (
+          event.model?.provider && ['openai', 'anthropic', 'google'].includes(event.model.provider) ?
+            console.log('🔍 DEBUG - processing ai_provider set to:', this.mapProviderToUppercase(event.model.provider)) :
+            console.log('🔍 DEBUG - processing ai_provider NOT set. Model:', event.model)
+        )),
+        
         ...(event.event === "analysis" && {
           tool_status: event.status,
+          // Solo incluir ai_provider si es válido
+          ...(event.model?.provider && ['openai', 'anthropic', 'google'].includes(event.model.provider) && {
+            ai_provider: this.mapProviderToUppercase(event.model.provider)
+          }),
+          ai_model: event.model?.model,
+          ai_temperature: event.model?.temperature,
+          ai_top_p: event.model?.topP,
+          ai_max_tokens: event.model?.maxTokens,
           analysis_results: event.results,
           analysis_input_type: event.inputData?.type,
           analysis_input_length: event.inputData?.length,
           analysis_input_language: event.inputData?.language
         }),
         
+
+        
         ...(event.event === "generation" && {
           tool_status: event.status,
           // Solo incluir ai_provider si es válido
           ...(event.model?.provider && ['openai', 'anthropic', 'google'].includes(event.model.provider) && {
-            ai_provider: event.model.provider
+            ai_provider: this.mapProviderToUppercase(event.model.provider)
           }),
           ai_model: event.model?.model,
           ai_temperature: event.model?.temperature,
@@ -172,6 +207,13 @@ export class DebugLogger {
           tokens_used: event.metrics?.tokensUsed,
           processing_time_ms: event.metrics?.processingTime
         }),
+        
+        // Debug logging for generation provider
+        ...(event.event === "generation" && (
+          event.model?.provider && ['openai', 'anthropic', 'google'].includes(event.model.provider) ?
+            console.log('🔍 DEBUG - generation ai_provider set to:', this.mapProviderToUppercase(event.model.provider)) :
+            console.log('🔍 DEBUG - generation ai_provider NOT set. Model:', event.model)
+        )),
         
         ...(event.event === "validation" && {
           validation_status: event.status,
@@ -193,9 +235,13 @@ export class DebugLogger {
           error_retryable: event.error.retryable,
           // Solo incluir error_provider si es válido
           ...(event.error.provider && ['openai', 'anthropic', 'google'].includes(event.error.provider) && {
-            error_provider: event.error.provider
+            error_provider: this.mapProviderToUppercase(event.error.provider)
           })
         }),
+        
+        // Debug logging for error provider
+        ...(event.error?.provider && ['openai', 'anthropic', 'google'].includes(event.error.provider) && 
+            console.log('🔍 DEBUG - error_provider set to:', this.mapProviderToUppercase(event.error.provider))),
         
         // Contexto adicional
         context: {},
@@ -208,10 +254,13 @@ export class DebugLogger {
         .insert(dbRecord);
 
       if (error) {
-        console.error("[Logger] Error saving to database:", error);
+        console.error("❌ [Logger] Error saving to database:", error);
+        console.error("❌ Failed record:", dbRecord);
+      } else {
+        console.log("✅ Successfully saved log to database");
       }
     } catch (error) {
-      console.error("[Logger] Exception saving to database:", error);
+      console.error("❌ [Logger] Exception saving to database:", error);
     }
   }
 
@@ -291,6 +340,7 @@ export class DebugLogger {
     message: string, 
     status: ToolStatus, 
     options: {
+      model?: AIModelInfo;
       results?: AnalysisResult[];
       inputData?: { type: ContentType; length: number; language?: string };
       error?: ErrorInfo;
@@ -299,6 +349,7 @@ export class DebugLogger {
     const event = createLogEvent.analysis({
       level: options.error ? "error" : "info",
       status,
+      model: options.model,
       results: options.results,
       inputData: options.inputData,
       metadata: this.getBaseMetadata(),
@@ -441,6 +492,7 @@ export class DebugLogger {
         errorInfo ? `Finalizado con error: ${errorInfo.message}` : "Finalizado con éxito",
         finalStatus,
         {
+          model: modelInfo,
           results: options.results,
           inputData: options.inputData,
           error: errorInfo

@@ -26,6 +26,10 @@ export async function analyzeText(
   text: string,
   selectedModel: { model: string; provider: string }
 ) {
+  // Definir valores por defecto para temperature y top_p
+  let temperature = 0.7;
+  let top_p = 0.9;
+
   // Inicializar logger con contexto específico de proofreader
   const debugLogger = new DebugLogger({
     toolIdentity: "proofreader",
@@ -58,6 +62,12 @@ export async function analyzeText(
 
       // Finalizar con estado fallido
       await debugLogger.finalize("failed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
         error: {
           message: "No hay usuario autenticado",
           code: "AUTH_ERROR",
@@ -83,6 +93,12 @@ export async function analyzeText(
 
       // Finalizar con estado fallido
       await debugLogger.finalize("failed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
         error: {
           message: "No hay usuario autenticado",
           code: "AUTH_ERROR",
@@ -159,6 +175,12 @@ export async function analyzeText(
       );
 
       await debugLogger.finalize("failed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
         error: {
           message: "No se pudo obtener la API key para este proveedor",
           code: "API_KEY_NOT_FOUND",
@@ -190,6 +212,12 @@ export async function analyzeText(
       );
 
       await debugLogger.finalize("failed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
         error: {
           message: "La API key está vacía o no es válida",
           code: "API_KEY_EMPTY",
@@ -557,6 +585,12 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       };
     } catch (error) {
       await debugLogger.finalize("failed", {
+        model: {
+          provider: selectedModel.provider as any,
+          model: selectedModel.model,
+          temperature,
+          topP: top_p,
+        },
         error: {
           message: "Error al procesar la respuesta del modelo",
           code: "RESPONSE_PARSE_ERROR",
@@ -574,6 +608,12 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     }
   } catch (error) {
     await debugLogger.finalize("failed", {
+      model: {
+        provider: selectedModel.provider as any,
+        model: selectedModel.model,
+        temperature,
+        topP: top_p,
+      },
       error: {
         message: "Error en el procesamiento del texto",
         code: "PROCESSING_ERROR",
