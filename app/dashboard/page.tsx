@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -29,8 +29,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from 'react';
-import UsefulLinksModal from '@/components/useful-links-modal';
+import { useState, useEffect } from "react";
+import UsefulLinksModal from "@/components/useful-links-modal";
+import { useAuth } from "@/hooks/use-auth";
 
 interface UsefulLink {
   id: number;
@@ -46,6 +47,7 @@ export default function Dashboard() {
   const [usefulLinks, setUsefulLinks] = useState<UsefulLink[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingLinks, setIsLoadingLinks] = useState(true);
+  const { profile } = useAuth();
 
   // Cargar enlaces útiles al montar el componente
   useEffect(() => {
@@ -55,15 +57,15 @@ export default function Dashboard() {
   const fetchUsefulLinks = async () => {
     setIsLoadingLinks(true);
     try {
-      const response = await fetch('/api/useful-links');
+      const response = await fetch("/api/useful-links");
       if (response.ok) {
         const data = await response.json();
         setUsefulLinks(data.links || []);
       } else {
-        console.error('Error fetching useful links');
+        console.error("Error fetching useful links");
       }
     } catch (error) {
-      console.error('Error fetching useful links:', error);
+      console.error("Error fetching useful links:", error);
     } finally {
       setIsLoadingLinks(false);
     }
@@ -217,15 +219,17 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <CardTitle>Enlaces útiles</CardTitle>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center gap-1"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
+                {profile?.role == "OWNER" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-1"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Editar
+                  </Button>
+                )}
                 <ChevronDown className="h-4 w-4 text-gray-400 animate-bounce" />
               </div>
             </div>
@@ -294,13 +298,17 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">Nueva Página de Analíticas</p>
+                        <p className="font-medium">
+                          Nueva Página de Analíticas
+                        </p>
                         <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full">
                           Nuevo
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Ahora puedes acceder a métricas detalladas de uso, estadísticas de herramientas y análisis de rendimiento en la nueva sección de analíticas.
+                        Ahora puedes acceder a métricas detalladas de uso,
+                        estadísticas de herramientas y análisis de rendimiento
+                        en la nueva sección de analíticas.
                       </p>
                     </div>
                   </div>
@@ -308,13 +316,17 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">Mejoras en el Botón de Colapso del Sidebar</p>
+                        <p className="font-medium">
+                          Mejoras en el Botón de Colapso del Sidebar
+                        </p>
                         <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
                           Actualizado
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        El botón de colapso del sidebar ahora está visualmente integrado con el título y ofrece una mejor experiencia de usuario.
+                        El botón de colapso del sidebar ahora está visualmente
+                        integrado con el título y ofrece una mejor experiencia
+                        de usuario.
                       </p>
                     </div>
                   </div>
@@ -322,13 +334,16 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">Nueva Herramienta de Newsletter</p>
+                        <p className="font-medium">
+                          Nueva Herramienta de Newsletter
+                        </p>
                         <span className="text-xs px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full">
                           Nuevo
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Ya puedes crear newsletters personalizados con formatos optimizados.
+                        Ya puedes crear newsletters personalizados con formatos
+                        optimizados.
                       </p>
                     </div>
                   </div>
@@ -342,8 +357,8 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Hemos lanzado una nueva versión del generador de hilos con
-                        soporte para múltiples plataformas.
+                        Hemos lanzado una nueva versión del generador de hilos
+                        con soporte para múltiples plataformas.
                       </p>
                     </div>
                   </div>
@@ -354,8 +369,8 @@ export default function Dashboard() {
                         Mejoras en el Corrector de Estilo
                       </p>
                       <p className="text-sm text-gray-600">
-                        El corrector de estilo ahora admite más guías editoriales
-                        y ofrece sugerencias más precisas.
+                        El corrector de estilo ahora admite más guías
+                        editoriales y ofrece sugerencias más precisas.
                       </p>
                     </div>
                   </div>
@@ -366,7 +381,8 @@ export default function Dashboard() {
                         Lanzamiento del Generador de Resúmenes
                       </p>
                       <p className="text-sm text-gray-600">
-                        Nueva herramienta para crear resúmenes automáticos de noticias basados en artículos recientes.
+                        Nueva herramienta para crear resúmenes automáticos de
+                        noticias basados en artículos recientes.
                       </p>
                     </div>
                   </div>
@@ -378,11 +394,11 @@ export default function Dashboard() {
       </section>
 
       {/* Modal para gestionar enlaces útiles */}
-       <UsefulLinksModal
-         isOpen={isModalOpen}
-         onClose={() => setIsModalOpen(false)}
-         onLinksUpdated={handleLinksUpdated}
-       />
+      <UsefulLinksModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onLinksUpdated={handleLinksUpdated}
+      />
     </div>
   );
 }
