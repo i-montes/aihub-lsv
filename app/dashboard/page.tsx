@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -23,11 +25,54 @@ import {
   RssIcon,
   ExternalLink,
   ChevronDown,
+  Edit,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useState, useEffect } from 'react';
+import UsefulLinksModal from '@/components/useful-links-modal';
+
+interface UsefulLink {
+  id: number;
+  name: string;
+  description: string | null;
+  link: string;
+  organization_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function Dashboard() {
+  const [usefulLinks, setUsefulLinks] = useState<UsefulLink[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(true);
+
+  // Cargar enlaces útiles al montar el componente
+  useEffect(() => {
+    fetchUsefulLinks();
+  }, []);
+
+  const fetchUsefulLinks = async () => {
+    setIsLoadingLinks(true);
+    try {
+      const response = await fetch('/api/useful-links');
+      if (response.ok) {
+        const data = await response.json();
+        setUsefulLinks(data.links || []);
+      } else {
+        console.error('Error fetching useful links');
+      }
+    } catch (error) {
+      console.error('Error fetching useful links:', error);
+    } finally {
+      setIsLoadingLinks(false);
+    }
+  };
+
+  const handleLinksUpdated = () => {
+    fetchUsefulLinks();
+  };
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -171,7 +216,18 @@ export default function Dashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Enlaces útiles</CardTitle>
-              <ChevronDown className="h-4 w-4 text-gray-400 animate-bounce" />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <ChevronDown className="h-4 w-4 text-gray-400 animate-bounce" />
+              </div>
             </div>
             <CardDescription>
               Herramientas externas recomendadas para periodistas
@@ -180,50 +236,40 @@ export default function Dashboard() {
           <CardContent>
             <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               <div className="space-y-3 pr-2">
-                <a
-                  href="https://notebooklm.google/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">NotebookLM</p>
-                    <p className="text-sm text-gray-500">
-                      Asistente de investigación con IA para analizar documentos y generar pódcasts
+                {isLoadingLinks ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-gray-500">Cargando enlaces...</p>
+                  </div>
+                ) : usefulLinks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-2">
+                      Aquí aparecerán los enlaces a herramientas externas útiles
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Haz clic en "Editar" para añadir enlaces personalizados
                     </p>
                   </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://journaliststudio.google.com/pinpoint/about/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">Pinpoint</p>
-                    <p className="text-sm text-gray-500">
-                      Herramienta para analizar grandes cantidades de datos
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
-
-                <a
-                  href="https://godds.ads.northwestern.edu/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">GODDS</p>
-                    <p className="text-sm text-gray-500">
-                      Sistema de detección de deepfakes para verificar autenticidad de contenido multimedia
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-gray-400" />
-                </a>
+                ) : (
+                  usefulLinks.map((link) => (
+                    <a
+                      key={link.id}
+                      href={link.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div>
+                        <p className="font-medium">{link.name}</p>
+                        {link.description && (
+                          <p className="text-sm text-gray-500">
+                            {link.description}
+                          </p>
+                        )}
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-gray-400" />
+                    </a>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>
@@ -302,6 +348,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Modal para gestionar enlaces útiles */}
+       <UsefulLinksModal
+         isOpen={isModalOpen}
+         onClose={() => setIsModalOpen(false)}
+         onLinksUpdated={handleLinksUpdated}
+       />
     </div>
   );
 }

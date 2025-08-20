@@ -16,6 +16,7 @@ import {
   Globe,
   Sparkles,
   PenToolIcon as Tool,
+  BookAIcon,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { toast } from "sonner"
@@ -127,6 +128,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         title="Wordpress"
                         active={pathname === "/dashboard/configuracion/wordpress"}
                         onClick={() => router.push("/dashboard/configuracion/wordpress")}
+                        indented
+                      />
+                      <SettingsMenuItem
+                        icon={<BookAIcon size={18} />}
+                        title="Documentación"
+                        active={pathname === "/documentacion"}
+                        onClick={() => router.push("/documentacion")}
                         indented
                       />
                       {/* <SettingsMenuItem

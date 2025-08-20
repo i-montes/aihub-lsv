@@ -61,14 +61,6 @@ export default function SupportPage() {
     }
   ]
 
-  const contactMethod = {
-    icon: Mail,
-    title: "Email de soporte",
-    description: "Respuesta en 24 horas",
-    contact: "labdeia@lasillavacia.com",
-    action: "Enviar email"
-  }
-
   const resources = [
     {
       icon: BookOpen,
@@ -111,29 +103,6 @@ export default function SupportPage() {
         </div>
       </div>
 
-      {/* Contact Method */}
-      <div className="flex justify-center">
-        <div className="w-full max-w-md">
-          <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mb-4">
-                  <contactMethod.icon className="h-6 w-6 text-primary-600" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{contactMethod.title}</h3>
-                <p className="text-sm text-gray-500 mb-2">{contactMethod.description}</p>
-                <p className="text-sm font-medium mb-4">{contactMethod.contact}</p>
-                <a href={`mailto:${contactMethod.contact}`}>
-                  <Button variant="outline" className="w-full">
-                    {contactMethod.action}
-                  </Button>
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
       {/* FAQ Section */}
       <Card className="bg-white rounded-3xl shadow-sm">
         <CardHeader>
@@ -155,38 +124,6 @@ export default function SupportPage() {
               </AccordionItem>
             ))}
           </Accordion>
-        </CardContent>
-      </Card>
-
-      {/* Resources Section */}
-      <Card className="bg-white rounded-3xl shadow-sm">
-        <CardHeader>
-          <CardTitle>Recursos adicionales</CardTitle>
-          <CardDescription>
-            Explora nuestros recursos para sacar el máximo provecho de la plataforma
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {resources.map((resource, index) => (
-              <Link
-                key={index}
-                href={resource.link}
-                className="flex items-center p-4 rounded-lg border hover:bg-gray-50 transition-colors group"
-              >
-                <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center mr-4">
-                  <resource.icon className="h-5 w-5 text-primary-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium group-hover:text-primary-600 transition-colors">
-                    {resource.title}
-                  </h4>
-                  <p className="text-sm text-gray-500">{resource.description}</p>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
-              </Link>
-            ))}
-          </div>
         </CardContent>
       </Card>
 

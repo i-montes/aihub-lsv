@@ -1,51 +1,87 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { usePathname } from "next/navigation"
-import { Home, BarChart, FileCheck, FileText, ChevronRight, ChevronLeft, Settings, RssIcon, BookOpen } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
+import type React from "react";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  BarChart,
+  FileCheck,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  Settings,
+  RssIcon,
+  BookOpen,
+} from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 // Componente para el icono de X/Twitter
 function XIcon({ className }: { className?: string }) {
   return (
-    <svg fill="none" viewBox="0.254 0.25 500 451.954" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg
+      fill="none"
+      viewBox="0.254 0.25 500 451.954"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
       <path
         d="M394.033.25h76.67L303.202 191.693l197.052 260.511h-154.29L225.118 294.205 86.844 452.204H10.127l179.16-204.77L.254.25H158.46l109.234 144.417zm-26.908 406.063h42.483L135.377 43.73h-45.59z"
         fill="currentColor"
       />
     </svg>
-  )
+  );
 }
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const [isExpanded, setIsExpanded] = useState(true)
+  const pathname = usePathname();
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const { profile } = useAuth();
 
   const toggleSidebar = () => {
-    setIsExpanded(!isExpanded)
-  }
+    setIsExpanded(!isExpanded);
+  };
 
   return (
-    <div className={`h-full py-4 sm:py-6 transition-all duration-300 ml-2 ${isExpanded ? "w-[200px]" : "w-[70px]"}`}>
+    <div
+      className={`h-full py-4 sm:py-6 transition-all duration-300 ml-2 ${
+        isExpanded ? "w-[200px]" : "w-[70px]"
+      }`}
+    >
       <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm py-4 px-2 relative justify-between">
         {/* Contenido superior */}
         <div className="flex flex-col">
-          {/* Logo del dashboard */}
-          <div className="flex justify-center items-center mb-6">
-          {isExpanded && <span className="mr-2 font-bold text-lg transition-opacity duration-200">KIT.AI</span>}
-            {/* <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-              <span className="text-white font-bold">AI</span>
-            </div> */}
+          {/* Logo del dashboard con botón integrado */}
+          <div className={`flex items-center mb-6 px-2 transition-all duration-300 ${
+            isExpanded ? "justify-between" : "justify-center"
+          }`}>
+            {/* Título */}
+            {isExpanded && (
+              <span className="font-bold text-lg transition-opacity duration-200 text-gray-800">
+                KIT.AI
+              </span>
+            )}
+            
+            {/* Botón para expandir/contraer integrado */}
+            <button
+              onClick={toggleSidebar}
+              className="group relative p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-sm flex-shrink-0"
+              title={isExpanded ? "Contraer sidebar" : "Expandir sidebar"}
+            >
+              {isExpanded ? (
+                <ChevronLeft size={16} className="text-gray-600 group-hover:text-gray-800 transition-colors duration-200" />
+              ) : (
+                <ChevronRight size={16} className="text-gray-600 group-hover:text-gray-800 transition-colors duration-200" />
+              )}
+              
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                {isExpanded ? "Contraer" : "Expandir"}
+              </div>
+            </button>
           </div>
-
-          {/* Botón para expandir/contraer */}
-          <button
-            onClick={toggleSidebar}
-            className="absolute -right-3 top-12 w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center text-white shadow-md hover:bg-primary-700 transition-colors"
-          >
-            {isExpanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-          </button>
 
           {/* Iconos de navegación */}
           <div className="flex flex-col items-center gap-4 mt-4">
@@ -84,13 +120,14 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/boletin"}
               isExpanded={isExpanded}
             />
-            <NavItem
-              icon={<BookOpen className="size-5" />}
-              label="Documentación"
-              href="/documentacion"
-              isActive={pathname === "/documentacion"}
+
+            {/* <NavItem
+              icon={<BarChart className="size-5" />}
+              label="Analiticas"
+              href="/dashboard/analiticas"
+              isActive={pathname === "/dashboard/analiticas"}
               isExpanded={isExpanded}
-            />
+            /> */}
             {/* <NavItem
               icon={<FileText className="size-5" />}
               label="Boletín"
@@ -110,6 +147,15 @@ export function Sidebar() {
 
         {/* Contenido inferior - Settings */}
         <div className="mt-4">
+          {profile?.role == "OWNER" && (
+            <NavItem
+              icon={<BarChart className="size-5" />}
+              label="Analiticas"
+              href="/dashboard/analiticas"
+              isActive={pathname === "/dashboard/analiticas"}
+              isExpanded={isExpanded}
+            />
+          )}
           <NavItem
             icon={<Settings className="size-5" />}
             label="Ajustes"
@@ -120,7 +166,7 @@ export function Sidebar() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function NavItem({
@@ -130,23 +176,31 @@ function NavItem({
   isActive = false,
   isExpanded = false,
 }: {
-  icon: React.ReactNode
-  label: string
-  href: string
-  isActive?: boolean
-  isExpanded?: boolean
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  isActive?: boolean;
+  isExpanded?: boolean;
 }) {
   return (
     <Link href={href} className="w-full">
       <div
         className={`flex items-center py-3 px-3 rounded-xl cursor-pointer transition-all duration-200
-          ${isActive ? "bg-primary-600 text-white" : "text-gray-500 hover:text-primary-600 hover:bg-gray-100"}
+          ${
+            isActive
+              ? "bg-primary-600 text-white"
+              : "text-gray-500 hover:text-primary-600 hover:bg-gray-100"
+          }
           ${isExpanded ? "justify-start" : "justify-center"}
         `}
       >
         <div className="flex-shrink-0">{icon}</div>
-        {isExpanded && <span className={`ml-3 font-medium transition-opacity duration-200`}>{label}</span>}
+        {isExpanded && (
+          <span className={`ml-3 font-medium transition-opacity duration-200`}>
+            {label}
+          </span>
+        )}
       </div>
     </Link>
-  )
+  );
 }
