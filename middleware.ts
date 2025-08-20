@@ -13,6 +13,34 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301)
   }
 
+  // Dashboard route redirects from English to Spanish (permanent 301 redirects)
+  const dashboardRedirects: Record<string, string> = {
+    '/dashboard/activity': '/dashboard/actividad',
+    '/dashboard/analytics': '/dashboard/analiticas',
+    '/dashboard/newsletter': '/dashboard/boletin',
+    '/dashboard/settings': '/dashboard/configuracion',
+    '/dashboard/content': '/dashboard/contenido',
+    '/dashboard/proofreader': '/dashboard/corrector',
+    '/dashboard/thread-generator': '/dashboard/generador-hilos',
+    '/dashboard/summary-generator': '/dashboard/generador-resumen',
+    '/dashboard/notifications': '/dashboard/notificaciones',
+    '/dashboard/organization': '/dashboard/organizacion',
+    '/dashboard/profile': '/dashboard/perfil',
+    '/dashboard/support': '/dashboard/soporte',
+  }
+
+  // Check for exact matches and nested routes
+  const pathname = req.nextUrl.pathname
+  for (const [englishPath, spanishPath] of Object.entries(dashboardRedirects)) {
+    // Check for exact match or nested routes (e.g., /dashboard/activity/something)
+    if (pathname === englishPath || pathname.startsWith(englishPath + '/')) {
+      // Replace the English part with Spanish part, preserving any nested paths
+      const newPathname = pathname.replace(englishPath, spanishPath)
+      const redirectUrl = new URL(newPathname + req.nextUrl.search + req.nextUrl.hash, req.url)
+      return NextResponse.redirect(redirectUrl, 301)
+    }
+  }
+
   const res = NextResponse.next()
 
   // Check if the user is trying to access auth routes with active auth cookies
