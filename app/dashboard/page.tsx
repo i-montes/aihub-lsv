@@ -294,6 +294,34 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
+                        <p className="font-medium">Nueva Página de Analíticas</p>
+                        <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full">
+                          Nuevo
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Ahora puedes acceder a métricas detalladas de uso, estadísticas de herramientas y análisis de rendimiento en la nueva sección de analíticas.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Mejoras en el Botón de Colapso del Sidebar</p>
+                        <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                          Actualizado
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        El botón de colapso del sidebar ahora está visualmente integrado con el título y ofrece una mejor experiencia de usuario.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         <p className="font-medium">Nueva Herramienta de Newsletter</p>
                         <span className="text-xs px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full">
                           Nuevo
