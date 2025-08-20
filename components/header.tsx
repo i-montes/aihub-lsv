@@ -129,7 +129,7 @@ export function Header() {
 
                 <div className="px-4 py-2 border-t border-gray-100">
                   <Link
-                    href="/dashboard/notifications"
+                    href="/dashboard/notificaciones"
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium block text-center"
                   >
                     Ver todas las notificaciones
@@ -139,7 +139,7 @@ export function Header() {
             )}
           </div> */}
 
-          <Link href="/dashboard/support">
+          <Link href="/dashboard/soporte">
             <Button variant="ghost" className="flex items-center gap-2">
               <HelpCircle size={16} />
               ¿Necesitas ayuda?
@@ -182,7 +182,7 @@ export function Header() {
                 className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-10 border border-gray-100"
               >
                 <Link
-                  href="/dashboard/settings"
+                  href="/dashboard/configuracion"
                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Settings size={16} className="mr-2" />

@@ -69,15 +69,15 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                     <SettingsMenuItem
                       icon={<User size={18} />}
                       title="Profile"
-                      active={pathname === "/dashboard/settings/profile"}
-                      onClick={() => router.push("/dashboard/settings/profile")}
+                      active={pathname === "/dashboard/configuracion/perfil"}
+                      onClick={() => router.push("/dashboard/configuracion/perfil")}
                       indented
                     />
                     <SettingsMenuItem
                       icon={<Shield size={18} />}
                       title="Security"
-                      active={pathname === "/dashboard/settings/security"}
-                      onClick={() => router.push("/dashboard/settings/security")}
+                      active={pathname === "/dashboard/configuracion/seguridad"}
+                      onClick={() => router.push("/dashboard/configuracion/seguridad")}
                       indented
                     />
                   </>
@@ -97,43 +97,43 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                       <SettingsMenuItem
                         icon={<Building size={18} />}
                         title="General Information"
-                        active={pathname === "/dashboard/settings/general-information"}
-                        onClick={() => router.push("/dashboard/settings/general-information")}
+                        active={pathname === "/dashboard/configuracion/informacion-general"}
+                        onClick={() => router.push("/dashboard/configuracion/informacion-general")}
                         indented
                       />
                       <SettingsMenuItem
                         icon={<Users size={18} />}
                         title="User List"
-                        active={pathname === "/dashboard/settings/user-list"}
-                        onClick={() => router.push("/dashboard/settings/user-list")}
+                        active={pathname === "/dashboard/configuracion/lista-usuarios"}
+                        onClick={() => router.push("/dashboard/configuracion/lista-usuarios")}
                         indented
                       />
                       <SettingsMenuItem
                         icon={<Sparkles size={18} />}
                         title="Integrations"
-                        active={pathname === "/dashboard/settings/integrations"}
-                        onClick={() => router.push("/dashboard/settings/integrations")}
+                        active={pathname === "/dashboard/configuracion/integraciones"}
+                        onClick={() => router.push("/dashboard/configuracion/integraciones")}
                         indented
                       />
                       <SettingsMenuItem
                         icon={<Tool size={18} />}
                         title="Herramientas"
-                        active={pathname === "/dashboard/settings/tools"}
-                        onClick={() => router.push("/dashboard/settings/tools")}
+                        active={pathname === "/dashboard/configuracion/herramientas"}
+                        onClick={() => router.push("/dashboard/configuracion/herramientas")}
                         indented
                       />
                       <SettingsMenuItem
                         icon={<Globe size={18} />}
                         title="Wordpress"
-                        active={pathname === "/dashboard/settings/wordpress"}
-                        onClick={() => router.push("/dashboard/settings/wordpress")}
+                        active={pathname === "/dashboard/configuracion/wordpress"}
+                        onClick={() => router.push("/dashboard/configuracion/wordpress")}
                         indented
                       />
                       {/* <SettingsMenuItem
                         icon={<CreditCard size={18} />}
                         title="Billing & Usage"
-                        active={pathname === "/dashboard/settings/billing"}
-                        onClick={() => router.push("/dashboard/settings/billing")}
+                        active={pathname === "/dashboard/configuracion/facturacion"}
+                        onClick={() => router.push("/dashboard/configuracion/facturacion")}
                         indented
                       /> */}
                     </>

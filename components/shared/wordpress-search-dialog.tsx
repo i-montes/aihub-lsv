@@ -287,7 +287,7 @@ export function WordPressSearchDialog({
   const internalOnNavigateToSettings = () => {
     setDialogOpen(false);
     // Navegar a la página de configuración de WordPress
-    window.location.href = "/dashboard/settings/wordpress";
+    window.location.href = "/dashboard/configuracion/wordpress";
   };
 
   // Usar la función de búsqueda externa si se proporciona, de lo contrario usar la interna

@@ -59,29 +59,29 @@ export function Sidebar() {
             <NavItem
               icon={<FileCheck className="size-5" />}
               label="Corrector"
-              href="/dashboard/proofreader"
-              isActive={pathname === "/dashboard/proofreader"}
+              href="/dashboard/corrector"
+              isActive={pathname === "/dashboard/corrector"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<XIcon className="size-5" />}
               label="Hilos"
-              href="/dashboard/thread-generator"
-              isActive={pathname === "/dashboard/thread-generator"}
+              href="/dashboard/generador-hilos"
+              isActive={pathname === "/dashboard/generador-hilos"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<FileText className="size-5" />}
               label="Resúmenes"
-              href="/dashboard/summary-generator"
-              isActive={pathname === "/dashboard/summary-generator"}
+              href="/dashboard/generador-resumen"
+              isActive={pathname === "/dashboard/generador-resumen"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<RssIcon className="size-5" />}
               label="Newsletter"
-              href="/dashboard/newsletter"
-              isActive={pathname === "/dashboard/newsletter"}
+              href="/dashboard/boletin"
+              isActive={pathname === "/dashboard/boletin"}
               isExpanded={isExpanded}
             />
             <NavItem
@@ -94,15 +94,15 @@ export function Sidebar() {
             {/* <NavItem
               icon={<FileText className="size-5" />}
               label="Boletín"
-              href="/dashboard/newsletter-generator"
-              isActive={pathname === "/dashboard/newsletter-generator"}
+              href="/dashboard/generador-boletin"
+              isActive={pathname === "/dashboard/generador-boletin"}
               isExpanded={isExpanded}
             />
             <NavItem
               icon={<BarChart className="size-5" />}
               label="Analítica"
-              href="/dashboard/analytics"
-              isActive={pathname === "/dashboard/analytics"}
+              href="/dashboard/analiticas"
+              isActive={pathname === "/dashboard/analiticas"}
               isExpanded={isExpanded}
             /> */}
           </div>
@@ -113,8 +113,8 @@ export function Sidebar() {
           <NavItem
             icon={<Settings className="size-5" />}
             label="Ajustes"
-            href="/dashboard/settings"
-            isActive={pathname.startsWith("/dashboard/settings")}
+            href="/dashboard/configuracion"
+            isActive={pathname.startsWith("/dashboard/configuracion")}
             isExpanded={isExpanded}
           />
         </div>

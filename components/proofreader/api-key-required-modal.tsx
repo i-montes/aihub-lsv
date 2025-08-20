@@ -15,7 +15,7 @@ export function ApiKeyRequiredModal({ isOpen, isAdmin, isLoading }: ApiKeyRequir
   const router = useRouter()
 
   const handleNavigateToSettings = () => {
-    router.push("/dashboard/settings/integrations")
+    router.push("/dashboard/configuracion/integraciones")
   }
 
   if (isLoading) {

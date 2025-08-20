@@ -43,7 +43,7 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    router.push("/dashboard/settings/profile")
+    router.push("/dashboard/configuracion/perfil")
   }, [router])
 
 }

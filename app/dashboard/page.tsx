@@ -59,7 +59,7 @@ export default function Dashboard() {
                   personalizadas
                 </p>
                 <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/proofreader">
+                  <Link href="/dashboard/corrector">
                     <Button
                       variant="outline"
                       className="flex items-center gap-1"
@@ -89,7 +89,7 @@ export default function Dashboard() {
                   Convierte tus artículos en hilos de X listos para publicar. 🧵
                 </p>
                 <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/thread-generator">
+                  <Link href="/dashboard/generador-hilos">
                     <Button
                       variant="outline"
                       className="flex items-center gap-1"
@@ -119,7 +119,7 @@ export default function Dashboard() {
                   Crea newsletter con formatos personalizados.
                 </p>
                 <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/newsletter">
+                  <Link href="/dashboard/boletin">
                     <Button
                       variant="outline"
                       className="flex items-center gap-1"
@@ -149,7 +149,7 @@ export default function Dashboard() {
                   publicados.
                 </p>
                 <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/summary-generator">
+                  <Link href="/dashboard/generador-resumen">
                     <Button
                       variant="outline"
                       className="flex items-center gap-1"

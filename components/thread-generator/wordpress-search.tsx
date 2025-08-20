@@ -162,7 +162,7 @@ export function WordPressSearch({ onSelectContent }: WordPressSearchProps) {
 
   // Función para navegar a la configuración de WordPress
   const handleNavigateToSettings = () => {
-    router.push("/dashboard/settings/wordpress")
+    router.push("/dashboard/configuracion/wordpress")
   }
 
   return (
