@@ -12,6 +12,7 @@ import {
   Settings,
   RssIcon,
   BookOpen,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -38,7 +39,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+
+  // Lista de correos autorizados para acceso de admin
+  const adminEmails = [
+    "kdelahoz@lasillavacia.com",
+    "imontes@lasillavacia.com",
+    "jromero@lasillavacia.com"
+  ];
+
+  // Verificar si el usuario es admin
+  const isAdmin = () => {
+    const userEmail = user?.email || profile?.email;
+    return userEmail && adminEmails.includes(userEmail);
+  };
 
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded);
@@ -153,6 +167,15 @@ export function Sidebar() {
               label="Analiticas"
               href="/dashboard/analiticas"
               isActive={pathname === "/dashboard/analiticas"}
+              isExpanded={isExpanded}
+            />
+          )}
+          {isAdmin() && (
+            <NavItem
+              icon={<Shield className="size-5" />}
+              label="Admin"
+              href="/dashboard/admin/organizaciones"
+              isActive={pathname.startsWith("/dashboard/admin")}
               isExpanded={isExpanded}
             />
           )}

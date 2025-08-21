@@ -1,4 +1,5 @@
 import { api } from "@/lib/api-client"
+import { Organization } from "./organization-service"
 
 export type User = {
   id: string
@@ -104,7 +105,8 @@ export const AuthService = {
     await api.put("/auth/reset-password/update", { code, newPassword, confirmPassword })
   },
 
-  async getProfile(): Promise<{ profile: Profile }> {
+  async getProfile(): Promise<{ profile: Profile; organization: Organization }> {
+
     const response = await api.get("/profile")
     return response.data
   },

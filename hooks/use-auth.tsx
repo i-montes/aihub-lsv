@@ -6,6 +6,7 @@ import { useState, useEffect, createContext, useContext } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AuthService, type User, type Profile, type Session, type AuthError } from "@/lib/services/auth-service"
+import { Organization } from "@/lib/services/organization-service"
 
 // Definir el tipo para el contexto de autenticación
 type AuthContextType = {
@@ -25,6 +26,7 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>
   updatePassword: (code: string, newPassword: string, confirmPassword: string) => Promise<void>
   isLoading: boolean
+  organization: Organization | null
 }
 
 // Crear el contexto con valores por defecto
@@ -40,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => {},
   updatePassword: async () => {},
   isLoading: false,
+  organization: null,
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -48,6 +51,7 @@ export const useAuth = () => useContext(AuthContext)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [organization, setOrganization] = useState<Organization | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -72,8 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Obtener datos del perfil
             try {
-              const { profile } = await AuthService.getProfile()
+              const { profile, organization } = await AuthService.getProfile()
               setProfile(profile)
+              setOrganization(organization)
             } catch (error) {
               console.error("Failed to load profile:", error)
             }
@@ -270,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updatePassword,
     isLoading,
+    organization,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -20,6 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -111,9 +122,25 @@ export default function AnalyticsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [noData, setNoData] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
+  const [isCustomDateModalOpen, setIsCustomDateModalOpen] = useState(false);
 
   const { profile } = useAuth();
   const supabase = getSupabaseClient();
+
+  // Función para obtener el texto del selector de fecha
+  const getDateRangeText = () => {
+    if (dateRange.startsWith("custom:")) {
+      const [, startDateStr, endDateStr] = dateRange.split(":");
+      const startDate = new Date(startDateStr);
+      const endDate = new Date(endDateStr);
+      return `${startDate.toLocaleDateString("es-ES")} - ${endDate.toLocaleDateString("es-ES")}`;
+    }
+    return undefined; // Usar el valor por defecto del SelectValue
+  };
 
   useEffect(() => {
     if (profile?.organizationId) {
@@ -126,16 +153,28 @@ export default function AnalyticsPage() {
     setNoData(false);
 
     try {
-      const daysCounts = {
-        "7d": 7,
-        "30d": 30,
-        "90d": 90,
-        "12m": 365,
-      };
+      let startDate: Date;
+      let endDate: Date = new Date();
 
-      const days = daysCounts[dateRange as keyof typeof daysCounts] || 30;
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Manejar rango personalizado
+      if (dateRange.startsWith("custom:")) {
+        const [, startDateStr, endDateStr] = dateRange.split(":");
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+        // Ajustar la fecha de fin al final del día
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        const daysCounts = {
+          "7d": 7,
+          "30d": 30,
+          "90d": 90,
+          "12m": 365,
+        };
+
+        const days = daysCounts[dateRange as keyof typeof daysCounts] || 30;
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+      }
 
       // Filtros base
       let baseQuery = supabase
@@ -143,6 +182,7 @@ export default function AnalyticsPage() {
         .select("*")
         .eq("organization_id", profile?.organizationId)
         .gte("timestamp", startDate.toISOString())
+        .lte("timestamp", endDate.toISOString())
         .order("timestamp", { ascending: false });
 
       // Filtro por herramienta
@@ -335,8 +375,11 @@ export default function AnalyticsPage() {
         }),
         activeUsers: activity.users.size,
         sessions: activity.sessions.size,
+        originalDate: date, // Mantener fecha original para ordenamiento
       }))
-      .slice(-7);
+      .sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime()) // Orden ascendente
+      .slice(-7)
+      .map(({ originalDate, ...rest }) => rest); // Remover originalDate del resultado final
 
     // Métricas de procesamiento por día
     const processingByDay = logs
@@ -529,7 +572,14 @@ export default function AnalyticsPage() {
   }
 
   if (noData) {
-    return <NoDataState dateRange={dateRange} setDateRange={setDateRange} />;
+    return (
+      <NoDataState 
+        dateRange={dateRange} 
+        setDateRange={setDateRange}
+        setIsCustomDateModalOpen={setIsCustomDateModalOpen}
+        getDateRangeText={getDateRangeText}
+      />
+    );
   }
 
   if (!data) {
@@ -553,16 +603,25 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={dateRange} onValueChange={setDateRange}>
+          <Select value={dateRange} onValueChange={(value) => {
+            if (value === "custom") {
+              setIsCustomDateModalOpen(true);
+            } else {
+              setDateRange(value);
+            }
+          }}>
             <SelectTrigger className="w-[180px]">
               <Calendar className="h-4 w-4" />
-              <SelectValue />
+              <SelectValue>
+                {getDateRangeText() || undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7d">Últimos 7 días</SelectItem>
               <SelectItem value="30d">Últimos 30 días</SelectItem>
               <SelectItem value="90d">Últimos 90 días</SelectItem>
               <SelectItem value="12m">Último año</SelectItem>
+              <SelectItem value="custom">Rango personalizado</SelectItem>
             </SelectContent>
           </Select>
 
@@ -1021,6 +1080,76 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de rango personalizado */}
+      <Dialog open={isCustomDateModalOpen} onOpenChange={setIsCustomDateModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Seleccionar rango personalizado</DialogTitle>
+            <DialogDescription>
+              Elige las fechas de inicio y fin para tu análisis personalizado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="start-date" className="text-right">
+                Desde
+              </Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={customDateRange.startDate}
+                onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="end-date" className="text-right">
+                Hasta
+              </Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={customDateRange.endDate}
+                onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsCustomDateModalOpen(false);
+                setCustomDateRange({ 
+                  startDate: new Date().toISOString().split('T')[0], 
+                  endDate: new Date().toISOString().split('T')[0] 
+                });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (customDateRange.startDate && customDateRange.endDate) {
+                  if (new Date(customDateRange.startDate) <= new Date(customDateRange.endDate)) {
+                    setDateRange(`custom:${customDateRange.startDate}:${customDateRange.endDate}`);
+                    setIsCustomDateModalOpen(false);
+                  } else {
+                    toast.error("La fecha de inicio debe ser anterior a la fecha de fin");
+                  }
+                } else {
+                  toast.error("Por favor selecciona ambas fechas");
+                }
+              }}
+            >
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1109,9 +1238,13 @@ function AnalyticsLoadingSkeleton() {
 function NoDataState({
   dateRange,
   setDateRange,
+  setIsCustomDateModalOpen,
+  getDateRangeText,
 }: {
   dateRange: string;
   setDateRange: (range: string) => void;
+  setIsCustomDateModalOpen: (open: boolean) => void;
+  getDateRangeText: () => string | undefined;
 }) {
   return (
     <div className="space-y-6">
@@ -1122,16 +1255,25 @@ function NoDataState({
             Métricas de uso y rendimiento de tus herramientas de IA
           </p>
         </div>
-        <Select value={dateRange} onValueChange={setDateRange}>
+        <Select value={dateRange} onValueChange={(value) => {
+          if (value === "custom") {
+            setIsCustomDateModalOpen(true);
+          } else {
+            setDateRange(value);
+          }
+        }}>
           <SelectTrigger className="w-[180px]">
             <Calendar className="h-4 w-4" />
-            <SelectValue />
+            <SelectValue>
+              {getDateRangeText() || undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="7d">Últimos 7 días</SelectItem>
             <SelectItem value="30d">Últimos 30 días</SelectItem>
             <SelectItem value="90d">Últimos 90 días</SelectItem>
             <SelectItem value="12m">Último año</SelectItem>
+            <SelectItem value="custom">Rango personalizado</SelectItem>
           </SelectContent>
         </Select>
       </div>

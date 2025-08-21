@@ -4,7 +4,7 @@ import { getSupabaseServer } from "@/lib/supabase/server"
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { email, password, name, lastname } = body
+    const { email, password, name, lastname, organization_name } = body
 
     if (!email || !password) {
       return NextResponse.json(
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         .from("organization")
         .insert({
           id: crypto.randomUUID(), // Generar UUID para el ID
-          name: `${name}'s Organization`,
+          name: organization_name || `${name}'s Organization`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           // Campos opcionales

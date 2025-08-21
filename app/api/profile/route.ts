@@ -22,11 +22,24 @@ export const GET = createApiHandler(async (req: NextRequest) => {
     .eq("id", session.user.id)
     .single()
 
+  // Get the organization
+  const { data: organization, error: organizationError } = await supabase
+    .from("organization")
+    .select("id, name, state")
+    .eq("id", profile?.organizationId)
+    .single()
+
+  if (organizationError) {
+    return errorResponse(organizationError.message, 400)
+  }
+
+
   if (profileError) {
     return errorResponse(profileError.message, 400)
   }
 
-  return successResponse({ profile })
+  return successResponse({ profile, organization })
+
 })
 
 export const PUT = createApiHandler(async (req: NextRequest) => {

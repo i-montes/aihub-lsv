@@ -9,11 +9,12 @@ export interface Organization {
   contactemail: string | null
   address: string | null
   city: string | null
-  state: string | null
+  state: string | null // Estado geográfico (provincia/estado)
   country: string | null
   logo: string | null
   createdAt: string
   updatedAt: string
+  status?: "ACTIVE" | "INACTIVE" | "DELETED" // Estado de activación de la organización
 }
 
 export interface PendingInvitation {
