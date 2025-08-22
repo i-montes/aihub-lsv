@@ -224,7 +224,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await getSupabaseRouteHandler();
+    const supabase = await getSupabaseServer();
 
     // Verificar autenticación
     const {
@@ -238,7 +238,7 @@ export async function DELETE(request: NextRequest) {
     // Obtener el organization_id del usuario
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("organization_id")
+      .select("organizationId")
       .eq("id", user.id)
       .single();
 
