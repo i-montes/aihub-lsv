@@ -8,9 +8,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "KIT.AI - Herramientas de periodismo",
-  description: "Plataforma de herramientas de IA para periodismo digital",
-    generator: 'v0.dev'
+  title: "elkit - Herramientas de periodismo",
+  description: "Plataforma de herramientas de IA para periodismo digital"
 }
 
 export default function RootLayout({

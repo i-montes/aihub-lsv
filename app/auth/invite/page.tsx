@@ -184,11 +184,6 @@ export default function InvitePage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={invitation?.email || ""} disabled className="bg-gray-50" />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
@@ -198,6 +193,11 @@ export default function InvitePage() {
                 <Label htmlFor="lastname">Apellido</Label>
                 <Input id="lastname" value={invitation?.lastname || ""} disabled className="bg-gray-50" />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input id="email" type="email" value={invitation?.email || ""} disabled className="bg-gray-50" />
             </div>
 
             <div className="space-y-2">
@@ -226,7 +226,7 @@ export default function InvitePage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full text-white" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
