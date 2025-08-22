@@ -1,5 +1,5 @@
 import { createApiHandler, errorResponse, successResponse } from "@/app/api/base-handler"
-import { getSupabaseServer } from "@/lib/supabase/server"
+import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 import { v4 as uuidv4 } from "uuid"
 
@@ -18,7 +18,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       return errorResponse("Formato de email inválido", 400)
     }
 
-    const supabase = await getSupabaseServer()
+    const supabase = await getSupabaseRouteHandler()
 
     // Verificar que el usuario actual esté autenticado y sea admin
     const {
@@ -42,13 +42,18 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     }
 
     // Verificar si ya existe un usuario con ese email
-    const { data: existingUser, error: checkUserError } = await supabase.auth.admin.getUserByEmail(email)
+    // const { data: existingUser, error: checkUserError } = await supabase.auth.getUserByEmail(email)
+    const { data: existingUser, error: checkUserError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("email", email)
 
     if (checkUserError && checkUserError.message !== "User not found") {
+      console.log(checkUserError)
       return errorResponse("Error al verificar usuario existente", 500)
     }
 
-    if (existingUser?.user) {
+    if (existingUser?.email) {
       return errorResponse("Ya existe un usuario con ese email", 409)
     }
 
@@ -102,15 +107,15 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     if (invitedUser?.user) {
       const { error: profileError } = await supabase
         .from("profiles")
-        .insert({
+        .upsert({
           id: invitedUser.user.id,
           email: email,
           name: name,
           lastname: lastname,
           role: role,
           organizationId: organizationId,
-          createdAt: currentDate,
-          updatedAt: currentDate,
+          created_at: currentDate,
+          updated_at: currentDate,
         })
 
       if (profileError) {
