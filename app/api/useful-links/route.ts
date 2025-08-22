@@ -265,7 +265,7 @@ export async function DELETE(request: NextRequest) {
       .from("useful_links")
       .delete()
       .eq("id", id)
-      .eq("organization_id", profile.organization_id);
+      .eq("organization_id", profile.organizationId);
 
     if (deleteError) {
       return NextResponse.json(
