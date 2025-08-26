@@ -168,8 +168,6 @@ export default function ThreadGenerator() {
         .eq("organizationId", profile?.organizationId)
         .eq("status", "ACTIVE");
 
-      console.log("API Keys:", apiKeys);
-
       if (apiKeyError) {
         console.error("Error al verificar API keys:", apiKeyError);
         setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin });
@@ -183,6 +181,7 @@ export default function ThreadGenerator() {
         .eq("organization_id", profile?.organizationId)
         .eq("identity", "threads_generator")
         .single();
+
       
       if (customToolsError) {
         console.error(
@@ -193,10 +192,10 @@ export default function ThreadGenerator() {
 
       // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
       if (customTool?.models?.length > 0) {
-        setSelectedModel(customTool?.models[0] || { model: apiKeys?.[0].models[0], provider: apiKeys?.[0].provider });
+        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
       }
 
-      setModels(customTool?.models || apiKeys?.[0]);
+      setModels(customTool?.models || []);
 
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];

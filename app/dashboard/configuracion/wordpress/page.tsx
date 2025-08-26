@@ -997,7 +997,7 @@ export default function WordpressSettingsPage() {
                         {isDeleting ? "Desconectando..." : "Desconectar"}
                       </Button>
 
-                      <Button
+                      {/* <Button
                         className="bg-sidebar text-white hover:bg-sidebar/90 flex items-center gap-2"
                         onClick={testExistingConnection}
                         disabled={isTestingConnection}
@@ -1010,7 +1010,7 @@ export default function WordpressSettingsPage() {
                         {isTestingConnection
                           ? "Probando..."
                           : "Probar Conexión"}
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 </>
@@ -1276,7 +1276,7 @@ export default function WordpressSettingsPage() {
                     <div className="flex flex-col sm:flex-row gap-3 pt-6">
                       {connectionType === "self-hosted" ? (
                         <>
-                          <Button
+                          {/* <Button
                             onClick={testSelfHostedConnection}
                             variant="outline"
                             className="flex items-center gap-2 transform hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -1290,7 +1290,7 @@ export default function WordpressSettingsPage() {
                             {status === "testing"
                               ? "Probando..."
                               : "Probar Conexión"}
-                          </Button>
+                          </Button> */}
                           <Button
                             onClick={saveSelfHostedConnection}
                             className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 transform hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg font-medium"
@@ -1306,7 +1306,7 @@ export default function WordpressSettingsPage() {
                         </>
                       ) : (
                         <>
-                          <Button
+                          {/* <Button
                             onClick={testWordPressComConnection}
                             variant="outline"
                             className="flex items-center gap-2 transform hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -1320,7 +1320,7 @@ export default function WordpressSettingsPage() {
                             {status === "testing"
                               ? "Probando..."
                               : "Probar Conexión"}
-                          </Button>
+                          </Button> */}
                           <Button
                             onClick={saveWordPressComConnection}
                             className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 transform hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg font-medium"
