@@ -26,8 +26,9 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { WordPressPost, WordPressConnection } from "@/types/proofreader";
+import type { WordPressPost } from "@/types/proofreader";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getWordPressConnection, makeWordPressAuthenticatedRequest, type WordPressConnection } from "@/lib/wordpress-oauth";
 
 export interface WordPressSearchDialogProps {
   open?: boolean;
@@ -192,15 +193,10 @@ export function WordPressSearchDialog({
         return;
       }
 
-      // Verificar si existe una conexión a WordPress
-      const { data: wpConnection, error: wpError } = await supabase
-        .from("wordpress_integration_table")
-        .select("*")
-        .eq("organizationId", profileData.organizationId)
-        .eq("active", true)
-        .single();
+      // Usar getWordPressConnection para obtener la conexión
+      const connectionResult = await getWordPressConnection(profileData.organizationId);
 
-      if (wpError || !wpConnection || !wpConnection.site_url) {
+      if (!connectionResult.success || !connectionResult.connection) {
         setWordpressConnection({
           exists: false,
           isLoading: false,
@@ -214,7 +210,7 @@ export function WordPressSearchDialog({
         exists: true,
         isLoading: false,
         userRole: profileData.role,
-        connectionData: wpConnection as WordPressConnection,
+        connectionData: connectionResult.connection,
       });
     } catch (error) {
       console.error("Error al verificar la conexión a WordPress:", error);
@@ -233,40 +229,88 @@ export function WordPressSearchDialog({
       setInternalIsSearching(true);
       setInternalSearchError(null);
 
-      let apiUrl = `/api/wordpress/search?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
-
-      if (categories) {
-        apiUrl += `&categories=${encodeURIComponent(categories)}`;
-      }
-
-      const response = await fetch(apiUrl);
-
-      // Verificar si la respuesta es JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.warn("La respuesta no es JSON:", await response.text());
-        setInternalSearchError("Error en la respuesta del servidor");
+      // Obtener organizationId del usuario
+      const supabase = getSupabaseClient();
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (!userData?.user) {
+        setInternalSearchError("Usuario no autenticado");
         setInternalIsSearching(false);
         setInternalHasSearched(true);
         return;
       }
 
-      const data = await response.json();
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("organizationId")
+        .eq("id", userData.user.id)
+        .single();
 
-      if (!response.ok || !data.success) {
-        setInternalSearchError(data.message || "Error al buscar en WordPress");
+      if (!profileData?.organizationId) {
+        setInternalSearchError("No se encontró la organización del usuario");
+        setInternalIsSearching(false);
+        setInternalHasSearched(true);
+        return;
+      }
+
+      // Usar getWordPressConnection para obtener la conexión
+      const connectionResult = await getWordPressConnection(profileData.organizationId);
+      
+      if (!connectionResult.success || !connectionResult.connection) {
+        setInternalSearchError(connectionResult.error || "Error al obtener la conexión de WordPress");
+        setInternalSearchResults([]);
+        setTotalPages(1);
+        setTotalResults(0);
+        setCurrentPage(1);
+        setInternalIsSearching(false);
+        setInternalHasSearched(true);
+        return;
+      }
+
+      const connection = connectionResult.connection;
+
+      // Construir endpoint de búsqueda
+      let searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
+      
+      if (categories) {
+        searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
+      }
+
+      // Realizar búsqueda usando makeWordPressAuthenticatedRequest
+      const searchResponse = await makeWordPressAuthenticatedRequest(connection, searchEndpoint);
+
+      if (!searchResponse.success) {
+        setInternalSearchError(searchResponse.error || "Error al buscar en WordPress");
         setInternalSearchResults([]);
         setTotalPages(1);
         setTotalResults(0);
         setCurrentPage(1);
       } else {
-        setInternalSearchResults(data?.data || []);
+        const posts = searchResponse.data?.posts || [];
+        const totalFound = searchResponse.data?.found || 0;
+        
+        // Transformar los datos al formato esperado
+        const transformedPosts = (Array.isArray(posts) ? posts : []).map((post: Record<string, unknown>) => ({
+          id: post.ID as number,
+          title: { rendered: post.title as string },
+          excerpt: { rendered: post.excerpt as string },
+          content: { rendered: post.content as string },
+          link: post.URL as string,
+          date: post.date as string,
+          author: (post.author as any)?.name || 'Autor desconocido',
+          categories: post.categories || {},
+          tags: post.tags || {},
+          status: post.status as string,
+          featured_media: post.featured_image as string,
+        }));
+        
+        setInternalSearchResults(transformedPosts);
         // Actualizar información de paginación
-        setTotalPages(data?.total?.pages || 1);
-        setTotalResults(data?.total?.count || 0);
+        setTotalPages(Math.ceil(Number(totalFound) / perPage));
+        setTotalResults(Number(totalFound));
         setCurrentPage(page);
         // Hacer scroll a los resultados si hay resultados
-        if (data?.data && data.data.length > 0) {
+        if (transformedPosts.length > 0) {
           scrollToResults();
         }
       }
@@ -459,9 +503,9 @@ export function WordPressSearchDialog({
                 Selección múltiple
               </span>
             )}
-            {wordpressConnection.connectionData?.siteName && (
+            {wordpressConnection.connectionData?.site_name && (
               <span className="ml-2 text-sm font-normal text-gray-500">
-                ({wordpressConnection.connectionData.siteName})
+                ({wordpressConnection.connectionData.site_name})
               </span>
             )}
           </DialogTitle>

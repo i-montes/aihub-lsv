@@ -36,8 +36,10 @@ import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dial
 import { WordPressPost } from "@/types/proofreader";
 import { threadsGenerator } from "@/actions/generate-threads";
 import { MODELS } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ThreadGenerator() {
+  const { profile } = useAuth();
   const [sourceContent, setSourceContent] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceLink, setSourceLink] = useState("");
@@ -155,36 +157,18 @@ export default function ThreadGenerator() {
       setApiKeyStatus((prev) => ({ ...prev, isLoading: true }));
       const supabase = getSupabaseClient();
 
-      // Obtener la sesión del usuario actual
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData?.user) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Obtener el ID de la organización y el rol del usuario
-      const { data: profileData, error: userError } = await supabase
-        .from("profiles")
-        .select("organizationId, role")
-        .eq("id", userData.user.id)
-        .single();
-
-      if (userError || !profileData?.organizationId) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
       // Verificar si el usuario es admin o propietario
       const isAdmin =
-        profileData.role === "OWNER" || profileData.role === "ADMIN";
+        profile?.role === "OWNER" || profile?.role === "ADMIN";
 
       // Verificar si existe alguna API key para esta organización y obtener sus modelos
       const { data: apiKeys, error: apiKeyError } = await supabase
         .from("api_key_table")
         .select("id, models, provider")
-        .eq("organizationId", profileData.organizationId)
+        .eq("organizationId", profile?.organizationId)
         .eq("status", "ACTIVE");
+
+      console.log("API Keys:", apiKeys);
 
       if (apiKeyError) {
         console.error("Error al verificar API keys:", apiKeyError);
@@ -196,10 +180,10 @@ export default function ThreadGenerator() {
       const { data: customTool, error: customToolsError } = await supabase
         .from("tools")
         .select("models")
-        .eq("organization_id", profileData.organizationId)
+        .eq("organization_id", profile?.organizationId)
         .eq("identity", "threads_generator")
         .single();
-
+      
       if (customToolsError) {
         console.error(
           "Error al obtener herramientas personalizadas:",
@@ -209,10 +193,10 @@ export default function ThreadGenerator() {
 
       // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
       if (customTool?.models?.length > 0) {
-        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
+        setSelectedModel(customTool?.models[0] || { model: apiKeys?.[0].models[0], provider: apiKeys?.[0].provider });
       }
 
-      setModels(customTool?.models || []);
+      setModels(customTool?.models || apiKeys?.[0]);
 
       // Extraer todos los modelos disponibles de las API keys con su proveedor
       const allModels: string[] = [];

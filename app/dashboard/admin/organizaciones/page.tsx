@@ -238,33 +238,31 @@ export default function AdminOrganizationsPage() {
 
   const removeUserFromOrg = async (userId: string) => {
     try {
-      // Eliminar el usuario de la tabla auth de Supabase
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+      // Llamar a la nueva API segura para eliminar usuarios
+      const response = await fetch("/api/admin/users/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al eliminar el usuario")
+      }
+
+      toast.success(data.message || "Usuario eliminado completamente del sistema")
       
-      if (authError) {
-        console.error("Error deleting user from auth:", authError)
-        throw authError
-      }
-
-      // Eliminar el perfil de la tabla profiles
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userId)
-
-      if (profileError) {
-        console.error("Error deleting user profile:", profileError)
-        throw profileError
-      }
-
-      toast.success("Usuario eliminado completamente del sistema")
+      // Actualizar la lista de miembros y organizaciones
       if (selectedOrg) {
         await fetchOrgMembers(selectedOrg.id)
         fetchOrganizations() // Actualizar conteo de miembros
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing user:", error)
-      toast.error("Error al eliminar el usuario del sistema")
+      toast.error(error.message || "Error al eliminar el usuario del sistema")
     }
   }
 
