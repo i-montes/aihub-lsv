@@ -144,13 +144,13 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       .from("api_key_table")
       .insert({
         id: uuidv4(),
-        organization_id: organizationId,
+        organizationId: organizationId,
         provider: provider,
-        api_key: api_key,
+        key: api_key,
         models: providerModels[provider as keyof typeof providerModels],
         status: "ACTIVE",
-        created_at: currentDate,
-        updated_at: currentDate
+        createdAt: currentDate,
+        updatedAt: currentDate
       })
 
     if (apiKeyError) {
@@ -166,7 +166,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     // 5. Obtener herramientas por defecto e insertarlas
     const { data: defaultTools, error: defaultToolsError } = await supabase
       .from("default_tools")
-      .select("*")
+      .select("id, title, prompts, temperature, top_p, identity")
 
     if (defaultToolsError) {
       console.error("Error fetching default tools:", defaultToolsError)
@@ -181,13 +181,17 @@ export const POST = createApiHandler(async (req: NextRequest) => {
 
     if (defaultTools && defaultTools.length > 0) {
       const toolsToInsert = defaultTools.map((tool: any) => ({
-        id: uuidv4(),
+        title: tool.title,
+        prompts: tool.prompts,
+        temperature: tool.temperature,
+        top_p: tool.top_p,
         organization_id: organizationId,
-        name: tool.name,
-        description: tool.description,
-        type: tool.type,
-        config: tool.config,
-        is_active: tool.is_active,
+        identity: tool.identity,
+        schema: {},
+        models: [{
+          model: providerModels[provider as keyof typeof providerModels][0],
+          provider: provider
+        }],
         created_at: currentDate,
         updated_at: currentDate
       }))
