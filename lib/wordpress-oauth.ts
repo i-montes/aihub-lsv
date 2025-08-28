@@ -62,7 +62,7 @@ export async function getWordPressConnection(
     let query = supabase
       .from("wordpress_integration_table")
       .select(
-        "id, access_token, refresh_token, expires_at, site_url, permissions, connection_type, organizationId"
+        "id, site_name, access_token, refresh_token, expires_at, site_url, permissions, connection_type, organizationId, username, password"
       )
       .eq("organizationId", organizationId);
 
@@ -212,7 +212,7 @@ export async function refreshWordPressToken(
 }
 
 /**
- * Realiza una petición autenticada a la API de WordPress.com
+ * Realiza una petición autenticada a la API de WordPress (WordPress.com o self-hosted)
  * @param connection Conexión de WordPress
  * @param endpoint Endpoint de la API (sin el dominio base)
  * @param options Opciones adicionales para la petición
@@ -223,44 +223,54 @@ export async function makeWordPressAuthenticatedRequest(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<WordPressAPIResponse> {
-  if (connection.connection_type !== "wordpress_com") {
-    return {
-      success: false,
-      error:
-        "Esta función solo está disponible para conexiones de WordPress.com",
-    };
-  }
-
   try {
     let currentConnection = connection;
-    
-    // Verificar y renovar token si es necesario
-    if (await isTokenExpired(currentConnection)) {
-      const refreshResult = await refreshWordPressToken(currentConnection);
-      if (!refreshResult.success) {
-        return {
-          success: false,
-          error: "No se pudo renovar el token de acceso",
-        };
-      }
-      currentConnection = refreshResult.connection!;
-    }
+    let apiUrl: string;
+    const headers:any = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
 
-    const siteIdentifier = await getSiteIdentifier(currentConnection);
-    const apiUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteIdentifier}${endpoint}`;
+    if (connection.connection_type === "wordpress_com") {
+      // Verificar y renovar token si es necesario para WordPress.com
+      if (await isTokenExpired(currentConnection)) {
+        const refreshResult = await refreshWordPressToken(currentConnection);
+        if (!refreshResult.success) {
+          return {
+            success: false,
+            error: "No se pudo renovar el token de acceso",
+          };
+        }
+        currentConnection = refreshResult.connection!;
+      }
+
+      const siteIdentifier = await getSiteIdentifier(currentConnection);
+      apiUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteIdentifier}${endpoint}`;
+      headers.Authorization = `Bearer ${currentConnection.access_token}`;
+    } else if (connection.connection_type === "self_hosted") {
+      // Para sitios self-hosted, usar autenticación Basic
+      const baseUrl = connection.site_url.replace(/\/$/, '');
+      apiUrl = `${baseUrl}/wp-json/wp/v2${endpoint}`;
+      
+      // Crear credenciales Basic Auth en base64
+      const credentials = `${connection.username}:${connection.password}`;
+      const base64Credentials = Buffer.from(credentials).toString('base64');
+      headers.Authorization = `Basic ${base64Credentials}`;
+    } else {
+      return {
+        success: false,
+        error: "Tipo de conexión no soportado",
+      };
+    }
 
     const response = await fetch(apiUrl, {
       ...options,
-      headers: {
-        Authorization: `Bearer ${currentConnection.access_token}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
-      // Si el token es inválido, intentar renovarlo una vez más
-      if (response.status === 401) {
+      // Para WordPress.com, intentar renovar token si es 401
+      if (response.status === 401 && connection.connection_type === "wordpress_com") {
         const refreshResult = await refreshWordPressToken(currentConnection);
         if (refreshResult.success) {
           currentConnection = refreshResult.connection!;
@@ -268,9 +278,8 @@ export async function makeWordPressAuthenticatedRequest(
           const retryResponse = await fetch(apiUrl, {
             ...options,
             headers: {
+              ...headers,
               Authorization: `Bearer ${currentConnection.access_token}`,
-              "Content-Type": "application/json",
-              ...options.headers,
             },
           });
 
@@ -348,16 +357,41 @@ export async function getSiteIdentifier(connection: WordPressConnection): Promis
 export async function getWordPressPostCount(
   connection: WordPressConnection
 ): Promise<WordPressAPIResponse> {
+  let endpoint: string;
+  
+  if (connection.connection_type === "wordpress_com") {
+    endpoint = "/posts?number=1";
+  } else if (connection.connection_type === "self_hosted") {
+    endpoint = "/posts?per_page=1";
+  } else {
+    return {
+      success: false,
+      error: "Tipo de conexión no soportado",
+    };
+  }
+
   const response = await makeWordPressAuthenticatedRequest(
     connection,
-    "/posts?number=1"
+    endpoint
   );
 
   if (response.success && response.data) {
+    let postCount = 0;
+    
+    if (connection.connection_type === "wordpress_com") {
+      // WordPress.com devuelve 'found' con el total
+      postCount = typeof response.data.found === 'number' ? response.data.found : 0;
+    } else if (connection.connection_type === "self_hosted") {
+      // Self-hosted devuelve un array de posts, necesitamos hacer otra petición para el total
+      // o usar los headers X-WP-Total si están disponibles
+      const posts = Array.isArray(response.data) ? response.data : [];
+      postCount = posts.length; // Por ahora, solo el número de posts en esta página
+    }
+    
     return {
       success: true,
       data: response.data,
-      post_count: typeof response.data.found === 'number' ? response.data.found : 0,
+      post_count: postCount,
     };
   }
 
@@ -374,12 +408,35 @@ export async function testWordPressConnection(
 ): Promise<WordPressAPIResponse> {
   if (connection.connection_type === "wordpress_com") {
     return await getWordPressPostCount(connection);
+  } else if (connection.connection_type === "self_hosted") {
+    // Para sitios self-hosted, probar con una petición simple a posts
+    try {
+      const response = await makeWordPressAuthenticatedRequest(
+        connection,
+        "/posts?per_page=1"
+      );
+      
+      if (response.success && response.data) {
+        // Contar posts desde la respuesta
+        const posts = Array.isArray(response.data) ? response.data : [];
+        return {
+          success: true,
+          data: response.data,
+          post_count: posts.length > 0 ? 1 : 0, // Al menos sabemos que hay posts si devuelve alguno
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Error al probar conexión self-hosted",
+      };
+    }
   } else {
-    // Para conexiones self-hosted, necesitaríamos las credenciales
     return {
       success: false,
-      error:
-        "Prueba de conexión para sitios auto-hospedados no implementada en esta función",
+      error: "Tipo de conexión no soportado",
     };
   }
 }

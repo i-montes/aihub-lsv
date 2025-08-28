@@ -269,11 +269,28 @@ export function WordPressSearchDialog({
 
       const connection = connectionResult.connection;
 
-      // Construir endpoint de búsqueda
-      let searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
+      // Construir endpoint de búsqueda según el tipo de conexión
+      let searchEndpoint: string;
       
-      if (categories) {
-        searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
+      if (connection.connection_type === "wordpress_com") {
+        searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&number=${perPage}`;
+        if (categories) {
+          searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
+        }
+      } else if (connection.connection_type === "self_hosted") {
+        searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
+        if (categories) {
+          searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
+        }
+      } else {
+        setInternalSearchError("Tipo de conexión no soportado");
+        setInternalSearchResults([]);
+        setTotalPages(1);
+        setTotalResults(0);
+        setCurrentPage(1);
+        setInternalIsSearching(false);
+        setInternalHasSearched(true);
+        return;
       }
 
       // Realizar búsqueda usando makeWordPressAuthenticatedRequest
@@ -286,23 +303,60 @@ export function WordPressSearchDialog({
         setTotalResults(0);
         setCurrentPage(1);
       } else {
-        const posts = searchResponse.data?.posts || [];
-        const totalFound = searchResponse.data?.found || 0;
+        let posts: any[];
+        let totalFound: number;
+        
+        if (connection.connection_type === "wordpress_com") {
+           // WordPress.com devuelve posts en data.posts y total en data.found
+           posts = searchResponse.data?.posts || [];
+           totalFound = searchResponse.data?.found || 0;
+         } else {
+           // Self-hosted devuelve directamente un array de posts
+           posts = Array.isArray(searchResponse.data) ? searchResponse.data : [];
+           // Para self-hosted, si recibimos menos posts que el perPage, asumimos que es la última página
+           // Si recibimos exactamente perPage posts, puede haber más páginas
+           if (posts.length < perPage) {
+             totalFound = (page - 1) * perPage + posts.length;
+           } else {
+             // Estimamos que hay al menos una página más
+             totalFound = page * perPage + 1;
+           }
+         }
         
         // Transformar los datos al formato esperado
-        const transformedPosts = (Array.isArray(posts) ? posts : []).map((post: Record<string, unknown>) => ({
-          id: post.ID as number,
-          title: { rendered: post.title as string },
-          excerpt: { rendered: post.excerpt as string },
-          content: { rendered: post.content as string },
-          link: post.URL as string,
-          date: post.date as string,
-          author: (post.author as any)?.name || 'Autor desconocido',
-          categories: post.categories || {},
-          tags: post.tags || {},
-          status: post.status as string,
-          featured_media: post.featured_image as string,
-        }));
+        const transformedPosts = posts.map((post: Record<string, unknown>) => {
+          if (connection.connection_type === "wordpress_com") {
+            // Formato WordPress.com
+            return {
+              id: post.ID as number,
+              title: { rendered: post.title as string },
+              excerpt: { rendered: post.excerpt as string },
+              content: { rendered: post.content as string },
+              link: post.URL as string,
+              date: post.date as string,
+              author: (post.author as any)?.name || 'Autor desconocido',
+              categories: post.categories || {},
+              tags: post.tags || {},
+              status: post.status as string,
+              featured_media: post.featured_image as string,
+            };
+          } else {
+            // Formato self-hosted (WP REST API v2)
+            return {
+              id: post.id as number,
+              title: post.title || { rendered: '' },
+              excerpt: post.excerpt || { rendered: '' },
+              content: post.content || { rendered: '' },
+              link: post.link as string,
+              date: post.date as string,
+              author: 'Autor', // En self-hosted necesitaríamos hacer otra petición para obtener el autor
+              categories: post.categories || {},
+              tags: post.tags || {},
+              status: post.status as string,
+              featured_media: post.featured_media as string || '',
+            };
+          }
+        });
         
         setInternalSearchResults(transformedPosts);
         // Actualizar información de paginación

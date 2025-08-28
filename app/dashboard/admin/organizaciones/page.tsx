@@ -77,7 +77,9 @@ export default function AdminOrganizationsPage() {
     email: "",
     name: "",
     lastname: "",
-    organization_name: ""
+    organization_name: "",
+    api_key: "",
+    provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
   })
 
   const itemsPerPage = 10
@@ -343,7 +345,8 @@ export default function AdminOrganizationsPage() {
   const createOrganization = async () => {
     // Validar campos obligatorios
     if (!createOrgFormData.email || !createOrgFormData.name || 
-        !createOrgFormData.lastname || !createOrgFormData.organization_name) {
+        !createOrgFormData.lastname || !createOrgFormData.organization_name ||
+        !createOrgFormData.api_key || !createOrgFormData.provider) {
       toast.error("Todos los campos son obligatorios")
       return
     }
@@ -351,6 +354,7 @@ export default function AdminOrganizationsPage() {
     try {
       setCreateOrgLoading(true)
       
+      // Crear la organización con API key y herramientas por defecto
       const response = await fetch("/api/organization/create", {
         method: "POST",
         headers: {
@@ -361,6 +365,8 @@ export default function AdminOrganizationsPage() {
           name: createOrgFormData.name,
           lastname: createOrgFormData.lastname,
           organization_name: createOrgFormData.organization_name,
+          api_key: createOrgFormData.api_key,
+          provider: createOrgFormData.provider,
           role: "OWNER"
         }),
       })
@@ -371,13 +377,15 @@ export default function AdminOrganizationsPage() {
         throw new Error(data.error || "Error al crear la organización")
       }
 
-      toast.success(data.data?.message || "Organización creada exitosamente. Se ha enviado una invitación por email.")
+      toast.success("Organización, API key y herramientas creadas exitosamente. Se ha enviado una invitación por email.")
       setCreateOrgModalOpen(false)
       setCreateOrgFormData({ 
         email: "", 
         name: "", 
         lastname: "", 
-        organization_name: "" 
+        organization_name: "",
+        api_key: "",
+        provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
       })
       
       // Actualizar la lista de organizaciones
@@ -992,6 +1000,38 @@ export default function AdminOrganizationsPage() {
                   required
                 />
               </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Proveedor de IA *</label>
+                  <Select
+                    value={createOrgFormData.provider}
+                    onValueChange={(value: "OPENAI" | "GOOGLE" | "ANTHROPIC") => 
+                      setCreateOrgFormData(prev => ({ ...prev, provider: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar proveedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OPENAI">OpenAI (gpt-4.1-2025-04-14)</SelectItem>
+                      <SelectItem value="GOOGLE">Google (gemini-2.5-pro)</SelectItem>
+                      <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-20250514)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">API Key *</label>
+                  <Input
+                    type="password"
+                    value={createOrgFormData.api_key}
+                    onChange={(e) => setCreateOrgFormData(prev => ({ ...prev, api_key: e.target.value }))}
+                    placeholder="Ingresa la API key del proveedor"
+                    required
+                  />
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button 
@@ -1002,7 +1042,9 @@ export default function AdminOrganizationsPage() {
                     email: "", 
                     name: "", 
                     lastname: "", 
-                    organization_name: "" 
+                    organization_name: "",
+                    api_key: "",
+                    provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
                   })
                 }}
                 disabled={createOrgLoading}
