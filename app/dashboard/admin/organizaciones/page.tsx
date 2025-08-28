@@ -8,10 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
-import { Building, Users, Edit, Search, Filter, ChevronLeft, ChevronRight, Eye, UserPlus, Trash2, AlertTriangle } from "lucide-react"
+import { Building, Users, Edit, Search, Filter, ChevronLeft, ChevronRight, Eye, UserPlus, Trash2, AlertTriangle, RefreshCw } from "lucide-react"
 
 interface Organization {
   id: string
@@ -40,7 +52,7 @@ interface Profile {
 }
 
 export default function AdminOrganizationsPage() {
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [filteredOrganizations, setFilteredOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,6 +93,9 @@ export default function AdminOrganizationsPage() {
     api_key: "",
     provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
   })
+  const [changeOrgModalOpen, setChangeOrgModalOpen] = useState(false)
+  const [changeOrgLoading, setChangeOrgLoading] = useState(false)
+  const [selectedOrgForChange, setSelectedOrgForChange] = useState<string>("")
 
   const itemsPerPage = 10
   const supabase = getSupabaseClient()
@@ -398,6 +413,45 @@ export default function AdminOrganizationsPage() {
     }
   }
 
+  const changeOrganization = async () => {
+    if (!selectedOrgForChange) {
+      toast.error("Debe seleccionar una organización")
+      return
+    }
+
+    try {
+      setChangeOrgLoading(true)
+      
+      const response = await fetch("/api/profile/update-organization", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: selectedOrgForChange,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cambiar de organización")
+      }
+
+      toast.success(`Organización cambiada exitosamente a: ${data.organization.name}`)
+      setChangeOrgModalOpen(false)
+      setSelectedOrgForChange("")
+      
+      // Recargar la página para reflejar los cambios
+      window.location.reload()
+    } catch (error: any) {
+      console.error("Error changing organization:", error)
+      toast.error(error.message || "Error al cambiar de organización")
+    } finally {
+      setChangeOrgLoading(false)
+    }
+  }
+
   // Paginación
   const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -466,6 +520,14 @@ export default function AdminOrganizationsPage() {
             <Badge variant="outline" className="text-sm">
               {filteredOrganizations.length} organizaciones
             </Badge>
+            <Button
+              variant="outline"
+              onClick={() => setChangeOrgModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Cambiar de organización
+            </Button>
             <Button
               onClick={() => setCreateOrgModalOpen(true)}
               className="flex items-center gap-2"
@@ -1066,6 +1128,84 @@ export default function AdminOrganizationsPage() {
                   <>
                     <Building className="h-4 w-4 mr-2" />
                     Crear Organización
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal para cambiar de organización */}
+        <Dialog open={changeOrgModalOpen} onOpenChange={setChangeOrgModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Cambiar de Organización
+              </DialogTitle>
+              <DialogDescription>
+                Selecciona una nueva organización para cambiar tu contexto actual.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Información del usuario actual */}
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <h4 className="font-medium text-sm text-gray-700">Usuario Actual:</h4>
+                <div className="space-y-1 text-sm">
+                  <p><span className="font-medium">Nombre:</span> {profile?.name} {profile?.lastname}</p>
+                  <p><span className="font-medium">Email:</span> {profile?.email}</p>
+                  <p><span className="font-medium">Rol:</span> {profile?.role}</p>
+                  <p><span className="font-medium">Organización actual:</span> {organizations.find(org => org.id === profile?.organizationId)?.name || "Sin organización"}</p>
+                </div>
+              </div>
+
+              {/* Selector de organización */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nueva Organización *</label>
+                <Select
+                  value={selectedOrgForChange}
+                  onValueChange={setSelectedOrgForChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar organización" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations
+                      .filter(org => org.state === "ACTIVE" && org.id !== profile?.organizationId)
+                      .map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setChangeOrgModalOpen(false)
+                  setSelectedOrgForChange("")
+                }}
+                disabled={changeOrgLoading}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={changeOrganization}
+                disabled={changeOrgLoading || !selectedOrgForChange}
+                className="bg-primary-600 hover:bg-primary-700"
+              >
+                {changeOrgLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Cambiando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Guardar
                   </>
                 )}
               </Button>
