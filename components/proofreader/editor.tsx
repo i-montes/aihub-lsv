@@ -66,7 +66,7 @@ export function ProofreaderEditor({
         },
       }),
       Placeholder.configure({
-        placeholder: "Escribe o pega tu texto aquí para analizarlo...",
+        placeholder: "Escribe o pega tu texto aquí para analizarlo",
         emptyEditorClass:
           "before:content-[attr(data-placeholder)] before:text-gray-400 before:float-left before:pointer-events-none",
       }),

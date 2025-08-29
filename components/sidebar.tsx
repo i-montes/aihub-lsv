@@ -74,7 +74,7 @@ export function Sidebar() {
             {/* Título */}
             {isExpanded && (
               <span className="font-bold text-lg transition-opacity duration-200 text-gray-800">
-                KIT.AI
+                EL KIT
               </span>
             )}
             
@@ -164,7 +164,7 @@ export function Sidebar() {
           {profile?.role == "OWNER" && (
             <NavItem
               icon={<BarChart className="size-5" />}
-              label="Analiticas"
+              label="Analíticas"
               href="/dashboard/analiticas"
               isActive={pathname === "/dashboard/analiticas"}
               isExpanded={isExpanded}

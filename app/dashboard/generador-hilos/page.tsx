@@ -390,7 +390,7 @@ export default function ThreadGenerator() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Ingresa el título del contenido"
+                    placeholder="Pega el título del contenido"
                     className="w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={sourceTitle}
                     onChange={(e) => setSourceTitle(e.target.value)}
@@ -403,7 +403,7 @@ export default function ThreadGenerator() {
                     Contenido
                   </label>
                   <Textarea
-                    placeholder="Pega aquí el contenido para generar el hilo o utiliza la búsqueda de WordPress"
+                    placeholder="Pega aquí el contenido para generar el hilo."
                     className="min-h-[300px] resize-none"
                     value={sourceContent}
                     onChange={(e) => setSourceContent(e.target.value)}

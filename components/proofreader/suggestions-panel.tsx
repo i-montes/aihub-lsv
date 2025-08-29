@@ -48,7 +48,8 @@ export function SuggestionsPanel({
               </h3>
               <p className="text-gray-500 mt-2 max-w-xs">
                 Cuando analicemos tu texto, en esta columna aparecerán las
-                sugerencias basadas en la guía de estilos de La Silla Vacía.
+                sugerencias basadas en pautas de la RAE, Fundéu y tu manual de
+                estilo.
               </p>
             </>
           )}

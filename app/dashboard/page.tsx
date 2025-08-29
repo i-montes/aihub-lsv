@@ -80,8 +80,8 @@ export default function Dashboard() {
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Hub de AI para periodistas</h1>
-          <p className="text-gray-500">Un kit de herramientas a medida</p>
+          <h1 className="text-2xl font-bold">Kit de herramientas para periodistas</h1>
+          <p className="text-gray-500">Soluciones editoriales basadas en inteligencia artificial generativa</p>
         </div>
       </div>
 
@@ -102,8 +102,7 @@ export default function Dashboard() {
                 </div>
                 <h3 className="text-xl font-bold mb-2">Corrector de estilo</h3>
                 <p className="text-gray-500 mb-4 flex-grow">
-                  Optimiza tu texto según pautas editoriales y ortográficas,
-                  personalizadas
+                  Optimiza tu texto según pautas de la RAE, Fundéu y tu manual de estilo.
                 </p>
                 <div className="flex justify-between items-center mt-2">
                   <Link href="/dashboard/corrector">
@@ -283,7 +282,7 @@ export default function Dashboard() {
         <Card className="bg-white rounded-3xl shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Ultimas actualizaciones</CardTitle>
+              <CardTitle>Últimas actualizaciones</CardTitle>
               <ChevronDown className="h-4 w-4 text-gray-400 animate-bounce" />
             </div>
             <CardDescription>
@@ -299,7 +298,7 @@ export default function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">
-                          Nueva Página de Analíticas
+                          Nueva página de analíticas
                         </p>
                         <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full">
                           Nuevo
@@ -317,7 +316,7 @@ export default function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">
-                          Mejoras en el Botón de Colapso del Sidebar
+                          Mejoras en el botón de colapso del sidebar
                         </p>
                         <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
                           Actualizado
@@ -335,7 +334,7 @@ export default function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">
-                          Nueva Herramienta de Newsletter
+                          Nueva herramienta de newsletter
                         </p>
                         <span className="text-xs px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full">
                           Nuevo
@@ -351,7 +350,7 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">Nuevo Generador de Hilos</p>
+                        <p className="font-medium">Nuevo generador de hilos</p>
                         <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full">
                           Disponible
                         </span>
@@ -366,7 +365,7 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-gray-300"></div>
                     <div>
                       <p className="font-medium">
-                        Mejoras en el Corrector de Estilo
+                        Mejoras en el corrector de estilo
                       </p>
                       <p className="text-sm text-gray-600">
                         El corrector de estilo ahora admite más guías
@@ -378,7 +377,7 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-gray-300"></div>
                     <div>
                       <p className="font-medium">
-                        Lanzamiento del Generador de Resúmenes
+                        Lanzamiento del generador de resúmenes
                       </p>
                       <p className="text-sm text-gray-600">
                         Nueva herramienta para crear resúmenes automáticos de
