@@ -13,6 +13,7 @@ import {
   RssIcon,
   BookOpen,
   Shield,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -39,7 +40,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const { profile, user } = useAuth();
+  const { profile, user, organization } = useAuth();
+
+  console.log(organization)
 
   // Lista de correos autorizados para acceso de admin
   const adminEmails = [
@@ -134,6 +137,18 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/boletin"}
               isExpanded={isExpanded}
             />
+
+            {
+              organization?.name == "La Silla Vacía" && (
+                <NavItem
+                  icon={<Search className="size-5" />}
+                  label="Detector"
+                  href="/dashboard/detector-de-mentiras"
+                  isActive={pathname === "/dashboard/detector-de-mentiras"}
+                  isExpanded={isExpanded}
+                />
+              )
+            }
 
             {/* <NavItem
               icon={<BarChart className="size-5" />}
