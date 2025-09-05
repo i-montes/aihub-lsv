@@ -2,6 +2,9 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +46,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import TextUrlExtractor from "@/components/shared/text-url-extractor";
+import { url } from "inspector";
 
 interface UploadedFile {
   id: string;
@@ -55,18 +59,6 @@ interface VerificationMethod {
   id: string;
   strategy: string;
   evidenceImages: UploadedFile[];
-}
-
-interface FormData {
-  title: string;
-  initialParagraph: string;
-  disinformationImages: UploadedFile[];
-  disinformationLinks: string;
-  description: string;
-  rating: "cierto" | "cierto-pero" | "debatible" | "enganoso" | "falso" | "";
-  verificationMethods: VerificationMethod;
-  youtubeUrls: string[];
-  additionalContext: string;
 }
 
 const RATING_OPTIONS = [
@@ -85,33 +77,119 @@ const RATING_OPTIONS = [
   { value: "falso", label: "Falso", color: "bg-red-100 text-red-800" },
 ];
 
+const metadataSchema = z.object({
+  url: z.string().default(""),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  image: z.string().optional(),
+  statusCode: z.number(),
+  isValid: z.boolean(),
+  error: z.string().optional(),
+  complete_text: z.string().optional(),
 
+  // Twitter metadata
+  isTwitter: z.boolean().optional(),
+  text: z.string().optional(),
+  username: z.string().optional(),
+  name: z.string().optional(),
+  follower_count: z.number().optional(),
+  author_image: z.string().optional(),
+  like_count: z.number().optional(),
+  retweet_count: z.number().optional(),
+  creation_date: z.union([z.string(), z.date()]).optional(),
+  user_description: z.string().optional(),
+  media_image: z.string().optional(),
+  media_video: z.string().optional(),
+});
+
+// Esquema Zod para validación del formulario
+const formSchema = z.object({
+  rating: z.enum(["cierto", "cierto-pero", "debatible", "enganoso", "falso"]),
+  disinformation: z.object({
+    images: z.array(z.any()).default([]),
+    text: z
+      .string()
+      .default("")
+      .describe("Texto del input de enlaces de desinformacion"),
+    metadata: metadataSchema,
+    description: z
+      .string()
+      .min(1, "La descripción es obligatoria")
+      .describe("Texto del input de descripcion de desinformacion"),
+  }),
+  verification: z.object({
+    text: z
+      .string()
+      .default("")
+      .describe("Texto del input de Estrategia de Verificación"),
+    metadata: metadataSchema,
+    images: z.array(z.any()).default([]),
+  }),
+  additional_context: z.object({
+    text: z
+      .string()
+      .default("")
+      .describe("Texto del input de Estrategia de Verificación"),
+    metadata: metadataSchema,
+    images: z.array(z.any()).default([]),
+  }),
+});
+
+type FormSchema = z.infer<typeof formSchema>;
 
 export default function LieDetectorPage() {
   const { profile } = useAuth();
-  const [formData, setFormData] = useState<FormData>({
-    title: "",
-    initialParagraph: "",
-    disinformationImages: [],
-    disinformationLinks: "",
-    description: "",
-    rating: "",
-    verificationMethods: {
-      id: "1",
-      strategy: "",
-      evidenceImages: [],
+
+  // React Hook Form setup
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm<FormSchema>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      rating: undefined,
+      disinformation: {
+        images: [],
+        text: "",
+        metadata: {
+          url: "",
+          statusCode: 0,
+          isValid: false,
+        },
+        description: "",
+      },
+      verification: {
+        text: "",
+        metadata: {
+          url: "",
+          statusCode: 0,
+          isValid: false,
+        },
+        images: [],
+      },
+      additional_context: {
+        text: "",
+        metadata: {
+          url: "",
+          statusCode: 0,
+          isValid: false,
+        },
+        images: [],
+      },
     },
-    youtubeUrls: [],
-    additionalContext: "",
   });
+
+  // Removed watch() to prevent unnecessary re-renders
+  // Use getValues() directly when needed
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisStep, setAnalysisStep] = useState("");
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [disinformationImages, setDisinformationImages] = useState<File[]>([]);
-  const [verificationImages, setVerificationImages] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [apiKeyStatus, setApiKeyStatus] = useState<{
     isLoading: boolean;
@@ -123,8 +201,8 @@ export default function LieDetectorPage() {
     isAdmin: false,
   });
 
-  // Estado para almacenar metadata de URLs
-  const [urlMetadata, setUrlMetadata] = useState<Map<string, any>>(new Map());
+  // Estado para almacenar metadata de URLs (ya no se usa, se guarda directamente en el formulario)
+  // const [urlMetadata, setUrlMetadata] = useState<Map<string, any>>(new Map());
 
   // Verificar API keys al cargar
   useEffect(() => {
@@ -161,8 +239,7 @@ export default function LieDetectorPage() {
   // Manejo de archivos
   const handleFileUpload = (
     files: FileList,
-    type: "disinformation" | "verification",
-    methodId?: string
+    type: "disinformation" | "verification" | "additional_context"
   ) => {
     const newFiles: UploadedFile[] = [];
 
@@ -194,38 +271,14 @@ export default function LieDetectorPage() {
     });
 
     if (type === "disinformation") {
-      setFormData((prev) => ({
-        ...prev,
-        disinformationImages: [...prev.disinformationImages, ...newFiles],
-      }));
-    } else if (type === "verification" && methodId) {
-      setFormData((prev) => ({
-        ...prev,
-        verificationMethods: {
-          ...prev.verificationMethods,
-          evidenceImages: [
-            ...prev.verificationMethods.evidenceImages,
-            ...newFiles,
-          ],
-        },
-      }));
-    }
-  };
-
-  // Image upload handler
-  const handleImageUpload = (
-    files: FileList | null,
-    type: "disinformation" | "verification"
-  ) => {
-    if (files) {
-      const newFiles = Array.from(files).filter((file) =>
-        file.type.startsWith("image/")
-      );
-      if (type === "disinformation") {
-        setDisinformationImages((prev) => [...prev, ...newFiles]);
-      } else {
-        setVerificationImages((prev) => [...prev, ...newFiles]);
-      }
+      const currentImages = getValues("disinformation.images");
+      setValue("disinformation.images", [...currentImages, ...newFiles]);
+    } else if (type === "verification") {
+      const currentImages = getValues("verification.images");
+      setValue("verification.images", [...currentImages, ...newFiles]);
+    } else if (type === "additional_context") {
+      const currentImages = getValues("additional_context.images");
+      setValue("additional_context.images", [...currentImages, ...newFiles]);
     }
   };
 
@@ -242,19 +295,20 @@ export default function LieDetectorPage() {
 
   const handleDrop = (
     e: React.DragEvent,
-    type: "disinformation" | "verification" | "support" | "evidence",
-    methodId?: string
+    type: "disinformation" | "verification" | "additional_context"
   ) => {
     e.preventDefault();
     setDragOver(null);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      if (type === "disinformation" || type === "verification") {
-        handleImageUpload(files, type);
-      } else {
-        handleFileUpload(files, "verification", methodId);
-      }
+      handleFileUpload(files, type);
     }
+  };
+
+  // Handle form submission with React Hook Form
+  const onSubmit = async (data: FormSchema) => {
+    console.log("Form submitted with data:", data);
+    await generateAnalysis();
   };
 
   // Generar análisis con IA
@@ -277,30 +331,41 @@ export default function LieDetectorPage() {
     ];
 
     try {
+      // Obtener datos actuales del formulario
+      const currentFormData = getValues();
+
       for (let i = 0; i < steps.length; i++) {
         setAnalysisStep(steps[i]);
         setAnalysisProgress((i + 1) * 20);
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
 
-      const mockAnalysis = `# Análisis de Verificación: ${formData.title}
+      const mockAnalysis = `#
 
 ## Resumen
-${formData.description}
+${currentFormData.disinformation.description}
 
 ## Calificación
 **${
-        RATING_OPTIONS.find((r) => r.value === formData.rating)?.label ||
-        "Sin calificar"
+        currentFormData.rating
+          ? RATING_OPTIONS.find((r) => r.value === currentFormData.rating)
+              ?.label
+          : "Sin calificar"
       }**
 
 ## Métodos de Verificación Aplicados
-1. ${formData.verificationMethods.strategy}
+1. ${currentFormData.verification.text}
 
 ## Evidencias Encontradas
-- Imágenes de desinformación analizadas: ${disinformationImages.length}
-- Imágenes de verificación: ${verificationImages.length}
-- Enlaces de desinformación: ${formData.disinformationLinks.split('\n').filter(link => link.trim()).length}
+- Imágenes de desinformación analizadas: ${
+        currentFormData.disinformation.images.length
+      }
+- Imágenes de verificación: ${currentFormData.verification.images.length}
+- Enlaces de desinformación: ${
+        currentFormData.disinformation.text
+          .split("\n")
+          .filter((link) => link.trim()).length
+      }
 
 ## Conclusión
 Basado en el análisis realizado, se ha determinado la veracidad de la información presentada.
@@ -350,9 +415,9 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
   }
 
   return (
-    <div className="h-full flex gap-6">
+    <div className="h-full flex gap-4">
       {/* Sección Izquierda - Formulario */}
-      <div className="flex-1 flex flex-col h-full">
+      <div className="w-1/2 flex flex-col h-full">
         {/* Header Fijo */}
         <div className="sticky top-0 z-10 border-b border-gray-200 pb-4 mb-6">
           <div className="flex items-center justify-between">
@@ -366,7 +431,8 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
             </div>
             <div className="space-y-3">
               <Button
-                onClick={generateAnalysis}
+                type="submit"
+                form="lie-detector-form"
                 disabled={isAnalyzing}
                 className="w-full text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -391,7 +457,11 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
         </div>
 
         {/* Contenido Scrolleable */}
-        <div className="flex-1 space-y-6 overflow-auto pr-2">
+        <form
+          id="lie-detector-form"
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex-1 overflow-y-auto overflow-x-hidden pr-2"
+        >
           {/* Información Principal */}
           <Card>
             <CardHeader>
@@ -450,9 +520,9 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                   />
                 </div>
 
-                {formData.disinformationImages.length > 0 && (
+                {getValues("disinformation.images")?.length > 0 && (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                    {formData.disinformationImages.map((file) => (
+                    {getValues("disinformation.images").map((file) => (
                       <div key={file.id} className="relative group">
                         {file.preview ? (
                           <img
@@ -467,13 +537,13 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                         )}
                         <button
                           onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              disinformationImages:
-                                prev.disinformationImages.filter(
-                                  (f) => f.id !== file.id
-                                ),
-                            }));
+                            const currentImages = getValues(
+                              "disinformation.images"
+                            );
+                            setValue(
+                              "disinformation.images",
+                              currentImages.filter((f) => f.id !== file.id)
+                            );
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -498,22 +568,26 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                   <div className="group relative">
                     <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                      Agrega enlaces del contenido desinformativo (uno por línea)
+                      Agrega enlaces del contenido desinformativo (uno por
+                      línea)
                     </div>
                   </div>
                 </div>
-                <TextUrlExtractor
-                  value={formData.disinformationLinks}
-                  onChange={(value) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      disinformationLinks: value,
-                    }))
-                  }
-                  onMetadata={(metadata) => setUrlMetadata(metadata)}
-                  placeholder="Agrega los enlaces del contenido desinformativo, uno por línea:\n\nhttps://ejemplo.com/video\nhttps://ejemplo.com/articulo\nhttps://ejemplo.com/documento.pdf"
-                  className="mt-1"
-                  maxHeight="120px"
+                <Controller
+                  name="disinformation.text"
+                  control={control}
+                  render={({ field }) => (
+                    <TextUrlExtractor
+                      value={field.value}
+                      onChange={field.onChange}
+                      onMetadata={(metadata) =>
+                        setValue("disinformation.metadata", metadata as any)
+                      }
+                      placeholder="Agrega los enlaces del contenido desinformativo, uno por línea:\n\nhttps://ejemplo.com/video\nhttps://ejemplo.com/articulo\nhttps://ejemplo.com/documento.pdf"
+                      className="mt-1"
+                      maxHeight="120px"
+                    />
+                  )}
                 />
               </div>
 
@@ -528,17 +602,17 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                     </div>
                   </div>
                 </div>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="Breve descripción del contenido desinformativo"
-                  className="mt-1"
-                  rows={4}
+                <Controller
+                  name="disinformation.description"
+                  control={control}
+                  render={({ field }) => (
+                    <Textarea
+                      {...field}
+                      placeholder="Breve descripción del contenido desinformativo"
+                      className="mt-1"
+                      rows={4}
+                    />
+                  )}
                 />
               </div>
 
@@ -553,31 +627,46 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                     </div>
                   </div>
                 </div>
-                <Select
-                  value={formData.rating}
-                  onValueChange={(value: any) =>
-                    setFormData((prev) => ({ ...prev, rating: value }))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecciona una calificación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RATING_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <Badge className={option.color}>{option.label}</Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="rating"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      defaultValue={field.value || ""}
+                      onValueChange={(value) => {
+                        if (value.length) {
+                          field.onChange(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecciona una calificación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RATING_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <div className="flex items-center gap-2">
+                              <Badge className={option.color}>
+                                {option.label}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>
 
           {/* Métodos de Verificación */}
-          <Accordion type="single" collapsible className="w-full" defaultValue="verification-methods">
+          <Accordion
+            type="single"
+            collapsible
+            className="w-full"
+            defaultValue="verification-methods"
+          >
             <AccordionItem value="verification-methods">
               <AccordionTrigger className="text-lg font-semibold">
                 <div className="flex items-center gap-2">
@@ -596,21 +685,24 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                     <CardContent className="space-y-4">
                       <div>
                         <Label>Estrategia de Verificación</Label>
-                        <TextUrlExtractor
-                          value={formData.verificationMethods.strategy}
-                          onChange={(value) => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              verificationMethods: {
-                                ...prev.verificationMethods,
-                                strategy: value,
-                              },
-                            }));
-                          }}
-                          onMetadata={(metadata) => setUrlMetadata(metadata)}
-                          placeholder="Describe la estrategia utilizada para verificar la información"
-                          className="mt-1"
-                          maxHeight="100px"
+                        <Controller
+                          name="verification.text"
+                          control={control}
+                          render={({ field }) => (
+                            <TextUrlExtractor
+                              value={field.value}
+                              onChange={field.onChange}
+                              onMetadata={(metadata) =>
+                                setValue(
+                                  "verification.metadata",
+                                  metadata as any
+                                )
+                              }
+                              placeholder="Describe la estrategia utilizada para verificar la información"
+                              className="mt-1"
+                              maxHeight="100px"
+                            />
+                          )}
                         />
                       </div>
 
@@ -618,15 +710,9 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                         <Label>Imágenes de Evidencia</Label>
                         <div
                           className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center mt-1"
-                          onDragOver={handleDragOver}
+                          onDragOver={(e) => handleDragOver(e, "verification")}
                           onDragLeave={handleDragLeave}
-                          onDrop={(e) =>
-                            handleDrop(
-                              e,
-                              "verification",
-                              formData.verificationMethods.id
-                            )
-                          }
+                          onDrop={(e) => handleDrop(e, "verification")}
                         >
                           <Upload className="w-6 h-6 mx-auto mb-2 text-gray-400" />
                           <p className="text-sm text-gray-600 mb-2">
@@ -637,68 +723,58 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                             size="sm"
                             onClick={() =>
                               document
-                                .getElementById(
-                                  `verification-images-${formData.verificationMethods.id}`
-                                )
+                                .getElementById("verification-images")
                                 ?.click()
                             }
                           >
                             Seleccionar Archivos
                           </Button>
                           <input
-                            id={`verification-images-${formData.verificationMethods.id}`}
+                            id="verification-images"
                             type="file"
                             multiple
                             accept="image/*"
                             className="hidden"
                             onChange={(e) =>
                               e.target.files &&
-                              handleFileUpload(
-                                e.target.files,
-                                "verification",
-                                formData.verificationMethods.id
-                              )
+                              handleFileUpload(e.target.files, "verification")
                             }
                           />
                         </div>
 
-                        {formData.verificationMethods.evidenceImages.length >
-                          0 && (
+                        {getValues("verification.images")?.length > 0 && (
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                            {formData.verificationMethods.evidenceImages.map(
-                              (file) => (
-                                <div key={file.id} className="relative group">
-                                  {file.preview ? (
-                                    <img
-                                      src={file.preview}
-                                      alt={file.file.name}
-                                      className="w-full h-16 object-cover rounded"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-16 bg-gray-100 rounded flex items-center justify-center">
-                                      <FileText className="w-4 h-4 text-gray-400" />
-                                    </div>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        verificationMethods: {
-                                          ...prev.verificationMethods,
-                                          evidenceImages:
-                                            prev.verificationMethods.evidenceImages.filter(
-                                              (f) => f.id !== file.id
-                                            ),
-                                        },
-                                      }));
-                                    }}
-                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <X className="w-2 h-2" />
-                                  </button>
-                                </div>
-                              )
-                            )}
+                            {getValues("verification.images").map((file) => (
+                              <div key={file.id} className="relative group">
+                                {file.preview ? (
+                                  <img
+                                    src={file.preview}
+                                    alt={file.file.name}
+                                    className="w-full h-16 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-full h-16 bg-gray-100 rounded flex items-center justify-center">
+                                    <FileText className="w-4 h-4 text-gray-400" />
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const currentImages = getValues(
+                                      "verification.images"
+                                    );
+                                    setValue(
+                                      "verification.images",
+                                      currentImages.filter(
+                                        (f) => f.id !== file.id
+                                      )
+                                    );
+                                  }}
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-2 h-2" />
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -710,7 +786,12 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
           </Accordion>
 
           {/* Contexto Adicional */}
-          <Accordion type="single" collapsible className="w-full" defaultValue="additional-context">
+          <Accordion
+            type="single"
+            collapsible
+            className="w-full"
+            defaultValue="additional-context"
+          >
             <AccordionItem value="additional-context">
               <AccordionTrigger className="text-lg font-semibold">
                 <div className="flex items-center gap-2">
@@ -720,10 +801,6 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6 pt-4">
-
-
-
-
                   {/* Contexto Adicional */}
                   <Card>
                     <CardHeader>
@@ -732,17 +809,23 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <TextUrlExtractor
-                        value={formData.additionalContext}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            additionalContext: value,
-                          }))
-                        }
-                        onMetadata={(metadata) => setUrlMetadata(metadata)}
-                        placeholder="Escribe aquí cualquier contexto adicional que consideres relevante para el análisis..."
-                        maxHeight="150px"
+                      <Controller
+                        name="additional_context.text"
+                        control={control}
+                        render={({ field }) => (
+                          <TextUrlExtractor
+                            value={field.value}
+                            onChange={field.onChange}
+                            onMetadata={(metadata) =>
+                              setValue(
+                                "additional_context.metadata",
+                                metadata as any
+                              )
+                            }
+                            placeholder="Escribe aquí cualquier contexto adicional que consideres relevante para el análisis..."
+                            maxHeight="150px"
+                          />
+                        )}
                       />
                     </CardContent>
                   </Card>
@@ -750,7 +833,7 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-        </div>
+        </form>
       </div>
 
       {/* Sección Derecha - Visualizador de Resultados */}
@@ -770,22 +853,6 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto pr-2">
-              {validationErrors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-4 h-4 text-red-500" />
-                    <h4 className="font-medium text-red-900">
-                      Errores de validación
-                    </h4>
-                  </div>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    {validationErrors.map((error, index) => (
-                      <li key={index}>• {error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {isAnalyzing ? (
                 <div className="space-y-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -857,15 +924,14 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
                     <Button
                       variant="outline"
                       onClick={() => {
+                        const currentFormData = getValues();
                         const blob = new Blob([analysisResult], {
                           type: "text/plain",
                         });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
-                        a.download = `analisis-${formData.title
-                          .replace(/[^a-z0-9]/gi, "-")
-                          .toLowerCase()}.txt`;
+                        a.download = `analisis-${Date.now()}.txt`;
                         a.click();
                         URL.revokeObjectURL(url);
                       }}

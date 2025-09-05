@@ -42,8 +42,6 @@ export function Sidebar() {
 
   const { profile, user, organization } = useAuth();
 
-  console.log(organization)
-
   // Lista de correos autorizados para acceso de admin
   const adminEmails = [
     "kdelahoz@lasillavacia.com",
@@ -101,7 +99,7 @@ export function Sidebar() {
           </div>
 
           {/* Iconos de navegación */}
-          <div className="flex flex-col items-center gap-4 mt-4">
+          <div className="flex flex-col items-center gap-2 mt-4">
             <NavItem
               icon={<Home className="size-5" />}
               label="Inicio"

@@ -223,9 +223,6 @@ export default function AnalyticsPage() {
         }
       }
 
-      console.log(userProfiles)
-
-
       // Procesar datos para analytics
       const analyticsData = processLogsData(logs, userProfiles);
       setData(analyticsData);
@@ -324,13 +321,6 @@ export default function AnalyticsPage() {
       })
     );
 
-    // Debug: Log provider data
-    console.log('Provider Usage Debug:', {
-      filteredLogs: logs.filter((log) => log.ai_provider).length,
-      providerUsage,
-      providerArray
-    });
-
     // Si no hay datos de proveedores, agregar datos de ejemplo
     if (providerArray.length === 0) {
       providerArray = [
@@ -353,7 +343,6 @@ export default function AnalyticsPage() {
           cost: 0
         }
       ];
-      console.log('No provider data found, using fallback data:', providerArray);
     }
 
     // Actividad de usuarios por día
@@ -507,9 +496,9 @@ export default function AnalyticsPage() {
     const topUsers = Object.entries(userUsageCounts)
       .map(([userId, count]: [string, any]) => {
         const userProfile = userProfiles.find(
-          (profile) => profile.id === userId
+          (profile) => profile?.id === userId
         );
-        const username = `${userProfile.name} ${userProfile.lastname}`;
+        const username = `${userProfile?.name} ${userProfile?.lastname}`;
         return {
           userId,
           username,
