@@ -456,12 +456,8 @@ export async function POST(request: NextRequest) {
     // 3. Generar prompt
     const prompt = generatePrompt(validatedData);
     let systemPrompt = toolConfig.prompts?.[0]?.prompt || "";
-    
-    // Validar que el systemPrompt no esté vacío (requerido por Anthropic)
-    if (!systemPrompt || systemPrompt.trim() === "") {
-      systemPrompt = "Eres un experto analista de desinformación. Tu tarea es analizar el contenido proporcionado y determinar si contiene información falsa o engañosa. Proporciona un análisis detallado y fundamentado.";
-      debugLogger.info("Usando prompt del sistema por defecto debido a configuración vacía");
-    }
+
+    console.log(systemPrompt)
     
     debugLogger.info("Prompt combinado generado", {
       systemPromptLength: systemPrompt.length,
