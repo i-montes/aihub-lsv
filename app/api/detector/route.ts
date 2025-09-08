@@ -455,9 +455,8 @@ export async function POST(request: NextRequest) {
 
     // 3. Generar prompt
     const prompt = generatePrompt(validatedData);
-    let systemPrompt = toolConfig.prompts?.[0]?.prompt || "";
-
-    console.log(systemPrompt)
+    const filterPrincipalPrompt = toolConfig.prompts?.find((prompt) => prompt?.title?.toLowerCase() === "principal") || "";
+    const systemPrompt = filterPrincipalPrompt.content || "";
     
     debugLogger.info("Prompt combinado generado", {
       systemPromptLength: systemPrompt.length,
