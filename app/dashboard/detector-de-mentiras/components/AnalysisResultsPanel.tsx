@@ -99,6 +99,14 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                   {children}
                                 </h3>
                               ),
+                              a: ({ children }) => (
+                                <a
+                                  className="text-blue-600 hover:underline"
+                                  href="#"
+                                >
+                                  {children}
+                                </a>
+                              ),
                               p: ({ children }) => (
                                 <p className="text-sm text-gray-600 mb-2 leading-relaxed">
                                   {children}
@@ -185,6 +193,14 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                 <h3 className="text-base font-medium text-gray-700 mb-2">
                                   {children}
                                 </h3>
+                              ),
+                              a: ({ children }) => (
+                                <a
+                                  className="text-blue-600 hover:underline"
+                                  href="#"
+                                >
+                                  {children}
+                                </a>
                               ),
                               p: ({ children }) => (
                                 <p className="text-sm text-gray-600 mb-2 leading-relaxed">
@@ -273,6 +289,14 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                             <h3 className="text-base font-medium text-gray-700 mb-2">
                               {children}
                             </h3>
+                          ),
+                          a: ({ children }) => (
+                            <a
+                              className="text-blue-600 hover:underline"
+                              href="#"
+                            >
+                              {children}
+                            </a>
                           ),
                           p: ({ children }) => (
                             <p className="text-sm text-gray-600 mb-2 leading-relaxed">
