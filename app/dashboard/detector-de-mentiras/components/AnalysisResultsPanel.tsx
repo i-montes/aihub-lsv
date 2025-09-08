@@ -99,10 +99,10 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                   {children}
                                 </h3>
                               ),
-                              a: ({ children }) => (
+                              a: ({ children, href }) => (
                                 <a
                                   className="text-blue-600 hover:underline"
-                                  href="#"
+                                  href={href}
                                 >
                                   {children}
                                 </a>
@@ -194,10 +194,10 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                   {children}
                                 </h3>
                               ),
-                              a: ({ children }) => (
+                              a: ({ children, href }) => (
                                 <a
                                   className="text-blue-600 hover:underline"
-                                  href="#"
+                                  href={href}
                                 >
                                   {children}
                                 </a>
@@ -290,10 +290,10 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                               {children}
                             </h3>
                           ),
-                          a: ({ children }) => (
+                          a: ({ children, href }) => (
                             <a
                               className="text-blue-600 hover:underline"
-                              href="#"
+                              href={href}
                             >
                               {children}
                             </a>
