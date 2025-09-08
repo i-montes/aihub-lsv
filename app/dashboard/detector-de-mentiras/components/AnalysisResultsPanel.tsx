@@ -46,7 +46,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
     <div className="w-1/2 flex flex-col h-full">
       <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
         <TrendingUp className="w-6 h-6" />
-        Resultados del análisis de IA
+        Resultados
       </h2>
 
       <Tabs defaultValue="model1" className="w-full">
@@ -354,7 +354,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Los resultados del análisis aparecerán aquí</p>
+                      <p>Los resultados aparecerán aquí</p>
                     </div>
                   )}
                 </div>
