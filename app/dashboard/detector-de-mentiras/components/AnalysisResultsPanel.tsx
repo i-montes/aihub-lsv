@@ -52,14 +52,16 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
       <Tabs defaultValue="model1" className="w-full">
         <Card className="flex-1 overflow-hidden">
           <CardHeader>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="model1">
-                {MODELS[name1 as keyof typeof MODELS]}
-              </TabsTrigger>
-              <TabsTrigger value="model2">
-                {MODELS[name2 as keyof typeof MODELS]}
-              </TabsTrigger>
-            </TabsList>
+            {isCompareMode && (
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="model1">
+                  {MODELS[name1 as keyof typeof MODELS]}
+                </TabsTrigger>
+                <TabsTrigger value="model2">
+                  {MODELS[name2 as keyof typeof MODELS]}
+                </TabsTrigger>
+              </TabsList>
+            )}
           </CardHeader>
           <CardContent className="h-full max-h-[calc(100vh-242px)] overflow-y-auto">
             {/* Mostrar indicador de streaming si está activo */}
@@ -103,7 +105,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                 </p>
                               ),
                               ul: ({ children }) => (
-                                <ul className="list-disc list-inside mb-3 space-y-1">
+                                <ul className="list-disc list-outside mb-3 space-y-1">
                                   {children}
                                 </ul>
                               ),
