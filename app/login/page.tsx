@@ -256,14 +256,14 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* <div className="mt-6 text-center">
               <p className="text-gray-500">
                 ¿No tienes una cuenta?{" "}
-                <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
-                  Regístrate
-                </Link>
+                  <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
+                    Regístrate
+                  </Link>
               </p>
-            </div>
+            </div> */}
           </div>
 
           <div className="mt-8 text-center text-sm text-gray-500">
