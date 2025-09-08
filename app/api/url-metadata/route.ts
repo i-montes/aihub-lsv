@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
               try {
                 const twitterData = await getTwitterData(tweetId);
 
-                const images = twitterData.entities?.media.filter((item: any) => item.type === "photo");
-                const videos = twitterData.entities?.media.filter((item: any) => item.type === "video");
+                const images = twitterData?.entities?.media?.filter((item: any) => item.type === "photo") || [];
+                const videos = twitterData?.entities?.media?.filter((item: any) => item.type === "video") || [];
 
                 return {
                   url: normalizedUrl,

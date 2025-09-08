@@ -67,8 +67,6 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
     fieldName: "disinformation.images",
   });
 
-  console.log(errors);
-
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -196,6 +194,7 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
                   value={field.value}
                   onChange={field.onChange}
                   onMetadata={(metadata) => {
+                    // console.log("metadata: ", Object.fromEntries(metadata));
                     setValue("disinformation.metadata", Object.fromEntries(metadata) as any);
                   }}
                   placeholder={`Agrega los enlaces del contenido desinformativo, uno por línea:\n\nhttps://ejemplo.com/video\nhttps://ejemplo.com/articulo\nhttps://ejemplo.com/documento.pdf`}

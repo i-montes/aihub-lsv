@@ -35,9 +35,9 @@ export const RATING_OPTIONS = [
 /**
  * Schema de Zod para metadata de URLs
  */
-export const metadataSchema = z.object({
-  key: z.string().optional(),
-  value: z.object({
+export const metadataSchema = z.record(
+  z.string(),
+  z.object({
     url: z.string().default("").optional(),
     title: z.string().optional(),
     description: z.string().optional(),
@@ -61,12 +61,25 @@ export const metadataSchema = z.object({
     media_image: z.string().optional(),
     media_video: z.string().optional(),
   }).optional(),
-});
+);
 
 /**
  * Schema principal del formulario
  */
 export const formSchema = z.object({
+  selectedModel: z.object({
+    provider: z.string().min(1, "Selecciona un proveedor"),
+    model: z.string().min(1, "Selecciona un modelo"),
+  }),
+  model_to_compare_1: z.object({
+    provider: z.string(),
+    model: z.string(),
+  }).optional(),
+  model_to_compare_2: z.object({
+    provider: z.string(),
+    model: z.string(),
+  }).optional(),
+  compare: z.boolean().default(false),
   rating: z
     .enum(["cierto", "cierto-pero", "debatible", "enganoso", "falso"], {
       required_error: "Selecciona una calificación",
@@ -98,6 +111,41 @@ export const formSchema = z.object({
       .describe("Texto del input de Estrategia de Verificación"),
     metadata: metadataSchema.optional(),
   }),
+}).superRefine((data, ctx) => {
+  // Si compare es true, los modelos de comparación son obligatorios
+  if (data.compare) {
+    // Validar model_to_compare_1
+    if (!data.model_to_compare_1?.provider || data.model_to_compare_1.provider.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona un proveedor para el primer modelo de comparación",
+        path: ["model_to_compare_1", "provider"],
+      });
+    }
+    if (!data.model_to_compare_1?.model || data.model_to_compare_1.model.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el primer modelo de comparación",
+        path: ["model_to_compare_1", "model"],
+      });
+    }
+    
+    // Validar model_to_compare_2
+    if (!data.model_to_compare_2?.provider || data.model_to_compare_2.provider.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona un proveedor para el segundo modelo de comparación",
+        path: ["model_to_compare_2", "provider"],
+      });
+    }
+    if (!data.model_to_compare_2?.model || data.model_to_compare_2.model.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el segundo modelo de comparación",
+        path: ["model_to_compare_2", "model"],
+      });
+    }
+  }
 });
 
 /**
@@ -108,7 +156,17 @@ export type FormSchema = z.infer<typeof formSchema>;
 /**
  * Valores por defecto del formulario
  */
-export const defaultFormValues: FormSchema = {
+export const defaultFormValues: Partial<FormSchema> = {
+  compare: false,
+  model_to_compare_1: {
+    provider: "",
+    model: "",
+  },
+  model_to_compare_2: {
+    provider: "",
+    model: "",
+  },
+  // selectedModel se establecerá dinámicamente cuando se carguen los modelos disponibles
   rating: "cierto",
   disinformation: {
     images: [],

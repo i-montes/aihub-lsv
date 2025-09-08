@@ -50,7 +50,8 @@ export const ToolTypeSchema = z.enum([
   "resume",
   "thread-generator",
   "analyzer",
-  "custom"
+  "custom",
+  "detector"
 ]);
 
 // Tipos de contenido procesado

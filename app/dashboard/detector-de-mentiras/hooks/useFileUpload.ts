@@ -25,40 +25,62 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
   const isDragOver = dragOver === fieldName;
 
   /**
+   * Crea un preview para un archivo de imagen usando FileReader
+   * @param file - Archivo de imagen
+   * @returns Promise que resuelve con el preview en base64
+   */
+  const createImagePreview = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target?.result as string);
+      };
+      reader.onerror = () => {
+        reject(new Error('Error al leer el archivo'));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  /**
    * Maneja la subida de archivos para una sección específica
    * @param files - Lista de archivos a subir
    */
-  const handleFileUpload = (files: FileList) => {
+  const handleFileUpload = async (files: FileList) => {
     const newFiles: UploadedFile[] = [];
 
-    Array.from(files).forEach((file) => {
+    for (const file of Array.from(files)) {
       if (file.size > 5 * 1024 * 1024) {
         // 5MB limit
-        return;
+        continue;
       }
 
       const fileType = file.type.startsWith("image/") ? "image" : "document";
+      let preview = "";
+
+      // Si es una imagen, crear el preview de forma asíncrona
+      if (fileType === "image") {
+        try {
+          preview = await createImagePreview(file);
+        } catch (error) {
+          console.error('Error al crear preview:', error);
+          preview = "";
+        }
+      }
+
       const uploadedFile: UploadedFile = {
         name: file.name,
         size: file.size,
         id: generateId(),
         file,
         type: fileType,
+        preview,
       };
 
-      if (fileType === "image") {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          uploadedFile.preview = e.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-      }
-
       newFiles.push(uploadedFile);
-    });
+    }
 
     const currentImages = getValues(fieldName);
-    console.log(newFiles, fieldName);
     setValue(fieldName, [...(currentImages || []), ...newFiles]);
   };
 
@@ -86,12 +108,12 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
    * @param e - Evento de drop
    * @param type - Tipo de sección donde hacer drop (opcional, por defecto "disinformation")
    */
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(null);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      handleFileUpload(files);
+      await handleFileUpload(files);
     }
   };
 
@@ -100,10 +122,10 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
    * @param e - Evento de cambio del input
    * @param type - Tipo de sección (opcional, por defecto "disinformation")
    */
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileUpload(files);
+      await handleFileUpload(files);
     }
   };
 

@@ -15,6 +15,7 @@ import { MainInfoSection } from "./components/MainInfoSection";
 import { VerificationSection } from "./components/VerificationSection";
 import { AdditionalContextSection } from "./components/AdditionalContextSection";
 import { AnalysisResultsPanel } from "./components/AnalysisResultsPanel";
+import { ModelSelectionSection } from "./components/ModelSelectionSection";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -39,20 +40,23 @@ export default function LieDetectorPage() {
   } = useForm<FormSchema>({
     mode: "onChange",
     resolver: zodResolver(formSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: {
+      ...defaultFormValues,
+      selectedModel: { provider: "openai", model: "gpt-4" }, // Valor temporal hasta que se carguen los modelos
+    } as FormSchema,
   });
 
   // console.log(getValues())
 
   // Hooks personalizados para lógica de negocio
   const apiKeyStatus = useApiKeyStatus();
-  const { isAnalyzing, analysisResult, analysisStep, generateAnalysis } =
+  const { isAnalyzing, analysisResult, analysisStep, comparisonResults, generateAnalysis } =
     useAnalysis(getValues, apiKeyStatus.hasApiKey);
 
   // Manejo del envío del formulario
   const onSubmit = async (data: FormSchema) => {
     console.log("Form submitted with data:", data);
-    await generateAnalysis();
+    await generateAnalysis(data);
   };
 
   // Mostrar modal de API key si es necesario
@@ -100,6 +104,14 @@ export default function LieDetectorPage() {
             setValue={setValue}
           />
 
+          <ModelSelectionSection
+            control={control}
+            errors={errors}
+            setValue={setValue}
+            getValues={getValues}
+          />
+
+
           <div className="space-y-3">
             <Button
               type="submit"
@@ -132,7 +144,17 @@ export default function LieDetectorPage() {
       </div>
 
       {/* Right side - Results */}
-      {/* <AnalysisResultsPanel isVisible={true} results={analysisResult} /> */}
+      <AnalysisResultsPanel 
+        isVisible={true} 
+        markdownContent={analysisResult}
+        isStreaming={isAnalyzing}
+        streamingStep={analysisStep}
+        isCompareMode={!!comparisonResults}
+        result1={comparisonResults?.result1 || ""}
+        result2={comparisonResults?.result2 || ""}
+        model1Name={comparisonResults?.model1Name || ""}
+        model2Name={comparisonResults?.model2Name || ""}
+      />
     </div>
   );
 }

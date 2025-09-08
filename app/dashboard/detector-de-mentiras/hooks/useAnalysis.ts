@@ -17,11 +17,17 @@ export const useAnalysis = (
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisStep, setAnalysisStep] = useState("");
+  const [comparisonResults, setComparisonResults] = useState<{
+    result1: string;
+    result2: string;
+    model1Name: string;
+    model2Name: string;
+  } | null>(null);
 
   /**
-   * Genera el análisis con IA basado en los datos del formulario
+   * Genera el análisis con IA basado en los datos del formulario usando respuesta JSON
    */
-  const generateAnalysis = async () => {
+  const generateAnalysis = async (data: FormSchema) => {
     if (!hasApiKey) {
       toast.error("Se requiere una API key para generar el análisis");
       return;
@@ -29,72 +35,63 @@ export const useAnalysis = (
 
     setIsAnalyzing(true);
     setAnalysisProgress(0);
-    setAnalysisStep("Iniciando análisis...");
-
-    const steps = [
-      "Procesando contenido desinformativo...",
-      "Analizando imágenes y enlaces...",
-      "Aplicando métodos de verificación...",
-      "Evaluando evidencias...",
-      "Generando informe final...",
-    ];
+    setAnalysisStep("Iniciando análisis con IA...");
+    setAnalysisResult(""); // Limpiar resultado anterior
 
     try {
-      // Obtener datos actuales del formulario
-      const currentFormData = getValues();
+      // Realizar la petición a la API
+      setAnalysisStep("Enviando datos...");
+      setAnalysisProgress(25);
 
-      for (let i = 0; i < steps.length; i++) {
-        setAnalysisStep(steps[i]);
-        setAnalysisProgress((i + 1) * 20);
-        await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await fetch('/api/detector', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      setAnalysisStep("Procesando respuesta...");
+      setAnalysisProgress(50);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error en la API');
       }
 
-      const mockAnalysis = `# Análisis de Desinformación
+      const result = await response.json();
 
-## Resumen
-${currentFormData.disinformation.description}
+      setAnalysisStep("Generando análisis...");
+      setAnalysisProgress(75);
 
-## Calificación
-**${
-        currentFormData.rating
-          ? RATING_OPTIONS.find((r) => r.value === currentFormData.rating)
-              ?.label
-          : "Sin calificar"
-      }**
-
-## Métodos de Verificación Aplicados
-1. ${currentFormData.verification.text}
-
-## Evidencias Encontradas
-- Imágenes de desinformación analizadas: ${
-        currentFormData.disinformation.images.length
-      }
-- Imágenes de verificación: ${currentFormData.verification.images.length}
-- Enlaces de desinformación: ${
-        currentFormData.disinformation.text
-          .split("\n")
-          .filter((link) => link.trim()).length
+      if (!result.success) {
+        throw new Error(result.error || 'Error en la respuesta de la API');
       }
 
-## Conclusión
-Basado en el análisis realizado, se ha determinado la veracidad de la información presentada.
+      // Manejar modo comparación vs análisis simple
+      if (data.compare && result.generated1 && result.generated2) {
+        // Modo comparación: guardar resultados por separado
+        setComparisonResults({
+          result1: result.generated1,
+          result2: result.generated2,
+          model1Name: `${result.model1?.provider} - ${result.model1?.model}` || "Modelo 1",
+          model2Name: `${result.model2?.provider} - ${result.model2?.model}` || "Modelo 2",
+        });
+        setAnalysisResult(""); // Limpiar resultado simple
+      } else {
+        // Análisis simple
+        setAnalysisResult(result.generated || "");
+        setComparisonResults(null); // Limpiar resultados de comparación
+      }
 
-## Recomendaciones
-1. Verificar fuentes primarias
-2. Consultar expertos en el tema
-3. Monitorear la evolución de la información
-4. Aplicar fact-checking adicional si es necesario
-
----
-*Análisis generado automáticamente - Fecha: ${new Date().toLocaleDateString()}*`;
-
-      setAnalysisResult(mockAnalysis);
       setAnalysisProgress(100);
       setAnalysisStep("¡Análisis completado!");
       toast.success("Análisis generado exitosamente");
+      
     } catch (error) {
-      console.error("Error:", error);
-      toast.error("Error al generar el análisis");
+      console.error("Error al generar análisis:", error);
+      toast.error(error instanceof Error ? error.message : "Error al generar el análisis");
+      setAnalysisResult("");
     } finally {
       setTimeout(() => {
         setIsAnalyzing(false);
@@ -108,6 +105,7 @@ Basado en el análisis realizado, se ha determinado la veracidad de la informaci
     analysisResult,
     analysisProgress,
     analysisStep,
+    comparisonResults,
     generateAnalysis,
   };
 };
