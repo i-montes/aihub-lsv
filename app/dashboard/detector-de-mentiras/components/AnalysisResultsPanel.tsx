@@ -105,7 +105,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                 </p>
                               ),
                               ul: ({ children }) => (
-                                <ul className="list-disc list-outside mb-3 space-y-1">
+                                <ul className="list-disc list-inside mb-3 space-y-1">
                                   {children}
                                 </ul>
                               ),
