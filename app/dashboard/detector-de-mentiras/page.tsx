@@ -126,12 +126,12 @@ export default function LieDetectorPage() {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {analysisStep || "Analizando..."}
+                  {analysisStep || "Generando borrador..."}
                 </>
               ) : (
                 <>
                   <Eye className="w-4 h-4 mr-2" />
-                  Generar análisis
+                  Generar borrador
                 </>
               )}
             </Button>

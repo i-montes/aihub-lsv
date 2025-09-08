@@ -66,7 +66,7 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
         {/* Extractor de texto desde URL */}
         <div>
           <Label className="text-base font-medium flex items-center gap-2">
-            Estrategia de Verificación
+            Estrategia de verificación
           </Label>
           <Controller
             name="verification.text"
@@ -81,7 +81,7 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
                     Object.fromEntries(metadata) as any
                   )
                 }
-                placeholder="Describe la estrategia utilizada para verificar la información"
+                placeholder="Describe las estrategias utilizadas para la verificación"
                 className="mt-1"
                 maxHeight="100px"
               />
@@ -94,7 +94,7 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <Label className="text-base font-medium flex items-center gap-2">
               <ImageIcon className="w-4 h-4" />
-              Imágenes de Evidencia
+              Imágenes de evidencia
             </Label>
             <div className="group relative">
               <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
@@ -103,7 +103,7 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
                 <br />
                 <br />
                 <span className="text-xs text-gray-300">
-                  Imágenes, PDF y documentos de texto
+                  Formatos permitidos: .png,.jpg,.jpeg
                 </span>
               </div>
             </div>
@@ -121,10 +121,10 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
               <Upload className="w-8 h-8 text-gray-400" />
               <div>
                 <p className="text-sm font-medium text-gray-700">
-                  Arrastra o selecciona archivos
+                  Arrastra o selecciona tus imágenes
                 </p>
                 <p className="text-xs text-gray-500">
-                  Imágenes, PDF y documentos de texto
+                  Formatos permitidos: .png,.jpg,.jpeg
                 </p>
               </div>
               <input

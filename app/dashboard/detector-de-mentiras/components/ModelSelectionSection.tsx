@@ -145,7 +145,7 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bot className="w-5 h-5" />
-          Selección de modelos AI
+          Selección de modelos de IA
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -157,7 +157,7 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
               className="text-base font-medium flex items-center gap-2"
             >
               <GitCompare className="w-4 h-4" />
-              Comparar con otros modelos
+              Comparar modelos
             </Label>
             <div className="group relative">
               <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
@@ -257,14 +257,10 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
         {/* Modelos de comparación */}
         {compareEnabled && (
           <div className="space-y-4 pt-4 border-t bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-3">
-              Modelos para comparación
-            </h4>
-
             {/* Primer modelo de comparación */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">
-                Modelo de comparación 1 *
+                Modelo 1 *
               </Label>
               <Controller
                 name="model_to_compare_1"
@@ -318,7 +314,7 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
             {/* Segundo modelo de comparación */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">
-                Modelo de comparación 2 *
+                Modelo 2 *
               </Label>
               <Controller
                 name="model_to_compare_2"

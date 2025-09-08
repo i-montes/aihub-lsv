@@ -12,7 +12,7 @@ export const FormHeader: React.FC = () => {
             Detector de mentiras
           </h1>
           <p className="text-gray-600 mt-1">
-            Analiza y verifica información para detectar desinformación
+            Genera borradores para tus verificaciones
           </p>
         </div>
       </div>

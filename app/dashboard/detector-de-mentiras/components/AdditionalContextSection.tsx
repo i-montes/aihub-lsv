@@ -28,7 +28,7 @@ export const AdditionalContextSection: React.FC<
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-blue-500" />
-          Contexto adicional
+          Contexto
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -54,10 +54,6 @@ export const AdditionalContextSection: React.FC<
           {errors.additional_context?.text && (
             <FormMessage>{errors.additional_context.text.message}</FormMessage>
           )}
-          <p className="text-xs text-gray-500">
-            Este campo es opcional pero puede ayudar a mejorar la precisión del
-            análisis.
-          </p>
         </div>
       </CardContent>
     </Card>

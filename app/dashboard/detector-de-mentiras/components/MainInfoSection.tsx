@@ -83,7 +83,7 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <Label className="text-base font-medium flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
-                Imágenes de desinformación
+                Imágenes de la desinformación
               </Label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
@@ -105,10 +105,10 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
                 <Upload className="w-8 h-8 text-gray-400" />
                 <div>
                   <p className="text-sm font-medium text-gray-700">
-                    Arrastra o selecciona archivos
+                    Arrastra o selecciona tus imágenes
                   </p>
                   <p className="text-xs text-gray-500">
-                    Imágenes, PDF y documentos de texto
+                    Formatos permitidos: .png,.jpg,.jpeg
                   </p>
                 </div>
                 <input
@@ -177,12 +177,12 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <Label className="text-base font-medium flex items-center gap-2">
                 <LinkIcon className="w-4 h-4" />
-                Enlaces de desinformación
+                Enlaces de la desinformación
               </Label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Agrega enlaces del contenido desinformativo (uno por línea)
+                  Agrega enlaces de los sitios donde circula la desinformación (uno por línea)
                 </div>
               </div>
             </div>
@@ -217,7 +217,7 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Explica el contenido principal y las afirmaciones clave
+                  Explica de que se trata la desinformación
                 </div>
               </div>
             </div>
@@ -242,12 +242,12 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Label className="text-base font-medium flex items-center gap-2">
-                Calificación inicial *
+                Calificación *
               </Label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Tu evaluación inicial basada en el análisis preliminar
+                  Tu evaluación basada en el análisis preliminar
                 </div>
               </div>
             </div>

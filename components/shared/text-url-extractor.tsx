@@ -373,7 +373,7 @@ const TextUrlExtractor: React.FC<TextUrlExtractorProps> = ({
           <AccordionItem value="url-previews" className="border rounded-lg">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">URLs Detectadas</span>
+                <span className="text-sm font-medium">URLs detectadas</span>
                 <Badge
                   variant="secondary"
                   className="bg-blue-50 text-blue-700 border-blue-200"
