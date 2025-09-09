@@ -218,6 +218,63 @@ export function WordPressSearchDialog({
     }
   };
 
+  // Función para construir el endpoint de búsqueda
+  const buildSearchEndpoint = (query: string, page: number, connection: WordPressConnection): string => {
+    const isUrlQuery = isUrl(query);
+    const slug = isUrlQuery ? extractSlugFromUrl(query) : null;
+    
+    if (connection.connection_type === "wordpress_com") {
+      if (isUrlQuery && slug) {
+        return `/posts?slug=${encodeURIComponent(slug)}&page=${page}&number=${perPage}`;
+      } else {
+        return `/posts?search=${encodeURIComponent(query)}&page=${page}&number=${perPage}`;
+      }
+    } else if (connection.connection_type === "self_hosted") {
+      if (isUrlQuery && slug) {
+        return `/posts?slug=${encodeURIComponent(slug)}&page=${page}&per_page=${perPage}`;
+      } else {
+        return `/posts?search=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
+      }
+    }
+    
+    throw new Error("Tipo de conexión no soportado");
+  };
+
+  // Función para transformar posts según el tipo de conexión
+  const transformPosts = (posts: any[], connectionType: string): WordPressPost[] => {
+    return posts.map((post): WordPressPost & { author: string, categories: string, tags: string, featured_media: string } => {
+      if (connectionType === "wordpress_com") {
+        return {
+          id: post.ID as number,
+          title: { rendered: post.title as string },
+          excerpt: { rendered: post.excerpt as string },
+          content: { rendered: post.content as string },
+          link: post.URL as string,
+          date: post.date as string,
+          author: (post.author as any)?.name || 'Autor desconocido',
+          categories: post.categories || {},
+          tags: post.tags || {},
+          status: post.status as string,
+          featured_media: post.featured_image as string,
+        };
+      } else {
+        return {
+          id: post.id as number,
+          title: post.title || { rendered: '' },
+          excerpt: post.excerpt || { rendered: '' },
+          content: post.content || { rendered: '' },
+          link: post.link as string,
+          date: post.date as string,
+          author: 'Autor',
+          categories: post.categories || {},
+          tags: post.tags || {},
+          status: post.status as string,
+          featured_media: post.featured_media as string || '',
+        };
+      }
+    });
+  };
+
   // Función interna para buscar en WordPress
   const internalOnSearch = async (query: string, page: number = 1) => {
     if (!wordpressConnection.exists || !wordpressConnection.connectionData) {
@@ -229,60 +286,16 @@ export function WordPressSearchDialog({
       setInternalIsSearching(true);
       setInternalSearchError(null);
 
-      // Obtener organizationId del usuario
-      const supabase = getSupabaseClient();
-      const { data: userData } = await supabase.auth.getUser();
+      const connection = wordpressConnection.connectionData;
       
-      if (!userData?.user) {
-        setInternalSearchError("Usuario no autenticado");
-        setInternalIsSearching(false);
-        setInternalHasSearched(true);
-        return;
-      }
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("organizationId")
-        .eq("id", userData.user.id)
-        .single();
-
-      if (!profileData?.organizationId) {
-        setInternalSearchError("No se encontró la organización del usuario");
-        setInternalIsSearching(false);
-        setInternalHasSearched(true);
-        return;
-      }
-
-      // Usar getWordPressConnection para obtener la conexión
-      const connectionResult = await getWordPressConnection(profileData.organizationId);
-      
-      if (!connectionResult.success || !connectionResult.connection) {
-        setInternalSearchError(connectionResult.error || "Error al obtener la conexión de WordPress");
-        setInternalSearchResults([]);
-        setTotalPages(1);
-        setTotalResults(0);
-        setCurrentPage(1);
-        setInternalIsSearching(false);
-        setInternalHasSearched(true);
-        return;
-      }
-
-      const connection = connectionResult.connection;
-
-      // Construir endpoint de búsqueda según el tipo de conexión
+      // Construir endpoint según URL vs texto normal
       let searchEndpoint: string;
-      
-      if (connection.connection_type === "wordpress_com") {
-        searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&number=${perPage}`;
+      try {
+        searchEndpoint = buildSearchEndpoint(query, page, connection);
         if (categories) {
           searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
         }
-      } else if (connection.connection_type === "self_hosted") {
-        searchEndpoint = `/posts?search=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
-        if (categories) {
-          searchEndpoint += `&categories=${encodeURIComponent(categories)}`;
-        }
-      } else {
+      } catch (error) {
         setInternalSearchError("Tipo de conexión no soportado");
         setInternalSearchResults([]);
         setTotalPages(1);
@@ -293,7 +306,7 @@ export function WordPressSearchDialog({
         return;
       }
 
-      // Realizar búsqueda usando makeWordPressAuthenticatedRequest
+      // Realizar búsqueda
       const searchResponse = await makeWordPressAuthenticatedRequest(connection, searchEndpoint);
 
       if (!searchResponse.success) {
@@ -307,63 +320,20 @@ export function WordPressSearchDialog({
         let totalFound: number;
         
         if (connection.connection_type === "wordpress_com") {
-           // WordPress.com devuelve posts en data.posts y total en data.found
-           posts = searchResponse.data?.posts || [];
-           totalFound = searchResponse.data?.found || 0;
-         } else {
-           // Self-hosted devuelve directamente un array de posts
-           posts = Array.isArray(searchResponse.data) ? searchResponse.data : [];
-           // Para self-hosted, si recibimos menos posts que el perPage, asumimos que es la última página
-           // Si recibimos exactamente perPage posts, puede haber más páginas
-           if (posts.length < perPage) {
-             totalFound = (page - 1) * perPage + posts.length;
-           } else {
-             // Estimamos que hay al menos una página más
-             totalFound = page * perPage + 1;
-           }
-         }
+          posts = searchResponse.data?.posts ? Array.isArray(searchResponse.data.posts) ? searchResponse.data.posts : [] : [];
+          totalFound = Number(searchResponse.data?.found) || 0;
+        } else {
+          posts = Array.isArray(searchResponse.data) ? searchResponse.data : [];
+          totalFound = posts.length < perPage ? (page - 1) * perPage + posts.length : page * perPage + 1;
+        }
         
-        // Transformar los datos al formato esperado
-        const transformedPosts = posts.map((post: Record<string, unknown>) => {
-          if (connection.connection_type === "wordpress_com") {
-            // Formato WordPress.com
-            return {
-              id: post.ID as number,
-              title: { rendered: post.title as string },
-              excerpt: { rendered: post.excerpt as string },
-              content: { rendered: post.content as string },
-              link: post.URL as string,
-              date: post.date as string,
-              author: (post.author as any)?.name || 'Autor desconocido',
-              categories: post.categories || {},
-              tags: post.tags || {},
-              status: post.status as string,
-              featured_media: post.featured_image as string,
-            };
-          } else {
-            // Formato self-hosted (WP REST API v2)
-            return {
-              id: post.id as number,
-              title: post.title || { rendered: '' },
-              excerpt: post.excerpt || { rendered: '' },
-              content: post.content || { rendered: '' },
-              link: post.link as string,
-              date: post.date as string,
-              author: 'Autor', // En self-hosted necesitaríamos hacer otra petición para obtener el autor
-              categories: post.categories || {},
-              tags: post.tags || {},
-              status: post.status as string,
-              featured_media: post.featured_media as string || '',
-            };
-          }
-        });
+        const transformedPosts = transformPosts(posts, connection.connection_type);
         
         setInternalSearchResults(transformedPosts);
-        // Actualizar información de paginación
         setTotalPages(Math.ceil(Number(totalFound) / perPage));
         setTotalResults(Number(totalFound));
         setCurrentPage(page);
-        // Hacer scroll a los resultados si hay resultados
+        
         if (transformedPosts.length > 0) {
           scrollToResults();
         }
@@ -405,33 +375,18 @@ export function WordPressSearchDialog({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Resetear paginación al hacer nueva búsqueda
       setCurrentPage(1);
-      if (externalOnSearch) {
-        externalOnSearch(searchQuery, 1, perPage);
-      } else {
-        internalOnSearch(searchQuery, 1);
-      }
+      onSearch(searchQuery, 1, perPage);
     }
   };
 
-  // Funciones de paginación
+  // Función unificada de paginación
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages && page !== currentPage) {
-      if (externalOnSearch) {
-        // Si se usa búsqueda externa, pasar parámetros de paginación
-        setCurrentPage(page);
-        externalOnSearch(searchQuery, page, perPage);
-      } else {
-        internalOnSearch(searchQuery, page);
-      }
+      setCurrentPage(page);
+      onSearch(searchQuery, page, perPage);
     }
   };
-
-  const goToFirstPage = () => goToPage(1);
-  const goToLastPage = () => goToPage(totalPages);
-  const goToPreviousPage = () => goToPage(currentPage - 1);
-  const goToNextPage = () => goToPage(currentPage + 1);
 
   // Función para hacer scroll automático a los resultados
   const scrollToResults = () => {
@@ -738,7 +693,7 @@ export function WordPressSearchDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={goToFirstPage}
+                          onClick={() => goToPage(1)}
                           disabled={currentPage === 1}
                           className="h-8 w-8 p-0"
                         >
@@ -747,7 +702,7 @@ export function WordPressSearchDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={goToPreviousPage}
+                          onClick={() => goToPage(currentPage - 1)}
                           disabled={currentPage === 1}
                           className="h-8 w-8 p-0"
                         >
@@ -779,7 +734,7 @@ export function WordPressSearchDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={goToNextPage}
+                          onClick={() => goToPage(currentPage + 1)}
                           disabled={currentPage === totalPages}
                           className="h-8 w-8 p-0"
                         >
@@ -788,7 +743,7 @@ export function WordPressSearchDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={goToLastPage}
+                          onClick={() => goToPage(totalPages)}
                           disabled={currentPage === totalPages}
                           className="h-8 w-8 p-0"
                         >
