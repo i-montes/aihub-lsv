@@ -137,7 +137,7 @@ export function Sidebar() {
             />
 
             {
-              organization?.name == "La Silla Vacía" && isAdmin() && (
+              organization?.name == "La Silla Vacía" && (
                 <NavItem
                   icon={<Search className="size-5" />}
                   label="Detector"
