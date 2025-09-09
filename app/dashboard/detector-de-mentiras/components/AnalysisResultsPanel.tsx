@@ -1,8 +1,11 @@
 import type React from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { renderToString } from "react-dom/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, Loader2, Copy, Check } from "lucide-react";
 import { MODELS } from "@/lib/utils";
 
 /**
@@ -35,6 +38,9 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
   model1Name = "Modelo 1",
   model2Name = "Modelo 2",
 }) => {
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("model1");
+
   if (!isVisible) {
     return null;
   }
@@ -42,14 +48,162 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
   const name1 = model1Name.split(" - ")[1];
   const name2 = model2Name.split(" - ")[1];
 
+  // Función para convertir markdown a HTML usando los mismos componentes de estilo
+  const convertMarkdownToHtml = (markdown: string) => {
+    const markdownComponent = (
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => (
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#111827', marginBottom: '0.75rem' }}>
+              {children}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.5rem' }}>
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 style={{ fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+              {children}
+            </h3>
+          ),
+          a: ({ children, href }) => (
+            <a style={{ color: '#2563eb', textDecoration: 'underline' }} href={href}>
+              {children}
+            </a>
+          ),
+          p: ({ children }) => (
+            <p style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+              {children}
+            </p>
+          ),
+          ul: ({ children }) => (
+            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', marginBottom: '0.75rem' }}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children }) => (
+            <ol style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', marginBottom: '0.75rem' }}>
+              {children}
+            </ol>
+          ),
+          li: ({ children }) => (
+            <li style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
+              {children}
+            </li>
+          ),
+          strong: ({ children }) => (
+            <strong style={{ fontWeight: '600', color: '#1f2937' }}>
+              {children}
+            </strong>
+          ),
+          em: ({ children }) => (
+            <em style={{ fontStyle: 'italic', color: '#374151' }}>
+              {children}
+            </em>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote style={{ borderLeft: '4px solid #93c5fd', paddingLeft: '1rem', paddingTop: '0.5rem', paddingBottom: '0.5rem', backgroundColor: '#eff6ff', marginBottom: '0.75rem' }}>
+              {children}
+            </blockquote>
+          ),
+          code: ({ children }) => (
+            <code style={{ backgroundColor: '#f3f4f6', padding: '0.125rem 0.25rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre style={{ backgroundColor: '#f3f4f6', padding: '0.75rem', borderRadius: '0.375rem', overflowX: 'auto', marginBottom: '0.75rem' }}>
+              {children}
+            </pre>
+          ),
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
+    );
+
+    return renderToString(markdownComponent);
+  };
+
+  // Función para copiar contenido al portapapeles como HTML
+  const handleCopy = async () => {
+    let markdownToCopy = "";
+    
+    if (isCompareMode) {
+      // En modo comparación, copiar el contenido de la tab activa
+      markdownToCopy = activeTab === "model1" ? (result1 || "") : (result2 || "");
+    } else {
+      // En modo normal, copiar el contenido markdown
+      markdownToCopy = markdownContent || "";
+    }
+
+    if (!markdownToCopy.trim()) {
+      return; // No copiar si no hay contenido
+    }
+
+    try {
+      // Convertir markdown a HTML
+      const htmlContent = convertMarkdownToHtml(markdownToCopy);
+      
+      // Crear un ClipboardItem con HTML
+      const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: 'text/html' }),
+        'text/plain': new Blob([markdownToCopy], { type: 'text/plain' })
+      });
+      
+      await navigator.clipboard.write([clipboardItem]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Error al copiar:', err);
+      // Fallback: copiar como texto plano si falla el HTML
+      try {
+        await navigator.clipboard.writeText(markdownToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Error en fallback:', fallbackErr);
+      }
+    }
+  };
+
+  // Determinar si hay contenido para copiar
+  const hasContentToCopy = isCompareMode 
+    ? (activeTab === "model1" ? !!result1?.trim() : !!result2?.trim())
+    : !!markdownContent?.trim();
+
   return (
     <div className="w-1/2 flex flex-col h-full">
-      <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-        <TrendingUp className="w-6 h-6" />
-        Resultados
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <TrendingUp className="w-6 h-6" />
+          Resultados
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopy}
+          disabled={!hasContentToCopy || isStreaming}
+          className="flex items-center gap-2"
+          title={copied ? "¡Copiado!" : "Copiar contenido"}
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4 text-green-600" />
+              <span className="text-green-600">Copiado</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>Copiar</span>
+            </>
+          )}
+        </Button>
+      </div>
 
-      <Tabs defaultValue="model1" className="w-full">
+      <Tabs defaultValue="model1" className="w-full" onValueChange={setActiveTab}>
         <Card className="flex-1 overflow-hidden">
           <CardHeader>
             {isCompareMode && (
