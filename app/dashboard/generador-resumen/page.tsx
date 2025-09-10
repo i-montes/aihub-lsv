@@ -559,40 +559,32 @@ export default function GeneradorResumenes() {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Elegir artículos:
               </label>
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode("wordpress")}
-                  className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border-2 ${
-                    selectionMode === "wordpress"
-                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-md"
-                      : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="text-left">
-                    <div className="font-semibold">De forma manual</div>
-                    <div className="text-xs opacity-75 mt-1">
-                      Selecciona artículos específicos de WordPress
+              <Select
+                value={selectionMode || ""}
+                onValueChange={(value) => setSelectionMode(value as "wordpress" | "dateRange")}
+              >
+                <SelectTrigger className="w-full bg-white border-gray-200 hover:bg-gray-50">
+                  <SelectValue placeholder="Modo de selección" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wordpress">
+                    <div className="text-left">
+                      <div className="">Manual: directo desde wordpress</div>
+                      {/* <div className="text-xs text-gray-500 mt-1">
+                        Selecciona artículos específicos de WordPress
+                      </div> */}
                     </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode("dateRange")}
-                  className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 border-2 ${
-                    selectionMode === "dateRange"
-                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-md"
-                      : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="text-left">
-                    <div className="font-semibold">Con IA</div>
-                    <div className="text-xs opacity-75 mt-1">
-                      Usa un rango de fechas para selección automática
+                  </SelectItem>
+                  <SelectItem value="dateRange">
+                    <div className="text-left">
+                      <div className="">Con IA: por rango de fechas</div>
+                      {/* <div className="text-xs text-gray-500 mt-1">
+                        Usa un rango de fechas para selección automática
+                      </div> */}
                     </div>
-                  </div>
-                </button>
-              </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* WordPress Content Selection */}
@@ -769,21 +761,7 @@ export default function GeneradorResumenes() {
             >
               {isGenerating
                 ? "Generando..."
-                : !selectionMode
-                ? "Selecciona un método primero"
-                : selectionMode === "wordpress"
-                ? `Generar resumen${
-                    selectedContent.length > 0
-                      ? ` (${selectedContent.length} artículo${
-                          selectedContent.length > 1 ? "s" : ""
-                        })`
-                      : ""
-                  }`
-                : `Generar resumen${
-                    formData.fechaDesde && formData.fechaHasta
-                      ? ` (${formData.fechaDesde} - ${formData.fechaHasta})`
-                      : ""
-                  }`}
+                : `Generar resumen`}
             </button>
           </form>
         </div>
