@@ -331,6 +331,8 @@ export default async function generateResume({
       }))
     );
 
+    console.log("\n\n\n\n\n\n\nAQUIIIIIII: ", importantNewsLinks)
+
     let selectedNews = await selectImportantNews(
       importantNewsLinks
         .map((news) => {
@@ -549,7 +551,7 @@ const selectImportantNews = async (
           title: z.string(),
           reason: z.string(),
         })
-      ),
+      ).min(5),
     });
 
     let result;

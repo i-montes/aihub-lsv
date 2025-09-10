@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Edit3, Eye, Copy } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
-import generateResume from "@/actions/generate-resume";
+
 import {
   Dialog,
   DialogContent,
@@ -383,13 +383,26 @@ export default function GeneradorResumenes() {
         posts: contentToSummarize.slice(0, 5),
       });
 
-      const resume = await generateResume({
-        manual: selectionMode === "wordpress",
-        content: contentToSummarize,
-        selectedModel,
-        startDate: formData.fechaDesde,
-        endDate: formData.fechaHasta,
+      // Make API request to generate-resume endpoint
+      const response = await fetch('/api/tools/generate-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          manual: selectionMode === "wordpress",
+          content: contentToSummarize,
+          selectedModel,
+          startDate: formData.fechaDesde,
+          endDate: formData.fechaHasta,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const resume = await response.json();
 
       console.log("Generated resume:", resume);
 
