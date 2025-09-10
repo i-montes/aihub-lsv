@@ -134,9 +134,8 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
     setValue("compare", enabled);
 
     if (!enabled) {
-      // Limpiar modelos de comparación si se desactiva
+      // Limpiar modelo de comparación si se desactiva
       setValue("model_to_compare_1", { provider: "", model: "" });
-      setValue("model_to_compare_2", { provider: "", model: "" });
     }
   };
 
@@ -181,22 +180,93 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
 
         <hr className="my-6 border-t border-gray-200 w-full opacity-50 shadow-sm" />
 
-        {/* Modelo principal */}
-        {!compareEnabled && (
-          <div className="space-y-2">
+        {/* Modelo principal - siempre visible */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label className="text-base font-medium">
+              Modelo principal *
+            </Label>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Selecciona el modelo de IA que realizará el análisis
+              </div>
+            </div>
+          </div>
+          <Controller
+            name="selectedModel"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={
+                  field.value
+                    ? `${field.value.provider}|${field.value.model}`
+                    : ""
+                }
+                onValueChange={(value) => {
+                  if (value) {
+                    const [provider, model] = value.split("|");
+                    field.onChange({ provider, model });
+                  }
+                }}
+                disabled={isLoading || availableModels.length === 0}
+              >
+                <SelectTrigger
+                  className={`${
+                    errors?.selectedModel ? "border-red-500" : ""
+                  }`}
+                >
+                  <SelectValue
+                    placeholder={
+                      isLoading
+                        ? "Cargando modelos..."
+                        : availableModels.length === 0
+                        ? "No hay modelos disponibles"
+                        : "Seleccionar modelo"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableModels.map((modelInfo) => (
+                    <SelectItem
+                      key={`${modelInfo.provider}|${modelInfo.model}`}
+                      value={`${modelInfo.provider}|${modelInfo.model}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {getProviderDisplayName(modelInfo.provider)}
+                        </span>
+                        <span>
+                          {MODELS[modelInfo.model as keyof typeof MODELS]}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors?.selectedModel && (
+            <FormMessage>{errors.selectedModel.message}</FormMessage>
+          )}
+        </div>
+
+        {/* Segundo modelo para comparación */}
+        {compareEnabled && (
+          <div className="space-y-2 pt-4">
             <div className="flex items-center gap-2">
               <Label className="text-base font-medium">
-                Modelo principal *
+                Modelo para comparar *
               </Label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Selecciona el modelo de IA que realizará el análisis
+                  Selecciona el segundo modelo para comparar resultados
                 </div>
               </div>
             </div>
             <Controller
-              name="selectedModel"
+              name="model_to_compare_1"
               control={control}
               render={({ field }) => (
                 <Select
@@ -215,32 +285,22 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
                 >
                   <SelectTrigger
                     className={`${
-                      errors?.selectedModel ? "border-red-500" : ""
+                      errors?.model_to_compare_1 ? "border-red-500" : ""
                     }`}
                   >
-                    <SelectValue
-                      placeholder={
-                        isLoading
-                          ? "Cargando modelos..."
-                          : availableModels.length === 0
-                          ? "No hay modelos disponibles"
-                          : "Seleccionar modelo"
-                      }
-                    />
+                    <SelectValue placeholder="Seleccionar modelo para comparar" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableModels.map((modelInfo) => (
                       <SelectItem
-                        key={`${modelInfo.provider}|${modelInfo.model}`}
+                        key={`compare-${modelInfo.provider}|${modelInfo.model}`}
                         value={`${modelInfo.provider}|${modelInfo.model}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-xs bg-gray-100 px-2 py-1 rounded">
                             {getProviderDisplayName(modelInfo.provider)}
                           </span>
-                          <span>
-                            {MODELS[modelInfo.model as keyof typeof MODELS]}
-                          </span>
+                          <span>{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -248,121 +308,9 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
                 </Select>
               )}
             />
-            {errors?.selectedModel && (
-              <FormMessage>{errors.selectedModel.message}</FormMessage>
+            {errors?.model_to_compare_1 && (
+              <FormMessage>{errors.model_to_compare_1.message}</FormMessage>
             )}
-          </div>
-        )}
-
-        {/* Modelos de comparación */}
-        {compareEnabled && (
-          <div className="space-y-4 pt-4 border-t bg-gray-50 p-4 rounded-lg">
-            {/* Primer modelo de comparación */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Modelo 1 *
-              </Label>
-              <Controller
-                name="model_to_compare_1"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={
-                      field.value
-                        ? `${field.value.provider}|${field.value.model}`
-                        : ""
-                    }
-                    onValueChange={(value) => {
-                      if (value) {
-                        const [provider, model] = value.split("|");
-                        field.onChange({ provider, model });
-                      }
-                    }}
-                    disabled={isLoading || availableModels.length === 0}
-                  >
-                    <SelectTrigger
-                      className={`${
-                        errors?.model_to_compare_1 ? "border-red-500" : ""
-                      }`}
-                    >
-                      <SelectValue placeholder="Seleccionar modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.map((modelInfo) => (
-                        <SelectItem
-                          key={`compare1-${modelInfo.provider}|${modelInfo.model}`}
-                          value={`${modelInfo.provider}|${modelInfo.model}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                              {getProviderDisplayName(modelInfo.provider)}
-                            </span>
-                            <span>{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
-                            
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors?.model_to_compare_1 && (
-                <FormMessage>{errors.model_to_compare_1.message}</FormMessage>
-              )}
-            </div>
-
-            {/* Segundo modelo de comparación */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Modelo 2 *
-              </Label>
-              <Controller
-                name="model_to_compare_2"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={
-                      field.value
-                        ? `${field.value.provider}|${field.value.model}`
-                        : ""
-                    }
-                    onValueChange={(value) => {
-                      if (value) {
-                        const [provider, model] = value.split("|");
-                        field.onChange({ provider, model });
-                      }
-                    }}
-                    disabled={isLoading || availableModels.length === 0}
-                  >
-                    <SelectTrigger
-                      className={`${
-                        errors?.model_to_compare_2 ? "border-red-500" : ""
-                      }`}
-                    >
-                      <SelectValue placeholder="Seleccionar modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.map((modelInfo) => (
-                        <SelectItem
-                          key={`compare2-${modelInfo.provider}|${modelInfo.model}`}
-                          value={`${modelInfo.provider}|${modelInfo.model}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                              {getProviderDisplayName(modelInfo.provider)}
-                            </span>
-                            <span>{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors?.model_to_compare_2 && (
-                <FormMessage>{errors.model_to_compare_2.message}</FormMessage>
-              )}
-            </div>
           </div>
         )}
       </CardContent>

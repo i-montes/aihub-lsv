@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { FormMessage } from "@/components/ui/form";
 import { type FormSchema } from "../constants";
-import { MessageCircle } from "lucide-react";
+import { HelpCircle, MessageCircle } from "lucide-react";
 import TextUrlExtractor from "@/components/shared/text-url-extractor";
 
 /**
@@ -33,9 +33,18 @@ export const AdditionalContextSection: React.FC<
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <Label htmlFor="additionalContext" className="text-sm font-medium">
-            Información adicional (opcional)
-          </Label>
+          <div className="flex items-center gap-2 mb-2">
+            <Label htmlFor="additionalContext" className="text-sm font-medium">
+              Información adicional (opcional)
+            </Label>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Información adicional (opcional) para contextualizar tu chequeo.
+              </div>
+            </div>
+          </div>
+
           <Controller
             name="additional_context.text"
             control={control}
@@ -44,7 +53,10 @@ export const AdditionalContextSection: React.FC<
                 value={field.value}
                 onChange={field.onChange}
                 onMetadata={(metadata) =>
-                  setValue("additional_context.metadata", Object.fromEntries(metadata) as any)
+                  setValue(
+                    "additional_context.metadata",
+                    Object.fromEntries(metadata) as any
+                  )
                 }
                 placeholder="Escribe aquí cualquier contexto adicional que consideres relevante para el análisis..."
                 maxHeight="150px"

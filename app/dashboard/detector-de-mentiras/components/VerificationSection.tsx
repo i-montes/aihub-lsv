@@ -65,9 +65,17 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
       <CardContent className="space-y-6">
         {/* Extractor de texto desde URL */}
         <div>
-          <Label className="text-base font-medium flex items-center gap-2">
-            Estrategia de verificación
-          </Label>
+          <div className="flex items-center gap-2 mb-2">
+            <Label className="text-base font-medium flex items-center gap-2">
+              Estrategia de verificación
+            </Label>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Lista cada método que usaste en la verificación y pon debajo los enlaces.
+              </div>
+            </div>
+          </div>
           <Controller
             name="verification.text"
             control={control}

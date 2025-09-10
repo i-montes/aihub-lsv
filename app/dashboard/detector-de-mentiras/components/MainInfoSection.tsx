@@ -247,7 +247,7 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Tu evaluación basada en el análisis preliminar
+                  Selecciona la calificación de tu chequeo.
                 </div>
               </div>
             </div>

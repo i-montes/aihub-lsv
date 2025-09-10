@@ -75,10 +75,6 @@ export const formSchema = z.object({
     provider: z.string(),
     model: z.string(),
   }).optional(),
-  model_to_compare_2: z.object({
-    provider: z.string(),
-    model: z.string(),
-  }).optional(),
   compare: z.boolean().default(false),
   rating: z
     .enum(["cierto", "cierto-pero", "debatible", "enganoso", "falso"], {
@@ -112,37 +108,21 @@ export const formSchema = z.object({
     metadata: metadataSchema.optional(),
   }),
 }).superRefine((data, ctx) => {
-  // Si compare es true, los modelos de comparación son obligatorios
+  // Si compare es true, el modelo de comparación es obligatorio
   if (data.compare) {
     // Validar model_to_compare_1
     if (!data.model_to_compare_1?.provider || data.model_to_compare_1.provider.trim() === "") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Selecciona un proveedor para el primer modelo de comparación",
-        path: ["model_to_compare_1", "provider"],
+        message: "Selecciona un proveedor para el modelo de comparación",
+        path: ["model_to_compare_1"],
       });
     }
     if (!data.model_to_compare_1?.model || data.model_to_compare_1.model.trim() === "") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Selecciona el primer modelo de comparación",
-        path: ["model_to_compare_1", "model"],
-      });
-    }
-    
-    // Validar model_to_compare_2
-    if (!data.model_to_compare_2?.provider || data.model_to_compare_2.provider.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Selecciona un proveedor para el segundo modelo de comparación",
-        path: ["model_to_compare_2", "provider"],
-      });
-    }
-    if (!data.model_to_compare_2?.model || data.model_to_compare_2.model.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Selecciona el segundo modelo de comparación",
-        path: ["model_to_compare_2", "model"],
+        message: "Selecciona el modelo de comparación",
+        path: ["model_to_compare_1"],
       });
     }
   }
@@ -159,10 +139,6 @@ export type FormSchema = z.infer<typeof formSchema>;
 export const defaultFormValues: Partial<FormSchema> = {
   compare: false,
   model_to_compare_1: {
-    provider: "",
-    model: "",
-  },
-  model_to_compare_2: {
     provider: "",
     model: "",
   },

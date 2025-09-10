@@ -464,29 +464,29 @@ export async function POST(request: NextRequest) {
     });
 
     // 4. Lógica de comparación vs análisis simple
-    if (validatedData.compare && validatedData.model_to_compare_1 && validatedData.model_to_compare_2) {
+    if (validatedData.compare && validatedData.model_to_compare_1 && validatedData.selectedModel) {
       debugLogger.info("Modo comparación activado", {
         model1: validatedData.model_to_compare_1,
-        model2: validatedData.model_to_compare_2,
+        model2: validatedData.selectedModel,
       });
 
       // Obtener API keys para ambos modelos
       const apiKey1 = await getApiKey(organizationId, validatedData.model_to_compare_1.provider, debugLogger);
-      const apiKey2 = await getApiKey(organizationId, validatedData.model_to_compare_2.provider, debugLogger);
+      const apiKey2 = await getApiKey(organizationId, validatedData.selectedModel.provider, debugLogger);
 
       // Generar análisis con ambos modelos de forma simultánea
       const [result1, result2] = await Promise.all([
         generateAnalysis(validatedData.model_to_compare_1, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
-        generateAnalysis(validatedData.model_to_compare_2, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
+        generateAnalysis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
       ]);
 
       // Retornar respuesta JSON con ambos resultados
       return NextResponse.json({
         success: true,
-        generated1: result1.text,
-        generated2: result2.text,
-        model1: validatedData.model_to_compare_1,
-        model2: validatedData.model_to_compare_2
+        generated1: result2.text,
+        generated2: result1.text,
+        model1: validatedData.selectedModel,
+        model2: validatedData.model_to_compare_1,
       });
     } else {
       debugLogger.info("Modo análisis simple", {
