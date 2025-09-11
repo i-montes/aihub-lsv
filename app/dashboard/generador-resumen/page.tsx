@@ -619,7 +619,7 @@ export default function GeneradorResumenes() {
                   placeholder="Buscar artículos..."
                   noResultsMessage="No se encontraron artículos para"
                   fullWidth
-                  categories={"4924"}
+                  categories={"4932"}
                   allowMultipleSelection={true}
                 />
 
