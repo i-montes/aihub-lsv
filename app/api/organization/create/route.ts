@@ -153,7 +153,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
         updatedAt: currentDate
       })
 
-    if (apiKeyError) {
+     if (apiKeyError) {
       console.error("Error creating API key:", apiKeyError)
       // Rollback: eliminar organización y usuario
       await supabase.from("organization").delete().eq("id", organizationId)
@@ -162,6 +162,35 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       }
       return errorResponse("Error al crear la API key", 500)
     }
+
+    const { error: UsefulLinksError } = await supabase
+      .from("useful_links")
+      .insert([
+        {
+          organization_id: organizationId,
+          name: "NotebookLM",
+          description: "Asistente de investigación con IA para analizar documentos y generar pódcasts",
+          link: "https://notebooklm.google/",
+          
+        },
+        {
+          organization_id: organizationId,
+          name: "Pinpoint",
+          description: "Herramienta para analizar grandes cantidades de datos",
+          link: "https://journaliststudio.google.com/pinpoint/about/"
+        },
+        {
+          organization_id: organizationId,
+          name: "GODDS",
+          description: "Sistema de detección de deepfakes para verificar autenticidad de contenido multimedia",
+          link: "https://godds.ads.northwestern.edu/"
+        }
+      ])
+
+    if (UsefulLinksError) {
+      console.error("Error creating Useful Links:", UsefulLinksError)
+      return errorResponse("Error al crear los enlaces útiles", 500)
+    }   
 
     // 5. Obtener herramientas por defecto e insertarlas
     const { data: defaultTools, error: defaultToolsError } = await supabase
