@@ -65,9 +65,9 @@ export function Sidebar() {
         isExpanded ? "w-[200px]" : "w-[70px]"
       }`}
     >
-      <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm py-4 px-2 relative justify-between">
+      <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm py-4 px-2 relative justify-between overflow-y-auto overflow-x-hidden">
         {/* Contenido superior */}
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-shrink-0">
           {/* Logo del dashboard con botón integrado */}
           <div className={`flex items-center mb-6 px-2 transition-all duration-300 ${
             isExpanded ? "justify-between" : "justify-center"
@@ -99,7 +99,7 @@ export function Sidebar() {
           </div>
 
           {/* Iconos de navegación */}
-          <div className="flex flex-col items-center gap-2 mt-4">
+          <div className="flex flex-col items-center gap-2 mt-4 flex-1 min-h-0 overflow-y-auto">
             <NavItem
               icon={<Home className="size-5" />}
               label="Inicio"
@@ -173,7 +173,7 @@ export function Sidebar() {
         </div>
 
         {/* Contenido inferior - Settings */}
-        <div className="mt-4">
+        <div className="mt-4 flex-shrink-0">
           {profile?.role == "OWNER" && (
             <NavItem
               icon={<BarChart className="size-5" />}

@@ -123,7 +123,7 @@ export default function AdminOrganizationsPage() {
       const { data: orgsData, error: orgsError } = await supabase
         .from("organization")
         .select("*")
-        .in("state", ["ACTIVE", "INACTIVE"])
+        // .in("state", ["ACTIVE", "INACTIVE"])
         .order("createdAt", { ascending: false })
 
       if (orgsError) throw orgsError
@@ -292,23 +292,28 @@ export default function AdminOrganizationsPage() {
     if (!orgToDelete) return
 
     try {
-      const { error } = await supabase
-        .from("organization")
-        .update({ 
-          state: "DELETED",
-          updatedAt: new Date().toISOString()
-        })
-        .eq("id", orgToDelete.id)
+      // Llamar a la nueva API segura para eliminar usuarios
+      const response = await fetch("/api/admin/organization/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ organization_id: orgToDelete.id }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
 
-      toast.success("Organización eliminada exitosamente")
+      if (!response.ok) {
+        throw new Error(data.error || "Error al eliminar la organización")
+      }
+
+      toast.success(data.message || "Organización eliminada exitosamente")
       setDeleteConfirmOpen(false)
       setOrgToDelete(null)
       fetchOrganizations()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting organization:", error)
-      toast.error("Error al eliminar la organización")
+      toast.error(error.message || "Error al eliminar la organización")
     }
   }
 
