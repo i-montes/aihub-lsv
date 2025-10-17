@@ -525,7 +525,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         (correccion, index) => ({
           ...correccion,
           id: `correction-${index}`,
-          severity: getSeverity(correccion.type),
           startIndex: 0, // Estos valores se calcularán en el frontend
           endIndex: 0,
         })
@@ -543,13 +542,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         } else {
           acc.push({
             type: corr.type,
-            count: 1,
-            severity:
-              corr.severity === 1
-                ? "low"
-                : corr.severity === 2
-                ? "medium"
-                : "high",
+            count: 1
           });
         }
         return acc;
@@ -628,21 +621,5 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       correcciones: [],
       debugLogs: debugLogger.getLogs(),
     };
-  }
-}
-
-// Función auxiliar para asignar severidad según el tipo de error
-function getSeverity(type: string): number {
-  switch (type) {
-    case "spelling":
-      return 1;
-    case "grammar":
-      return 2;
-    case "style":
-      return 3;
-    case "punctuation":
-      return 2; // Asignamos la misma severidad que grammar
-    default:
-      return 1;
   }
 }

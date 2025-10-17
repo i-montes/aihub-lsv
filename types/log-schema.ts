@@ -145,7 +145,6 @@ export const ApiKeyInfoSchema = z.object({
 export const AnalysisResultSchema = z.object({
   type: z.enum(["spelling", "grammar", "style", "punctuation", "general"]),
   count: z.number().nonnegative(),
-  severity: z.enum(["low", "medium", "high"]).optional(),
   categories: z.array(z.string()).optional(),
 });
 

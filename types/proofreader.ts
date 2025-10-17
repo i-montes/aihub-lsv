@@ -8,7 +8,6 @@ export type Suggestion = {
   explanation: string;
   startIndex: number;
   endIndex: number;
-  severity: number; // 1-3, where 1 is minor, 3 is critical
 };
 
 export type WordPressPost = {

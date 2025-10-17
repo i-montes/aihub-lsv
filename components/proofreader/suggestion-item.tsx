@@ -21,18 +21,6 @@ const typeColors = {
   style: "bg-blue-50 text-blue-700 border-blue-200",
 }
 
-const severityLabels = {
-  1: "Sugerencia",
-  2: "Recomendación",
-  3: "Corrección necesaria",
-}
-
-const severityColors = {
-  1: "bg-green-50 text-green-700",
-  2: "bg-amber-50 text-amber-700",
-  3: "bg-red-50 text-red-700",
-}
-
 export function SuggestionItem({ 
   suggestion, 
   isActive, 
@@ -55,9 +43,6 @@ export function SuggestionItem({
         <div className="flex items-center gap-2">
           <Badge className={`${typeColors[suggestion.type]} border px-2 py-1`} variant="outline">
             {suggestion.type === "spelling" ? "Ortografía" : suggestion.type === "grammar" ? "Gramática" : "Estilo"}
-          </Badge>
-          <Badge className={`${severityColors[suggestion.severity as keyof typeof severityColors]} px-2 py-1`}>
-            {severityLabels[suggestion.severity as keyof typeof severityLabels]}
           </Badge>
         </div>
       </div>
