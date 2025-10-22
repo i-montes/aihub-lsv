@@ -7,6 +7,8 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { AnalyticsCorrectorDeTextosService} from "@/lib/analytics";
+import { create } from "domain";
 
 // Schema para la respuesta del modelo
 const ProofreaderResponseSchema = z.object({
@@ -549,6 +551,20 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       }, []);
 
       // Finalizar con éxito
+      const metrics ={
+        session_id: debugLogger.getSessionId(),
+        user_id: user.id,
+        organizationId: profile.organizationId,
+        texto_original: text,
+        texto_final: result.text,
+        longitud_caracteres: text.length,
+        total_sugerencias_generadas: correcciones.length,
+        tiempo_de_analisis: debugLogger.getDuration(),
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+      const analitics= new AnalyticsCorrectorDeTextosService("analytics_corrector_de_textos",metrics);
+      await analitics.save(metrics);
       await debugLogger.finalize("completed", {
         model: {
           provider: selectedModel.provider as any,
