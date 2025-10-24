@@ -10,6 +10,7 @@ import { ExamplesTesis } from "./examples/tesis";
 import { ExamplesInvestigacion } from "./examples/investigacion";
 import { ExamplesLista } from "./examples/lista";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { AnalyticsGeneradorHilosService} from "@/lib/analytics";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -26,6 +27,7 @@ export async function threadsGenerator(
   error?: string;
   threads: string[];
   logs: DebugLogTypes[];
+ analitics_id?: string | number;
 }> {
   const debugLogger = new DebugLogger({
     toolIdentity: "thread-generator",
@@ -299,11 +301,39 @@ INSTRUCCIONES ADICIONALES:
       template: undefined,
       inputSources: ["text"]
     });
-
+    const metricas = {
+      session_id: debugLogger.getSessionId(),
+      user_id: user.id,
+      organization_id: organizationId,
+      contenido_original: text,
+      numero_tweets_generados: result?.object?.threads?.length || 0,
+      longitud_total_caracteres: result?.object?.threads?.join("").length || 0,
+      longitud_promedio_por_tweet: result?.object?.threads?.length ? Math.round((result?.object?.threads?.join("").length || 0) / result.object.threads.length) : 0,
+      modelo_utilizado: `${selectedModel.provider}:${selectedModel.model}`,
+      formato_salida: format,
+      timestamp: new Date(),
+      tweets_copiados_individualmente: 0, // No se puede obtener aquí
+      uso_copiar_todo: false, // No se puede obtener aquí
+      uso_buscar_wordpress: !!link, // Si hay link, asumimos que se usó WordPress
+      feedback_like: null, // No se puede obtener aquí
+      feedback_rank_like: null, // No se puede obtener aquí
+      input_tokens: result?.usage?.promptTokens || null,
+      output_tokens: result?.usage?.completionTokens || null,
+      total_tokens: result?.usage?.totalTokens || null,
+      reasoning_tokens: null, // No disponible en este contexto
+      cached_input_tokens: null, // No disponible en este contexto
+      tiempo_generacion: debugLogger.getDuration(), // Se podría calcular si se guarda el tiempo de inicio
+      reintentos_necesarios: null, // No se puede obtener aquí
+      tweets_exceden_limite: result?.object?.threads?.filter(tweet => tweet.length > 280).length || 0,
+    }
+    const analitics= new AnalyticsGeneradorHilosService(metricas);
+    await analitics.save();
     return {
       success: true,
       threads: result?.object?.threads || [],
       logs: debugLogger.getSerializableLogs(),
+      analitics_id: analitics.schema.id
+
     };
   } catch (error: any) {
     debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", error);

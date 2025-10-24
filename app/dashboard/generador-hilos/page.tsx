@@ -37,10 +37,12 @@ import { WordPressPost } from "@/types/proofreader";
 import { threadsGenerator } from "@/actions/generate-threads";
 import { MODELS } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { agregarCorreccionAnalytics, updateAnalytics, incrementAnalyticsCounter } from "@/actions/update-analytics";
 
 export default function ThreadGenerator() {
   const { profile } = useAuth();
   const [sourceContent, setSourceContent] = useState("");
+  const [analyticsId, setAnalyticsId] = useState<string | number | null>(null);     
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceLink, setSourceLink] = useState("");
 
@@ -128,7 +130,13 @@ export default function ThreadGenerator() {
         const formattedThreads = result.threads.map((content: string) => ({
           content,
         }));
-
+              const analitics_id = result.analitics_id;
+      
+      // Guardar el ID de analytics
+      if (analitics_id) {
+        setAnalyticsId(analitics_id);
+      }
+      
         console.log("Generated Threads:", result);
 
         setGeneratedThread(formattedThreads);
@@ -257,14 +265,33 @@ export default function ThreadGenerator() {
   };
 
   const handleCopy = async (text: string, key: number | "all") => {
+    // Incrementar contador solo para copias individuales (no para "copiar todo")
+    if (key != "all" && analyticsId) {
+      try {
+        // Usar la función específica para incrementar el contador
+        await incrementAnalyticsCounter(
+          "generador_de_hilos", 
+          analyticsId, 
+          "tweets_copiados_individualmente"
+        );
+      } catch (error) {
+        console.error("Error updating analytics:", error);
+      }
+    }
+    
     try {
       await navigator.clipboard.writeText(text);
+      toast.success("Contenido copiado al portapapeles");
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      toast.error("Error al copiar el contenido");
     }
   };
 
   const handleCopyAll = () => {
+    if (analyticsId){
+    updateAnalytics("generador_de_hilos", analyticsId, {uso_copiar_todo: true})
+  }
     const allContent = generatedThread
       .map((tweet) => tweet.content)
       .join("\n\n------\n\n");
@@ -628,6 +655,7 @@ export default function ThreadGenerator() {
                     profileName="AI Hub"
                     profileUsername="ai_hub_oficial"
                     profileImage="/professional-woman-journalist.png"
+                    analitics_id={analyticsId || ''}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center p-8">

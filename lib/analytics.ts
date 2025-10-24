@@ -28,17 +28,29 @@ export type AnalyticsCorrectorDeTextos = {
 
 export type AnalyticsGeneradorHilos = {
   id?: number | string;
-  session_id: string;
+  session_id?: string;
   user_id?: string | null;
   organization_id?: number | null;
   contenido_original?: string | null;
-  hilos_generados?: string[] | null;
-  numero_hilos?: number | null;
-  plataforma_destino?: string | null;
+  numero_tweets_generados?: number | null;
+  longitud_total_caracteres?: number | null;
+  longitud_promedio_por_tweet?: number | null;
   modelo_utilizado?: string | null;
+  formato_salida?: string | null;
+  timestamp?: Date | null;
+  tweets_copiados_individualmente?: number | null;
+  uso_copiar_todo?: boolean | null;
+  uso_buscar_wordpress?: boolean | null;
+  feedback_like?: boolean | null;
+  feedback_rank_like?: number | null;
   input_tokens?: number | null;
   output_tokens?: number | null;
   total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  tiempo_generacion?: number | null;
+  reintentos_necesarios?: number | null;
+  tweets_exceden_limite?: number | null;
   created_at?: Date | null;
   updated_at?: Date | null;
 };
@@ -141,7 +153,6 @@ abstract class Analytics<T extends { id?: any } = any> {
         })
         .select()
         .single();
-      console.log('guardado archivo con id', result.id);
       if (error) {
         console.error(`Error upserting ${this.type}:`, error);
         return null;
@@ -335,7 +346,7 @@ class AnalyticsCorrectorDeTextosService extends Analytics<AnalyticsCorrectorDeTe
 
 class AnalyticsGeneradorHilosService extends Analytics<AnalyticsGeneradorHilos> {
   constructor(schema: AnalyticsGeneradorHilos = {} as AnalyticsGeneradorHilos, existingId?: string | number) {
-    super('generador_hilos', schema, existingId);
+    super('generador_de_hilos', schema, existingId);
   }
 }
 
