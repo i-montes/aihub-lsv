@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, Repeat2, Share, Copy, Check } from "lucide-react";
 import { useState } from "react";
+import { agregarCorreccionAnalytics, updateAnalytics, incrementAnalyticsCounter } from "@/actions/update-analytics";
 
 interface ThreadPreviewProps {
   tweets: {
@@ -14,6 +15,7 @@ interface ThreadPreviewProps {
   profileName: string;
   profileUsername: string;
   profileImage?: string;
+  analitics_id: string | number;
 }
 
 export function ThreadPreview({
@@ -21,11 +23,13 @@ export function ThreadPreview({
   profileName,
   profileUsername,
   profileImage,
+  analitics_id
 }: ThreadPreviewProps) {
   const [copiedStates, setCopiedStates] = useState<Record<number | 'all', boolean>>({} as Record<number | 'all', boolean>);
 
   const handleCopy = async (text: string, key: number | 'all') => {
     try {
+      incrementAnalyticsCounter("generador_de_hilos",analitics_id, 'tweets_copiados_individualmente');
       await navigator.clipboard.writeText(text);
       setCopiedStates(prev => ({ ...prev, [key]: true }));
       setTimeout(() => {

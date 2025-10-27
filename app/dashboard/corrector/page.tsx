@@ -14,6 +14,7 @@ import { ProofreaderHeader } from "@/components/proofreader/header";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { DebugModal } from "@/components/debug/debug-modal";
 import { analyzeText } from "@/actions/analyze-text";
+import { agregarCorreccionAnalytics, updateAnalytics } from "@/actions/update-analytics";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -93,6 +94,9 @@ export default function ProofreaderPage() {
     hasApiKey: false,
     isAdmin: false,
   });
+
+  // Estado para el ID de analytics
+  const [analyticsId, setAnalyticsId] = useState<string | number | null>(null);
 
   // Refs
   const editorRef = useRef<{
@@ -523,7 +527,14 @@ export default function ProofreaderPage() {
 
       // Llamar a la función de análisis de texto
       const result = await analyzeText(htmlContent, selectedModel);
-
+      console.log("ANALYZE RESULT:", result);
+      const analitics_id = result.analitics_id;
+      
+      // Guardar el ID de analytics
+      if (analitics_id) {
+        setAnalyticsId(analitics_id);
+      }
+      
       // Guardar los logs de debug si están disponibles
       if (result.debugLogs) {
         setDebugLogs(result.debugLogs);
@@ -619,6 +630,10 @@ export default function ProofreaderPage() {
   };
 
   const copyText = async () => {
+    if (analyticsId){
+    updateAnalytics("corrector_de_textos", analyticsId, {uso_copiar_texto: true})
+  }
+
     // Determinar qué texto copiar
     const textToCopy = isAnalyzed ? correctedText : originalText;
 
@@ -788,12 +803,41 @@ export default function ProofreaderPage() {
     } finally {
       setSuggestions(suggestions.filter((s) => s.id !== suggestion.id));
       setActiveSuggestion(null);
+      
+      // Registrar la corrección como aceptada en analytics
+      if (analyticsId) {
+        agregarCorreccionAnalytics(analyticsId, suggestion, true)
+          .then((result) => {
+            if (!result.success) {
+              console.error("Error al registrar corrección aceptada:", result.error);
+            }
+          })
+          .catch((error) => {
+            console.error("Error en analytics:", error);
+          });
+      }
     }
   };
 
   const ignoreSuggestion = (suggestionId: string) => {
+    // Encontrar la sugerencia antes de filtrarla para obtener el texto original
+    const suggestionToIgnore = suggestions.find((s) => s.id === suggestionId);
+    
     setSuggestions(suggestions.filter((s) => s.id !== suggestionId));
     setActiveSuggestion(null);
+
+    // Registrar la corrección como ignorada en analytics
+    if (analyticsId && suggestionToIgnore) {
+      agregarCorreccionAnalytics(analyticsId, suggestionToIgnore, false)
+        .then((result) => {
+          if (!result.success) {
+            console.error("Error al registrar corrección ignorada:", result.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error en analytics:", error);
+        });
+    }
 
     toast.info("Sugerencia ignorada", {
       description: "La sugerencia ha sido eliminada de la lista.",

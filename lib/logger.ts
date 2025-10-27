@@ -61,8 +61,12 @@ export class DebugLogger {
     return result;
   }
 
-
-
+  getRequestId() {
+    return this.context.requestId;
+  }
+  getSessionId() {
+    return this.context.sessionId;
+  }
   constructor(context: LoggerContext = {}) {
     this.context = {
       sessionId: this.generateId(),

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { MINI_MODELS } from "@/lib/utils";
+import { AnalyticsGeneradorResumenService } from "@/lib/analytics";
+import { AnyCnameRecord } from "node:dns";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
 function normalizeText(text: string): string {
@@ -502,7 +504,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 1. Autenticar usuario
-    const { organizationId } = await authenticateUser(debugLogger);
+    const { organizationId, user,userData} = await authenticateUser(debugLogger);
 
     // 2. Obtener configuración de herramienta
     const toolConfig = await getToolConfig(organizationId, debugLogger);
@@ -920,6 +922,39 @@ export async function POST(request: NextRequest) {
       debugLogger
     );
 
+    // Crear y guardar métricas de analytics
+    const metrics = {
+      session_id: debugLogger.getSessionId() as any,
+      user_id: user?.id,
+      organization_id: userData.organizationId,
+      metodo_seleccion: requestData.manual ? "manual" : "automatico",
+      fuente_contenido: requestData.manual ? "manual_selection" : "wordpress_api",
+      articulos_seleccionados_manual: requestData.manual ? 
+        requestData.content?.map(post => post.link) || [] : null,
+      fecha_desde: requestData.startDate ? new Date(requestData.startDate) : null,
+      fecha_hasta: requestData.endDate ? new Date(requestData.endDate) : null,
+      rango_dias: requestData.startDate && requestData.endDate ? 
+        Math.ceil((new Date(requestData.endDate).getTime() - new Date(requestData.startDate).getTime()) / (1000 * 60 * 60 * 24)) : null,
+      modelo_utilizado: requestData.selectedModel.model,
+      numero_articulos_procesados: selectedNews.length,
+      tags_en_articulos: null, // Se podría extraer de los artículos si es necesario
+      noticias_finalistas: selectedNews.map(news => news.link),
+      uso_copiar_resumen: false, // Por defecto false, se actualizaría desde el frontend
+      feedback_like: null, // Se actualizaría posteriormente desde el frontend
+      feedback_rank_like: null, // Se actualizaría posteriormente desde el frontend
+      input_tokens: result.usage?.promptTokens || null,
+      output_tokens: result.usage?.completionTokens || null,
+      total_tokens: result.usage?.totalTokens || null,
+      tiempo_procesamiento: debugLogger.getDuration(),
+      tiempo_respuesta_api: null, // Se podría medir específicamente el tiempo de la API
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    
+    const analytics = new AnalyticsGeneradorResumenService(metrics);
+    await analytics.save();
+    const analytics_id = analytics.schema.id;
+
     await debugLogger.finalize("completed", {
       model: {
         provider: requestData.selectedModel.provider as any,
@@ -930,10 +965,12 @@ export async function POST(request: NextRequest) {
       metrics: {
         inputLength: selectedNews.length,
         outputLength: result.text.length,
-        processingTime: 0,
+        processingTime: debugLogger.getDuration(),
+        tokensUsed: result.usage?.totalTokens,
+        itemsProcessed: selectedNews.length,
       },
       template: undefined,
-      inputSources: ["text"],
+      inputSources: ["wordpress_api"],
     });
 
     // Retornar respuesta JSON
@@ -941,6 +978,7 @@ export async function POST(request: NextRequest) {
       success: true,
       resume: result.text,
       logs: debugLogger.getLogs(),
+      analytics_id,
     });
   } catch (error) {
     console.error("Error en POST /api/tools/generate-resume:", error);

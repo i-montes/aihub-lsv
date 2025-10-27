@@ -7,6 +7,8 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { AnalyticsCorrectorDeTextosService} from "@/lib/analytics";
+import { create } from "domain";
 
 // Schema para la respuesta del modelo
 const ProofreaderResponseSchema = z.object({
@@ -549,6 +551,25 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       }, []);
 
       // Finalizar con éxito
+      const metrics ={
+        session_id: debugLogger.getSessionId(),
+        user_id: user.id,
+        organization_id: profile.organizationId,
+        texto_original: text,
+        longitud_caracteres: text.length,
+        total_sugerencias_generadas: correcciones.length,
+        tiempo_de_analisis: debugLogger.getDuration(),
+        created_at: new Date(),
+        updated_at: new Date(),
+        modelo_utilizado: selectedModel.model,
+        uso_copiar_texto: false,
+        total_tokens: result.usage?.totalTokens,
+        input_tokens: result.usage?.promptTokens,
+        output_tokens: result.usage?.completionTokens,
+      }
+      const analitics= new AnalyticsCorrectorDeTextosService(metrics);
+      await analitics.save();
+      const analitics_id = analitics.schema.id;
       await debugLogger.finalize("completed", {
         model: {
           provider: selectedModel.provider as any,
@@ -575,8 +596,10 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         success: true,
         correcciones,
         debugLogs: debugLogger.getLogs(),
+        analitics_id
       };
     } catch (error) {
+      console.error("Error al analizar el texto:", error);
       await debugLogger.finalize("failed", {
         model: {
           provider: selectedModel.provider as any,
