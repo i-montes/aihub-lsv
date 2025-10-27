@@ -60,15 +60,26 @@ export type AnalyticsGeneradorResumen = {
   session_id: string;
   user_id?: string | null;
   organization_id?: number | null;
-  contenido_original?: string | null;
-  resumen_generado?: string | null;
-  longitud_original?: number | null;
-  longitud_resumen?: number | null;
-  porcentaje_reduccion?: number | null;
+  metodo_seleccion?: string | null;
+  fuente_contenido?: string | null;
+  articulos_seleccionados_manual?: string[] | null;
+  fecha_desde?: Date | null;
+  fecha_hasta?: Date | null;
+  rango_dias?: number | null;
   modelo_utilizado?: string | null;
+  numero_articulos_procesados?: number | null;
+  tags_en_articulos?: string[] | null;
+  noticias_finalistas?: string[] | null;
+  uso_copiar_resumen?: boolean | null;
+  feedback_like?: boolean | null;
+  feedback_rank_like?: number | null;
   input_tokens?: number | null;
   output_tokens?: number | null;
   total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  tiempo_procesamiento?: number | null;
+  tiempo_respuesta_api?: number | null;
   created_at?: Date | null;
   updated_at?: Date | null;
 };
@@ -352,7 +363,7 @@ class AnalyticsGeneradorHilosService extends Analytics<AnalyticsGeneradorHilos> 
 
 class AnalyticsGeneradorResumenService extends Analytics<AnalyticsGeneradorResumen> {
   constructor(schema: AnalyticsGeneradorResumen = {} as AnalyticsGeneradorResumen, existingId?: string | number) {
-    super('generador_resumen', schema, existingId);
+    super('generador_de_resumenes', schema, existingId);
   }
 }
 
