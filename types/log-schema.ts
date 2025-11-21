@@ -90,6 +90,8 @@ export const AIModelInfoSchema = z.object({
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   topP: z.number().min(0).max(1).optional(),
+  effort: z.string().optional(),
+  verbosity:z.string().optional(),
   maxTokens: z.number().positive().optional(),
 });
 
@@ -128,6 +130,8 @@ export const ToolConfigSchema = z.object({
   isCustom: z.boolean(),
   temperature: z.number().optional(),
   topP: z.number().optional(),
+  effort: z.string().optional(),
+  verbosity:z.string().optional(),
   promptsCount: z.number().nonnegative(),
   hasSchema: z.boolean().optional(),
   promptTitles: z.array(z.string()).optional(),

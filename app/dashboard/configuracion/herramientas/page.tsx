@@ -125,8 +125,6 @@ export default function ToolsSettingsPage() {
             console.error("Error extracting tags from schema:", e)
           }
 
-          console.log(tool.temperature)
-
           processedTools.push({
             id: tool.id,
             title: tool.title,

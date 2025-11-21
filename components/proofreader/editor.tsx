@@ -80,6 +80,7 @@ export function ProofreaderEditor({
         class: "focus:outline-none prose-lg max-w-none",
       },
     },
+    immediatelyRender: false,
   })
 
   // Funciones para manejar el highlight en hover

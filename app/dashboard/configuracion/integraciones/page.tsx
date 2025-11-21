@@ -288,7 +288,7 @@ export default function IntegrationsSettingsPage() {
   const getProviderModel = (provider: string): string => {
     switch (provider) {
       case "OPENAI":
-        return "gpt-4.1-2025-04-14"
+        return "gpt-5.1-2025-11-13"
       case "GOOGLE":
         return "gemini-2.5-pro"
       case "ANTHROPIC":
@@ -302,7 +302,7 @@ export default function IntegrationsSettingsPage() {
   const getProviderDefaultModel = (provider: string): string[] => {
     switch (provider) {
       case "OPENAI":
-        return ["gpt-4.1-2025-04-14"]
+        return ["gpt-5.1-2025-11-13"]
       case "GOOGLE":
         return ["gemini-2.5-pro"]
       case "ANTHROPIC":
@@ -499,7 +499,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">OpenAI</p>
-                      <p className="text-xs text-gray-500">gpt-4.1-2025-04-14</p>
+                      <p className="text-xs text-gray-500">gpt-5.1-2025-11-13</p>
                     </div>
                   </div>
                   <Button

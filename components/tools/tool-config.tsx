@@ -248,7 +248,7 @@ export function ToolConfig({
         )}
       </div>
 
-      <div>
+      {/* <div>
         <Label
           htmlFor="temperature"
           className="text-sm font-medium text-gray-700 mb-1 block"
@@ -292,7 +292,7 @@ export function ToolConfig({
           Controla la diversidad de las respuestas. Valores más bajos generan
           respuestas más enfocadas.
         </p>
-      </div>
+      </div> */}
 
       {/* <div>
         <Label className="text-sm font-medium text-gray-700 mb-1 block">

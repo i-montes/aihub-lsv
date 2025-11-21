@@ -11,9 +11,9 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Variables de entorno de Supabase no configuradas');
 }
 
-if (!process.env.WORDPRESS_CLIENT_ID || !process.env.WORDPRESS_CLIENT_SECRET) {
-  throw new Error('Variables de entorno de WordPress no configuradas');
-}
+// if (!process.env.WORDPRESS_CLIENT_ID || !process.env.WORDPRESS_CLIENT_SECRET) {
+//   throw new Error('Variables de entorno de WordPress no configuradas');
+// }
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

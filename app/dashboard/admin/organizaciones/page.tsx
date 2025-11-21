@@ -1081,7 +1081,7 @@ export default function AdminOrganizationsPage() {
                       <SelectValue placeholder="Seleccionar proveedor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="OPENAI">OpenAI (gpt-4.1-2025-04-14)</SelectItem>
+                      <SelectItem value="OPENAI">OpenAI (gpt-5.1-2025-11-13)</SelectItem>
                       <SelectItem value="GOOGLE">Google (gemini-2.5-pro)</SelectItem>
                       <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-20250514)</SelectItem>
                     </SelectContent>

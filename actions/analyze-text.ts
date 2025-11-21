@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -7,7 +7,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { AnalyticsCorrectorDeTextosService} from "@/lib/analytics";
+import { AnalyticsCorrectorDeTextosService } from "@/lib/analytics";
 import { create } from "domain";
 
 // Schema para la respuesta del modelo
@@ -28,10 +28,6 @@ export async function analyzeText(
   text: string,
   selectedModel: { model: string; provider: string }
 ) {
-  // Definir valores por defecto para temperature y top_p
-  let temperature = 0.7;
-  let top_p = 0.9;
-
   // Inicializar logger con contexto específico de proofreader
   const debugLogger = new DebugLogger({
     toolIdentity: "proofreader",
@@ -67,8 +63,8 @@ export async function analyzeText(
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         error: {
           message: "No hay usuario autenticado",
@@ -98,8 +94,8 @@ export async function analyzeText(
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         error: {
           message: "No hay usuario autenticado",
@@ -180,8 +176,8 @@ export async function analyzeText(
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         error: {
           message: "No se pudo obtener la API key para este proveedor",
@@ -217,8 +213,8 @@ export async function analyzeText(
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         error: {
           message: "La API key está vacía o no es válida",
@@ -248,7 +244,7 @@ export async function analyzeText(
     debugLogger.info("Obteniendo configuración de la herramienta proofreader");
     const { data: toolData, error: toolError } = await supabase
       .from("tools")
-      .select("prompts, temperature, top_p, schema")
+      .select("prompts, schema")
       .eq("organization_id", organizationId)
       .eq("identity", "proofreader")
       .single();
@@ -263,8 +259,8 @@ export async function analyzeText(
           identity: "proofreader",
           isCustom: false,
           promptsCount: 0,
-          temperature: undefined,
-          topP: undefined,
+          effort: "medium",
+          verbosity: "medium",
           hasSchema: false,
         }
       );
@@ -274,7 +270,7 @@ export async function analyzeText(
       );
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
-        .select("prompts, temperature, top_p, schema")
+        .select("prompts, schema")
         .eq("identity", "proofreader")
         .single();
 
@@ -314,8 +310,8 @@ export async function analyzeText(
           identity: "proofreader",
           isCustom: true,
           promptsCount: toolData.prompts?.length || 0,
-          temperature: toolData.temperature,
-          topP: toolData.top_p,
+          effort: "medium",
+          verbosity: "medium",
           hasSchema: !!toolData.schema,
           promptTitles: toolData.prompts?.map((p: any) => p.title) || [],
         }
@@ -326,8 +322,8 @@ export async function analyzeText(
     }
 
     debugLogger.info("Configuración de herramienta obtenida", {
-      temperature: tool.temperature,
-      top_p: tool.top_p,
+      effort: "medium",
+      verbosity: "medium",
       promptsCount: tool.prompts?.length || 0,
     });
 
@@ -382,8 +378,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     });
 
     let result;
-    const temperature = tool.temperature;
-    const top_p = tool.top_p;
     const apiKey = apiKeyData.key;
 
     switch (selectedModel.provider.toLowerCase()) {
@@ -396,8 +390,13 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         result = await generateText({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          topP: top_p,
+          providerOptions:{
+            openai: {
+              effort: "medium",
+              verbosity: "medium",
+              store: false,
+            }
+          }
         });
         break;
       case "anthropic":
@@ -409,8 +408,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         result = await generateText({
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          topP: top_p,
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
@@ -426,8 +423,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         result = await generateText({
           model: google(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          topP: top_p,
         });
         break;
       default:
@@ -544,14 +539,14 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         } else {
           acc.push({
             type: corr.type,
-            count: 1
+            count: 1,
           });
         }
         return acc;
       }, []);
 
       // Finalizar con éxito
-      const metrics ={
+      const metrics = {
         session_id: debugLogger.getSessionId(),
         user_id: user.id,
         organization_id: profile.organizationId,
@@ -564,18 +559,18 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         modelo_utilizado: selectedModel.model,
         uso_copiar_texto: false,
         total_tokens: result.usage?.totalTokens,
-        input_tokens: result.usage?.promptTokens,
-        output_tokens: result.usage?.completionTokens,
-      }
-      const analitics= new AnalyticsCorrectorDeTextosService(metrics);
+        input_tokens: (result?.usage as any)?.promptTokens,
+        output_tokens: (result?.usage as any)?.completionTokens,
+      };
+      const analitics = new AnalyticsCorrectorDeTextosService(metrics);
       await analitics.save();
       const analitics_id = analitics.schema.id;
       await debugLogger.finalize("completed", {
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         metrics: {
           inputLength: text.length,
@@ -596,7 +591,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         success: true,
         correcciones,
         debugLogs: debugLogger.getLogs(),
-        analitics_id
+        analitics_id,
       };
     } catch (error) {
       console.error("Error al analizar el texto:", error);
@@ -604,8 +599,8 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         model: {
           provider: selectedModel.provider as any,
           model: selectedModel.model,
-          temperature,
-          topP: top_p,
+          effort: "medium",
+          verbosity: "medium",
         },
         error: {
           message: "Error al procesar la respuesta del modelo",
@@ -627,8 +622,8 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       model: {
         provider: selectedModel.provider as any,
         model: selectedModel.model,
-        temperature,
-        topP: top_p,
+        effort: "medium",
+        verbosity: "medium",
       },
       error: {
         message: "Error en el procesamiento del texto",
