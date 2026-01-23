@@ -14,7 +14,7 @@ export const MINI_MODELS = {
 
 export const MODELS = {
   "gemini-2.5-pro":"Gemini 2.5 Pro",
-  "claude-opus-4-20250514": "Claude Opus 4",
+  "claude-opus-4-5-20251101": "Claude Opus 4.5",
   "gpt-5.1-2025-11-13": "GPT 5.1"
 }
 
