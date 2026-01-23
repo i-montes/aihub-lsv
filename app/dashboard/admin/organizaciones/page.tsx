@@ -1083,7 +1083,7 @@ export default function AdminOrganizationsPage() {
                     <SelectContent>
                       <SelectItem value="OPENAI">OpenAI (gpt-5.1-2025-11-13)</SelectItem>
                       <SelectItem value="GOOGLE">Google (gemini-2.5-pro)</SelectItem>
-                      <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-20250514)</SelectItem>
+                      <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-5-20251101)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

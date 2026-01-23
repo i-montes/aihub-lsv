@@ -60,7 +60,7 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
       case "GOOGLE":
         return ["gemini-2.5-pro"]
       case "ANTHROPIC":
-        return ["claude-opus-4-20250514"]
+        return ["claude-opus-4-5-20251101"]
       default:
         return []
     }

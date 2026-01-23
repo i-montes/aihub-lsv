@@ -137,7 +137,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     const providerModels = {
       OPENAI: ["gpt-5.1-2025-11-13"],
       GOOGLE: ["gemini-2.5-pro"],
-      ANTHROPIC: ["claude-opus-4-20250514"]
+      ANTHROPIC: ["claude-opus-4-5-20251101"]
     }
 
     const { error: apiKeyError } = await supabase
