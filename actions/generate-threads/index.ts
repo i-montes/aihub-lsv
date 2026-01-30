@@ -301,14 +301,20 @@ INSTRUCCIONES ADICIONALES:
       template: undefined,
       inputSources: ["text"]
     });
+
+    // Filtrar hilos con 5 o menos palabras
+    const filteredThreads = result.object.threads.filter(
+      (thread) => thread.split(/\s+/).filter(Boolean).length > 5
+    );
+
     const metricas = {
       session_id: debugLogger.getSessionId(),
       user_id: user.id,
       organization_id: organizationId,
       contenido_original: text,
-      numero_tweets_generados: result?.object?.threads?.length || 0,
-      longitud_total_caracteres: result?.object?.threads?.join("").length || 0,
-      longitud_promedio_por_tweet: result?.object?.threads?.length ? Math.round((result?.object?.threads?.join("").length || 0) / result.object.threads.length) : 0,
+      numero_tweets_generados: filteredThreads.length || 0,
+      longitud_total_caracteres: filteredThreads.join("").length || 0,
+      longitud_promedio_por_tweet: filteredThreads.length ? Math.round((filteredThreads.join("").length || 0) / filteredThreads.length) : 0,
       modelo_utilizado: `${selectedModel.provider}:${selectedModel.model}`,
       formato_salida: format,
       timestamp: new Date(),
@@ -324,13 +330,13 @@ INSTRUCCIONES ADICIONALES:
       cached_input_tokens: null, // No disponible en este contexto
       tiempo_generacion: debugLogger.getDuration(), // Se podría calcular si se guarda el tiempo de inicio
       reintentos_necesarios: null, // No se puede obtener aquí
-      tweets_exceden_limite: result?.object?.threads?.filter(tweet => tweet.length > 280).length || 0,
+      tweets_exceden_limite: filteredThreads.filter(tweet => tweet.length > 280).length || 0,
     }
     const analitics= new AnalyticsGeneradorHilosService(metricas);
     await analitics.save();
     return {
       success: true,
-      threads: result?.object?.threads || [],
+      threads: filteredThreads || [],
       logs: debugLogger.getSerializableLogs(),
       analitics_id: analitics.schema.id
 
