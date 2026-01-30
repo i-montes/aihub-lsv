@@ -302,19 +302,35 @@ INSTRUCCIONES ADICIONALES:
       inputSources: ["text"]
     });
 
-    // Filtrar hilos con 5 o menos palabras
-    const filteredThreads = result.object.threads.filter(
-      (thread) => thread.split(/\s+/).filter(Boolean).length > 5
-    );
+    // Unir hilos cortos con el siguiente
+    const mergedThreads: string[] = [];
+    let tempThread = "";
+
+    for (const thread of result.object.threads) {
+      if (thread.split(/\s+/).filter(Boolean).length <= 5) {
+        tempThread += (tempThread ? " " : "") + thread;
+      } else {
+        mergedThreads.push((tempThread ? tempThread + " " : "") + thread);
+        tempThread = "";
+      }
+    }
+
+    // Si queda algo en tempThread (porque el último hilo era corto), lo añadimos.
+    // Podríamos decidir adjuntarlo al último hilo largo si existe.
+    if (tempThread && mergedThreads.length > 0) {
+      mergedThreads[mergedThreads.length - 1] += " " + tempThread;
+    } else if (tempThread) {
+      mergedThreads.push(tempThread);
+    }
 
     const metricas = {
       session_id: debugLogger.getSessionId(),
       user_id: user.id,
       organization_id: organizationId,
       contenido_original: text,
-      numero_tweets_generados: filteredThreads.length || 0,
-      longitud_total_caracteres: filteredThreads.join("").length || 0,
-      longitud_promedio_por_tweet: filteredThreads.length ? Math.round((filteredThreads.join("").length || 0) / filteredThreads.length) : 0,
+      numero_tweets_generados: mergedThreads.length || 0,
+      longitud_total_caracteres: mergedThreads.join("").length || 0,
+      longitud_promedio_por_tweet: mergedThreads.length ? Math.round((mergedThreads.join("").length || 0) / mergedThreads.length) : 0,
       modelo_utilizado: `${selectedModel.provider}:${selectedModel.model}`,
       formato_salida: format,
       timestamp: new Date(),
@@ -330,13 +346,13 @@ INSTRUCCIONES ADICIONALES:
       cached_input_tokens: null, // No disponible en este contexto
       tiempo_generacion: debugLogger.getDuration(), // Se podría calcular si se guarda el tiempo de inicio
       reintentos_necesarios: null, // No se puede obtener aquí
-      tweets_exceden_limite: filteredThreads.filter(tweet => tweet.length > 280).length || 0,
+      tweets_exceden_limite: mergedThreads.filter(tweet => tweet.length > 280).length || 0,
     }
     const analitics= new AnalyticsGeneradorHilosService(metricas);
     await analitics.save();
     return {
       success: true,
-      threads: filteredThreads || [],
+      threads: mergedThreads || [],
       logs: debugLogger.getSerializableLogs(),
       analitics_id: analitics.schema.id
 
