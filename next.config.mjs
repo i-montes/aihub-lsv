@@ -1,16 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // TypeScript e Images se mantienen igual
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,
   },
+  
+  // OPCIÓN A: Si quieres seguir usando Webpack para el build
+  // (Recomendado para no romper lo de Supabase ahora mismo)
   webpack: (config, { isServer }) => {
-    // Ignorar warnings específicos de Supabase realtime-js
     config.ignoreWarnings = [
       {
         module: /node_modules\/@supabase\/realtime-js/,
@@ -18,7 +18,6 @@ const nextConfig = {
       },
     ];
 
-    // Resolver problemas de módulos de Supabase en el servidor
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({
@@ -27,6 +26,14 @@ const nextConfig = {
     }
 
     return config;
+  },
+
+  // OPCIÓN B: Para silenciar el error de Turbopack 
+  // aunque uses la opción A, añade esto:
+  experimental: {
+    turbo: {
+      // Si necesitas pasar reglas específicas a Turbopack en el futuro
+    },
   },
 }
 
