@@ -352,7 +352,7 @@ GUÍA DE ESTILO:
 ${styleGuidePrompt}
 
 TEXTO A ANALIZAR:
-${text}
+${text} Analisis
 
 FORMATO DE RESPUESTA:
 Debes responder con un objeto JSON que contenga un array de correcciones con el siguiente formato:
@@ -543,7 +543,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           });
         }
         return acc;
-      }, []);
+      }, []).filter((item: any) => !item.original.includes("analisis"));
 
       // Finalizar con éxito
       const metrics = {
