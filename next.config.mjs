@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // TypeScript e Images se mantienen igual
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -8,8 +7,9 @@ const nextConfig = {
     unoptimized: true,
   },
   
-  // OPCIÓN A: Si quieres seguir usando Webpack para el build
-  // (Recomendado para no romper lo de Supabase ahora mismo)
+  // Configuración de Turbopack (Requerida en Next.js 16 para silenciar errores si se usa webpack)
+  turbopack: {},
+
   webpack: (config, { isServer }) => {
     config.ignoreWarnings = [
       {
@@ -26,14 +26,6 @@ const nextConfig = {
     }
 
     return config;
-  },
-
-  // OPCIÓN B: Para silenciar el error de Turbopack 
-  // aunque uses la opción A, añade esto:
-  experimental: {
-    turbo: {
-      // Si necesitas pasar reglas específicas a Turbopack en el futuro
-    },
   },
 }
 

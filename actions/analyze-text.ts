@@ -20,13 +20,13 @@ const ProofreaderResponseSchema = z.object({
         .enum(["spelling", "grammar", "style", "punctuation"])
         .describe("Tipo de error: spelling | grammar | style | punctuation"),
       explanation: z.string().describe("Explicación de la corrección"),
-    })
+    }),
   ),
 });
 
 export async function analyzeText(
   text: string,
-  selectedModel: { model: string; provider: string }
+  selectedModel: { model: string; provider: string },
 ) {
   // Inicializar logger con contexto específico de proofreader
   const debugLogger = new DebugLogger({
@@ -114,7 +114,7 @@ export async function analyzeText(
         userId: user.id,
         organizationId: profile.organizationId,
         email: user.email,
-      }
+      },
     );
 
     // Actualizar contexto del logger con información del usuario
@@ -169,7 +169,7 @@ export async function analyzeText(
           message: "No se pudo obtener la API key para este proveedor",
           code: "API_KEY_NOT_FOUND",
           context: { apiKeyError },
-        }
+        },
       );
 
       await debugLogger.finalize("failed", {
@@ -206,7 +206,7 @@ export async function analyzeText(
         {
           message: "La API key está vacía o no es válida",
           code: "API_KEY_EMPTY",
-        }
+        },
       );
 
       await debugLogger.finalize("failed", {
@@ -262,11 +262,11 @@ export async function analyzeText(
           effort: "medium",
           verbosity: "medium",
           hasSchema: false,
-        }
+        },
       );
 
       debugLogger.warn(
-        "No se encontró configuración personalizada, usando configuración por defecto"
+        "No se encontró configuración personalizada, usando configuración por defecto",
       );
       const { data: defaultToolData, error: defaultToolError } = await supabase
         .from("default_tools")
@@ -283,7 +283,7 @@ export async function analyzeText(
             message: "No se pudo obtener la configuración de la herramienta",
             code: "TOOL_CONFIG_NOT_FOUND",
             context: { defaultToolError },
-          }
+          },
         );
 
         await debugLogger.finalize("failed", {
@@ -314,7 +314,7 @@ export async function analyzeText(
           verbosity: "medium",
           hasSchema: !!toolData.schema,
           promptTitles: toolData.prompts?.map((p: any) => p.title) || [],
-        }
+        },
       );
 
       tool = toolData;
@@ -352,7 +352,7 @@ GUÍA DE ESTILO:
 ${styleGuidePrompt}
 
 TEXTO A ANALIZAR:
-${text} Analisis
+${text} Analixis
 
 FORMATO DE RESPUESTA:
 Debes responder con un objeto JSON que contenga un array de correcciones con el siguiente formato:
@@ -390,13 +390,13 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         result = await generateText({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          providerOptions:{
+          providerOptions: {
             openai: {
               effort: "medium",
               verbosity: "medium",
               store: false,
-            }
-          }
+            },
+          },
         });
         break;
       case "anthropic":
@@ -477,7 +477,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         Array.isArray(jsonResponse.correcciones)
       ) {
         debugLogger.info(
-          `Normalizando ${jsonResponse.correcciones.length} correcciones`
+          `Normalizando ${jsonResponse.correcciones.length} correcciones`,
         );
         jsonResponse.correcciones = jsonResponse.correcciones.map(
           (correccion: any) => {
@@ -485,7 +485,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
             if (
               correccion.type &&
               !["spelling", "grammar", "style", "punctuation"].includes(
-                correccion.type
+                correccion.type,
               )
             ) {
               const originalType = correccion.type;
@@ -506,11 +506,11 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
                 correccion.type = "style";
               }
               debugLogger.info(
-                `Tipo normalizado: ${originalType} -> ${correccion.type}`
+                `Tipo normalizado: ${originalType} -> ${correccion.type}`,
               );
             }
             return correccion;
-          }
+          },
         );
       }
 
@@ -524,26 +524,28 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           id: `correction-${index}`,
           startIndex: 0, // Estos valores se calcularán en el frontend
           endIndex: 0,
-        })
-      );
+        }),
+      ).filter((item: any) => (item?.original?.toLowerCase() || "") !== "analixis");
 
       debugLogger.info(
-        `Análisis completado exitosamente con ${correcciones.length} correcciones`
+        `Análisis completado exitosamente con ${correcciones.length} correcciones`,
       );
 
       // Preparar resultados de análisis para el log
-      const analysisResults = correcciones.reduce((acc: any[], corr: any) => {
-        const existing = acc.find((r) => r.type === corr.type);
-        if (existing) {
-          existing.count++;
-        } else {
-          acc.push({
-            type: corr.type,
-            count: 1,
-          });
-        }
-        return acc;
-      }, []).filter((item: any) => !item.original.includes("analisis"));
+      const analysisResults = correcciones
+        .reduce((acc: any[], corr: any) => {
+          const existing = acc.find((r) => r.type === corr.type);
+          if (existing) {
+            existing.count++;
+          } else {
+            acc.push({
+              type: corr.type,
+              count: 1,
+            });
+          }
+          return acc;
+        }, [])
+      
 
       // Finalizar con éxito
       const metrics = {

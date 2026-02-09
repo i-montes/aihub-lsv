@@ -6,7 +6,7 @@ const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//,
 const accessTokenCookie = projectRef ? `sb-${projectRef}-auth-token` : "sb-access-token"
 const refreshTokenCookie = projectRef ? `sb-${projectRef}-refresh-token` : "sb-refresh-token"
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   // Check if current domain is aihub.lasillavacia.com and redirect to www.elkit.ai
   if (req.nextUrl.hostname === 'aihub.lasillavacia.com') {
     const newUrl = new URL(req.nextUrl.pathname + req.nextUrl.search + req.nextUrl.hash, 'https://www.elkit.ai')
