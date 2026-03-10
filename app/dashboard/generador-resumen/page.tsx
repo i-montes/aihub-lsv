@@ -99,6 +99,7 @@ export default function GeneradorResumenes() {
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const allowedCategories = ["4932", "4924", "137184"];
 
   // Function to fetch WordPress content with pagination
   const fetchWordPressContent = async (
@@ -118,7 +119,7 @@ export default function GeneradorResumenes() {
         end_date: endDate,
         page: "1",
         per_page: "20",
-        categories: "4932",
+        categories: allowedCategories.join(","),
       });
 
       setGenerationProgress({
@@ -178,7 +179,7 @@ export default function GeneradorResumenes() {
             end_date: endDate,
             page: page.toString(),
             per_page: "20",
-            categories: "4932",
+            categories: allowedCategories.join(","),
           });
 
           pagePromises.push(
@@ -619,7 +620,7 @@ export default function GeneradorResumenes() {
                   placeholder="Buscar artículos..."
                   noResultsMessage="No se encontraron artículos para"
                   fullWidth
-                  categories={"4932,4924"}
+                  categories={allowedCategories.join(",")}
                   allowMultipleSelection={true}
                 />
 
