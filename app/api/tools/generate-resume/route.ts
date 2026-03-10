@@ -336,7 +336,7 @@ const selectImportantNews = async (
           title: z.string(),
           reason: z.string(),
         })
-      ).min(Math.max(1, minRequired)).max(maxRequired),
+      ),
     });
 
     let result;
