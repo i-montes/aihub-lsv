@@ -352,7 +352,7 @@ GUÍA DE ESTILO:
 ${styleGuidePrompt}
 
 TEXTO A ANALIZAR:
-${text} Analixis
+${text}
 
 FORMATO DE RESPUESTA:
 Debes responder con un objeto JSON que contenga un array de correcciones con el siguiente formato:
@@ -525,7 +525,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           startIndex: 0, // Estos valores se calcularán en el frontend
           endIndex: 0,
         }),
-      ).filter((item: any) => (item?.original?.toLowerCase() || "") !== "analixis");
+      )
 
       debugLogger.info(
         `Análisis completado exitosamente con ${correcciones.length} correcciones`,
