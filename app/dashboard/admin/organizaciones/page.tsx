@@ -1082,7 +1082,7 @@ export default function AdminOrganizationsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="OPENAI">OpenAI (gpt-5.1-2025-11-13)</SelectItem>
-                      <SelectItem value="GOOGLE">Google (gemini-2.5-pro)</SelectItem>
+                      <SelectItem value="GOOGLE">Google (gemini-3.1-pro-preview)</SelectItem>
                       <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-5-20251101)</SelectItem>
                     </SelectContent>
                   </Select>

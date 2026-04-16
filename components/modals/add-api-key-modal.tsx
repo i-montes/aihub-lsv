@@ -58,7 +58,7 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
       case "OPENAI":
         return ["gpt-5.1-2025-11-13"]
       case "GOOGLE":
-        return ["gemini-2.5-pro"]
+        return ["gemini-3.1-pro-preview"]
       case "ANTHROPIC":
         return ["claude-opus-4-5-20251101"]
       default:

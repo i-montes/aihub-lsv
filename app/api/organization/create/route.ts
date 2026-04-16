@@ -136,7 +136,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     // 4. Crear API key
     const providerModels = {
       OPENAI: ["gpt-5.1-2025-11-13"],
-      GOOGLE: ["gemini-2.5-pro"],
+      GOOGLE: ["gemini-3.1-pro-preview"],
       ANTHROPIC: ["claude-opus-4-5-20251101"]
     }
 
