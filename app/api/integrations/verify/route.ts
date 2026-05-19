@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseRouteHandler } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
 import type { Database } from "@/lib/supabase/database.types"
 
 /**
@@ -31,8 +30,6 @@ export async function POST(request: NextRequest) {
     let error = null
 
     console.log(`Verificando clave API para el proveedor: ${provider}`)
-
-    console.log(`Clave API: ${key}`)
 
     try {
       if (provider === "OPENAI") {
@@ -117,11 +114,8 @@ export async function POST(request: NextRequest) {
           // Si no se encontraron modelos o la respuesta está vacía, usar lista predefinida
           if (models.length === 0) {
             models = [
-              "claude-3-5-sonnet-20241022",
-              "claude-3-5-haiku-20241022",
-              "claude-3-opus-20240229",
-              "claude-3-sonnet-20240229",
-              "claude-3-haiku-20240307",
+              "claude-opus-4-5-20251101",
+              "claude-haiku-4-5-20251001",
             ]
           }
         } else {

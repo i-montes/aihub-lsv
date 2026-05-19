@@ -155,7 +155,7 @@ async function getApiKey(
         code: "API_KEY_NOT_FOUND",
       },
     });
-    throw new Error("No se pudo obtener la API key para este proveedor", apiKeyError);
+    throw new Error("No se pudo obtener la API key para este proveedor");
   }
 
   if (!apiKeyData.key || apiKeyData.key.trim() === "") {
@@ -483,8 +483,8 @@ export async function POST(request: NextRequest) {
       // Retornar respuesta JSON con ambos resultados
       return NextResponse.json({
         success: true,
-        generated1: result2.text,
-        generated2: result1.text,
+        generated1: result1.text,
+        generated2: result2.text,
         model1: validatedData.selectedModel,
         model2: validatedData.model_to_compare_1,
       });
