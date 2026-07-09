@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { convertToCoreMessages, generateText } from 'ai';
+import { convertToModelMessages, generateText } from 'ai';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -383,9 +383,7 @@ async function generateAnalysis(
       return generateText({
         model: openai(modelConfig.model),
         system: systemPrompt,
-        messages: convertToCoreMessages(messageContent),
-        temperature,
-        topP: top_p,
+        messages: convertToModelMessages(messageContent),
       });
 
     case "anthropic":
@@ -394,9 +392,7 @@ async function generateAnalysis(
       return generateText({
         model: anthropic(modelConfig.model),
         system: systemPrompt,
-        messages: convertToCoreMessages(messageContent),
-        temperature,
-        topP: top_p,
+        messages: convertToModelMessages(messageContent),
         headers: {
           "anthropic-dangerous-direct-browser-access": "true",
           "anthropic-version": "2023-06-01",
@@ -409,7 +405,7 @@ async function generateAnalysis(
       return generateText({
         model: google(modelConfig.model),
         system: systemPrompt,
-        messages: convertToCoreMessages(messageContent),
+        messages: convertToModelMessages(messageContent),
         temperature,
         topP: top_p,
       });

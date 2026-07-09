@@ -420,8 +420,6 @@ ${selectedNews
         result = await generateText({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          topP: top_p,
         });
         break;
       case "anthropic":
@@ -433,8 +431,6 @@ ${selectedNews
         result = await generateText({
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
-          temperature,
-          topP: top_p,
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta

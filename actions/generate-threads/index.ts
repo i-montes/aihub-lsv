@@ -247,9 +247,7 @@ INSTRUCCIONES ADICIONALES:
         result = await generateObject({
           model: openai(selectedModel.model),
           prompt: combinedPrompt,
-          schema: ThreadsSchema,
-          temperature,
-          topP: top_p
+          schema: ThreadsSchema
         });
         break;
       case "anthropic":
@@ -263,8 +261,6 @@ INSTRUCCIONES ADICIONALES:
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
           schema: ThreadsSchema,
-          temperature,
-          topP: top_p,
           headers: {
             "anthropic-dangerous-direct-browser-access": "true",
             "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta

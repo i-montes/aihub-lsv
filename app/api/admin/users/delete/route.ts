@@ -2,20 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getSupabaseServer } from "@/lib/supabase/server"
 
-// Crear cliente de Supabase con service role para operaciones administrativas
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Crear cliente de Supabase con service role para operaciones administrativas
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+
     // Obtener el cliente de Supabase para validar la sesión del usuario actual
     const supabase = await getSupabaseServer()
     

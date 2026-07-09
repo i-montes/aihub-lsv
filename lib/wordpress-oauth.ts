@@ -1,25 +1,6 @@
 'use server'
 import { createClient } from "@supabase/supabase-js";
 
-// Verificar que estamos en el servidor
-if (typeof window !== 'undefined') {
-  throw new Error('WordPressOAuth debe ejecutarse solo en el servidor');
-}
-
-// Verificar variables de entorno requeridas
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Variables de entorno de Supabase no configuradas');
-}
-
-// if (!process.env.WORDPRESS_CLIENT_ID || !process.env.WORDPRESS_CLIENT_SECRET) {
-//   throw new Error('Variables de entorno de WordPress no configuradas');
-// }
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export interface WordPressConnection {
   id: string;
   site_name: string;
@@ -59,6 +40,10 @@ export async function getWordPressConnection(
   connectionId?: string
 ): Promise<WordPressOAuthResult> {
   try {
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     let query = supabase
       .from("wordpress_integration_table")
       .select(
@@ -172,6 +157,10 @@ export async function refreshWordPressToken(
       Date.now() + tokenData.expires_in * 1000
     ).toISOString();
 
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     const { error: updateError } = await supabase
       .from("wordpress_integration_table")
       .update({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createWordPressOAuth } from '@/lib/wordpress-oauth';
+import { getWordPressOAuth, testWordPressConnection } from '@/lib/wordpress-oauth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +12,9 @@ export async function POST(request: NextRequest) {
     } else if (connection_type === 'wordpress_com') {
       // Usar la nueva función WordPressOAuth
       if (connection_id) {
-        const { oauth, result } = await createWordPressOAuth(organization_id || '', connection_id);
+        const result = await getWordPressOAuth(organization_id || '', connection_id);
         
-        if (!result.success) {
+        if (!result.success || !result.connection) {
           console.log('Error obteniendo conexión OAuth:', result.error);
           return NextResponse.json(
             { success: false, error: result.error },
@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Probar la conexión usando la nueva función
-        const connectionTest = await oauth.testConnection();
+        // Probar la conexión usando la función disponible
+        const connectionTest = await testWordPressConnection(result.connection);
         
         if (connectionTest.success) {
           testResult = {

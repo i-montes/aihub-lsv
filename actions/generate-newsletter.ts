@@ -416,9 +416,7 @@ ${articlesContent}`
           result = await generateText({
             model: openai(selectedModel.model),
             prompt: combinedPrompt,
-            temperature,
             maxTokens: 2048,
-            topP: top_p,
           });
           break;
         case "anthropic":
@@ -430,8 +428,6 @@ ${articlesContent}`
           result = await generateText({
             model: anthropic(selectedModel.model),
             prompt: combinedPrompt,
-            temperature,
-            topP: top_p,
             maxTokens: 2048,
             headers: {
               "anthropic-dangerous-direct-browser-access": "true",

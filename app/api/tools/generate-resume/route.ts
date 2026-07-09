@@ -443,8 +443,6 @@ ${selectedNews
       return generateText({
         model: openai(modelConfig.model),
         prompt: combinedPrompt,
-        temperature,
-        topP: top_p,
       });
 
     case "anthropic":
@@ -453,8 +451,6 @@ ${selectedNews
       return generateText({
         model: anthropic(modelConfig.model),
         prompt: combinedPrompt,
-        temperature,
-        topP: top_p,
         headers: {
           "anthropic-dangerous-direct-browser-access": "true",
           "anthropic-version": "2023-06-01",
