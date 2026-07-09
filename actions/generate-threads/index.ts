@@ -261,10 +261,6 @@ INSTRUCCIONES ADICIONALES:
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
           schema: ThreadsSchema,
-          headers: {
-            "anthropic-dangerous-direct-browser-access": "true",
-            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-          },
         });
         break;
       case "google":
@@ -354,10 +350,11 @@ INSTRUCCIONES ADICIONALES:
 
     };
   } catch (error: any) {
-    debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", error);
+    const errorMsg = error?.message || error?.toString() || "Error desconocido";
+    debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", { message: errorMsg, error });
     return {
       success: false,
-      error: "Error en el procesamiento del texto",
+      error: `Error en el procesamiento del texto: ${errorMsg}`,
       threads: [],
       logs: debugLogger.getSerializableLogs(),
     };

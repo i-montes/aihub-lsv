@@ -393,10 +393,6 @@ async function generateAnalysis(
         model: anthropic(modelConfig.model),
         system: systemPrompt,
         messages: convertToModelMessages(messageContent),
-        headers: {
-          "anthropic-dangerous-direct-browser-access": "true",
-          "anthropic-version": "2023-06-01",
-        },
       });
 
     case "google":

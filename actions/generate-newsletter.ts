@@ -429,10 +429,6 @@ ${articlesContent}`
             model: anthropic(selectedModel.model),
             prompt: combinedPrompt,
             maxTokens: 2048,
-            headers: {
-              "anthropic-dangerous-direct-browser-access": "true",
-              "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-            },
           });
           break;
         case "google":
@@ -621,10 +617,6 @@ async function processImages(
         messages,
         maxTokens: 4096,
         maxRetries: 3, // Intentar hasta 3 veces en caso de error
-        headers: {
-          "anthropic-dangerous-direct-browser-access": "true",
-          "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-        },
       });
       break;
     case "google":

@@ -431,10 +431,6 @@ ${selectedNews
         result = await generateText({
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
-          headers: {
-            "anthropic-dangerous-direct-browser-access": "true",
-            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-          },
         });
         break;
       case "google":
@@ -575,11 +571,7 @@ const selectImportantNews = async (
           model: anthropic(model),
           prompt: prompt,
           schema: schema,
-          maxRetries: 5, // Intentar hasta 3 veces en caso de error
-          headers: {
-            "anthropic-dangerous-direct-browser-access": "true",
-            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-          },
+          maxRetries: 5,
         });
         break;
       case "google":

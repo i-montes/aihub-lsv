@@ -364,10 +364,6 @@ const selectImportantNews = async (
           prompt: prompt,
           schema: schema,
           maxRetries: 5,
-          headers: {
-            "anthropic-dangerous-direct-browser-access": "true",
-            "anthropic-version": "2023-06-01",
-          },
         });
         break;
       case "google":
@@ -451,10 +447,6 @@ ${selectedNews
       return generateText({
         model: anthropic(modelConfig.model),
         prompt: combinedPrompt,
-        headers: {
-          "anthropic-dangerous-direct-browser-access": "true",
-          "anthropic-version": "2023-06-01",
-        },
       });
 
     case "google":

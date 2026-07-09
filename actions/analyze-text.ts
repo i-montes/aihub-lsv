@@ -407,10 +407,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         result = await generateText({
           model: anthropic(selectedModel.model),
           prompt: combinedPrompt,
-          headers: {
-            "anthropic-dangerous-direct-browser-access": "true",
-            "anthropic-version": "2023-06-01", // Asegurarse de usar la versión correcta
-          },
         });
         break;
       case "google":
