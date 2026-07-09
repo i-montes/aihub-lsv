@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const DEFAULT_MODELS = {
+  OPENAI: "gpt-5.5-2026-04-23",
+  GOOGLE: "gemini-3.1-pro-preview",
+  ANTHROPIC: "claude-opus-4-8"
+}
 
 export const MINI_MODELS = {
   OPENAI: "gpt-4o-mini-2024-07-18",
@@ -13,8 +18,7 @@ export const MINI_MODELS = {
 }
 
 export const MODELS = {
-  "gemini-3.1-pro-preview":"Gemini 3.1 Pro Preview",
-  "claude-opus-4-5-20251101": "Claude Opus 4.5",
-  "gpt-5.1-2025-11-13": "GPT 5.1"
+  [DEFAULT_MODELS.GOOGLE]: "Gemini 3.1 Pro Preview",
+  [DEFAULT_MODELS.ANTHROPIC]: "Claude Opus 4.8",
+  [DEFAULT_MODELS.OPENAI]: "GPT 5.5"
 }
-

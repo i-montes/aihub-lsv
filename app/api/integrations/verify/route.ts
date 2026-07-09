@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/database.types"
+import { DEFAULT_MODELS, MINI_MODELS } from "@/lib/utils"
 
 /**
  * POST /api/integrations/verify
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
             .map((model: any) => model.id)
 
           // Asegurar que los modelos principales estén incluidos
-          const mainModels = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+          const mainModels = [DEFAULT_MODELS.OPENAI, MINI_MODELS.OPENAI, "gpt-4o", "gpt-4-turbo"]
           mainModels.forEach((model) => {
             if (!models.includes(model) && model === "gpt-4o") {
               models.push(model)
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
           if (models.length === 0) {
             // Si no se encontraron modelos Gemini, incluir los principales
-            models = ["gemini-pro", "gemini-pro-vision"]
+            models = [DEFAULT_MODELS.GOOGLE, MINI_MODELS.GOOGLE]
           }
         } else {
           const errorData = await response.json()
@@ -114,8 +115,8 @@ export async function POST(request: NextRequest) {
           // Si no se encontraron modelos o la respuesta está vacía, usar lista predefinida
           if (models.length === 0) {
             models = [
-              "claude-opus-4-5-20251101",
-              "claude-haiku-4-5-20251001",
+              DEFAULT_MODELS.ANTHROPIC,
+              MINI_MODELS.ANTHROPIC,
             ]
           }
         } else {

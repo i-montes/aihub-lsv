@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { DEFAULT_MODELS } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -1081,9 +1082,9 @@ export default function AdminOrganizationsPage() {
                       <SelectValue placeholder="Seleccionar proveedor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="OPENAI">OpenAI (gpt-5.1-2025-11-13)</SelectItem>
-                      <SelectItem value="GOOGLE">Google (gemini-3.1-pro-preview)</SelectItem>
-                      <SelectItem value="ANTHROPIC">Anthropic (claude-opus-4-5-20251101)</SelectItem>
+                      <SelectItem value="OPENAI">OpenAI ({DEFAULT_MODELS.OPENAI})</SelectItem>
+                      <SelectItem value="GOOGLE">Google ({DEFAULT_MODELS.GOOGLE})</SelectItem>
+                      <SelectItem value="ANTHROPIC">Anthropic ({DEFAULT_MODELS.ANTHROPIC})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

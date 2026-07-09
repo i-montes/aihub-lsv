@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sparkles, Trash2, Settings, Power, PowerOff } from "lucide-react"
 import { ApiKeyService, type ApiKey, type ApiKeyStatus } from "@/lib/services/api-key-service"
+import { DEFAULT_MODELS } from "@/lib/utils"
 import { AddApiKeyModal } from "@/components/modals/add-api-key-modal"
 import { ToggleApiKeyStatusModal } from "@/components/modals/toggle-api-key-status-modal"
 import {
@@ -288,11 +289,11 @@ export default function IntegrationsSettingsPage() {
   const getProviderModel = (provider: string): string => {
     switch (provider) {
       case "OPENAI":
-        return "gpt-5.1-2025-11-13"
+        return DEFAULT_MODELS.OPENAI
       case "GOOGLE":
-        return "gemini-3.1-pro-preview"
+        return DEFAULT_MODELS.GOOGLE
       case "ANTHROPIC":
-        return "claude-opus-4-5-20251101"
+        return DEFAULT_MODELS.ANTHROPIC
       default:
         return "Modelo"
     }
@@ -302,11 +303,11 @@ export default function IntegrationsSettingsPage() {
   const getProviderDefaultModel = (provider: string): string[] => {
     switch (provider) {
       case "OPENAI":
-        return ["gpt-5.1-2025-11-13"]
+        return [DEFAULT_MODELS.OPENAI]
       case "GOOGLE":
-        return ["gemini-3.1-pro-preview"]
+        return [DEFAULT_MODELS.GOOGLE]
       case "ANTHROPIC":
-        return ["claude-opus-4-5-20251101"]
+        return [DEFAULT_MODELS.ANTHROPIC]
       default:
         return []
     }
@@ -465,7 +466,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Google Gemini</p>
-                      <p className="text-xs text-gray-500">gemini-3.1-pro-preview</p>
+                      <p className="text-xs text-gray-500">{DEFAULT_MODELS.GOOGLE}</p>
                     </div>
                   </div>
                   <Button
@@ -499,7 +500,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">OpenAI</p>
-                      <p className="text-xs text-gray-500">gpt-5.1-2025-11-13</p>
+                      <p className="text-xs text-gray-500">{DEFAULT_MODELS.OPENAI}</p>
                     </div>
                   </div>
                   <Button
@@ -539,7 +540,7 @@ export default function IntegrationsSettingsPage() {
                     </div>
                     <div>
                       <p className="font-bold">Anthropic</p>
-                      <p className="text-xs text-gray-500">claude-opus-4-5-20251101</p>
+                      <p className="text-xs text-gray-500">{DEFAULT_MODELS.ANTHROPIC}</p>
                     </div>
                   </div>
                   <Button

@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ApiKeyService, type ApiKeyProvider } from "@/lib/services/api-key-service"
+import { DEFAULT_MODELS } from "@/lib/utils"
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { useAuth } from "@/hooks/use-auth"
@@ -56,11 +57,11 @@ export function AddApiKeyModal({ open, onOpenChange, onSuccess, preselectedProvi
   const getDefaultModels = (provider: ApiKeyProvider): string[] => {
     switch (provider) {
       case "OPENAI":
-        return ["gpt-5.1-2025-11-13"]
+        return [DEFAULT_MODELS.OPENAI]
       case "GOOGLE":
-        return ["gemini-3.1-pro-preview"]
+        return [DEFAULT_MODELS.GOOGLE]
       case "ANTHROPIC":
-        return ["claude-opus-4-5-20251101"]
+        return [DEFAULT_MODELS.ANTHROPIC]
       default:
         return []
     }
