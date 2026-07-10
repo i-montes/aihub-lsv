@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const DEFAULT_MODELS = {
-  OPENAI: "gpt-5.5-2026-04-23",
+  OPENAI: "gpt-5.6-terra",
   GOOGLE: "gemini-3.1-pro-preview",
   ANTHROPIC: "claude-opus-4-8"
 }
@@ -20,5 +20,5 @@ export const MINI_MODELS = {
 export const MODELS = {
   [DEFAULT_MODELS.GOOGLE]: "Gemini 3.1 Pro Preview",
   [DEFAULT_MODELS.ANTHROPIC]: "Claude Opus 4.8",
-  [DEFAULT_MODELS.OPENAI]: "GPT 5.5"
+  [DEFAULT_MODELS.OPENAI]: "GPT 5.6 Terra"
 }
