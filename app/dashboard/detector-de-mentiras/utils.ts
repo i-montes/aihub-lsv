@@ -148,6 +148,20 @@ export const cleanText = (text: string): string => {
 };
 
 /**
+ * Extrae las URLs presentes en un texto
+ * @param text - Texto del que extraer las URLs
+ * @returns Lista de URLs únicas, en el orden en que aparecen
+ */
+export const extractUrlsFromText = (text: string): string[] => {
+  if (!text) return [];
+
+  const urlRegex = /(https?:\/\/[^\s[\]]+)/g;
+  const matches = text.match(urlRegex) || [];
+
+  return Array.from(new Set(matches.map((url) => url.trim())));
+};
+
+/**
  * Genera un ID único simple
  * @returns ID único basado en timestamp y número aleatorio
  */

@@ -1,14 +1,17 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { convertToModelMessages, generateText } from 'ai';
+import { generateText, type ModelMessage } from 'ai';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import type { FormSchema } from "@/app/dashboard/detector-de-mentiras/constants";
-import { formSchema } from "@/app/dashboard/detector-de-mentiras/constants";
+import {
+  formSchema,
+  getRatingPromptValue,
+} from "@/app/dashboard/detector-de-mentiras/constants";
 
 // Types
 interface AuthResult {
@@ -261,6 +264,11 @@ function generatePrompt(validatedData: FormSchema): string {
     validatedData.verification.metadata
   );
 
+  const contexto = searchAndReplaceURLText(
+    validatedData.additional_context.text,
+    validatedData.additional_context.metadata
+  );
+
   return `
 INSUMOS PARA EL TITULAR Y EL PÁRRAFO INICIAL:
 
@@ -276,7 +284,7 @@ ${links_desinformacion || "No proporcionados"}
 ¿De qué trata?
 ${validatedData.disinformation.description}
 
-Calificación: ${validatedData.rating}
+Calificación: ${getRatingPromptValue(validatedData.rating)}
 
 INSUMOS PARA VERIFICACIÓN Y EVIDENCIAS:
 
@@ -290,10 +298,61 @@ Imágenes de verificación: ${
   }
 
 CONTEXTO ADICIONAL:
-${validatedData.additional_context.text || "No proporcionado"}`;
+${contexto || "No proporcionado"}`;
 }
 
 
+
+/**
+ * Convierte una imagen subida en una parte de imagen del mensaje.
+ * El cliente manda `preview` como data URL (`data:image/png;base64,...`),
+ * de donde se sacan el media type y el payload base64.
+ */
+function toImagePart(image: any) {
+  const preview: string | undefined = image?.preview;
+  if (!preview) return null;
+
+  const match = preview.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+
+  return {
+    type: "image" as const,
+    image: match[2],
+    mediaType: match[1],
+  };
+}
+
+/**
+ * Arma el contenido del mensaje: el prompt seguido de las imágenes,
+ * separadas por categoría para que el modelo sepa qué está mirando.
+ */
+function buildUserContent(userPrompt: string, validatedData: FormSchema) {
+  const content: any[] = [{ type: "text", text: userPrompt }];
+
+  const sections = [
+    {
+      label: "--- IMÁGENES DE DESINFORMACIÓN ---",
+      images: validatedData.disinformation?.images ?? [],
+    },
+    {
+      label: "--- IMÁGENES DE VERIFICACIÓN Y EVIDENCIAS ---",
+      images: validatedData.verification?.images ?? [],
+    },
+  ];
+
+  for (const section of sections) {
+    const parts = section.images
+      .map(toImagePart)
+      .filter((part): part is NonNullable<typeof part> => part !== null);
+
+    if (parts.length > 0) {
+      content.push({ type: "text", text: section.label });
+      content.push(...parts);
+    }
+  }
+
+  return content;
+}
 
 // Función para generar análisis con un modelo específico
 async function generateAnalysis(
@@ -303,7 +362,7 @@ async function generateAnalysis(
   toolConfig: ToolConfig,
   apiKey: string,
   debugLogger: DebugLogger,
-  validatedData?: any
+  validatedData: FormSchema
 ) {
   debugLogger.info("Iniciando generación de análisis", {
     provider: modelConfig.provider,
@@ -313,68 +372,12 @@ async function generateAnalysis(
   const temperature = toolConfig.temperature;
   const top_p = toolConfig.top_p;
 
-  // Preparar el contenido del mensaje
-  const messageContent: any[] = [
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: userPrompt,
-        },
-      ],
-    },
-  ];
+  const content = buildUserContent(userPrompt, validatedData);
+  const messages: ModelMessage[] = [{ role: "user", content }];
 
-  // Añadir imágenes de desinformación si existen
-  if (validatedData?.disinformation?.images?.length > 0) {
-    messageContent[0].content.push({
-      type: "text",
-      text: "--- IMÁGENES DE DESINFORMACIÓN ---",
-    });
-
-    // Añadir cada imagen de desinformación
-    for (const img of validatedData.disinformation.images) {
-      if (img && img.preview && img.mimeType) {
-        try {
-          messageContent[0].content.push({
-            type: "image",
-            source: {
-              type: "base64",
-              data: img.preview,
-            },
-          });
-        } catch (imgError) {
-          console.error("Error al procesar imagen de desinformación:", imgError);
-        }
-      }
-    }
-  }
-
-  // Añadir imágenes de verificación si existen
-  if (validatedData?.verification?.images?.length > 0) {
-    messageContent[0].content.push({
-      type: "text",
-      text: "--- IMÁGENES DE VERIFICACIÓN Y EVIDENCIAS ---",
-    });
-
-    // Añadir cada imagen de verificación
-    for (const img of validatedData.verification.images) {
-      if (img && img.preview && img.mimeType) {
-        try {
-          messageContent[0].content.push({
-            type: "image",
-            source: {
-              type: "base64",
-              data: img.preview,
-            },
-          });
-        } catch (imgError) {
-          console.error("Error al procesar imagen de verificación:", imgError);
-        }
-      }
-    }
-  }
+  debugLogger.info("Contenido del mensaje preparado", {
+    imageParts: content.filter((part) => part.type === "image").length,
+  });
 
   switch (modelConfig.provider.toLowerCase()) {
     case "openai":
@@ -383,7 +386,14 @@ async function generateAnalysis(
       return generateText({
         model: openai(modelConfig.model),
         system: systemPrompt,
-        messages: convertToModelMessages(messageContent),
+        messages,
+        providerOptions: {
+          openai: {
+            reasoningEffort: validatedData.openaiReasoningEffort,
+            textVerbosity: validatedData.openaiVerbosity,
+            store: false,
+          },
+        },
       });
 
     case "anthropic":
@@ -392,7 +402,11 @@ async function generateAnalysis(
       return generateText({
         model: anthropic(modelConfig.model),
         system: systemPrompt,
-        messages: convertToModelMessages(messageContent),
+        messages,
+        providerOptions: {
+          // `effort` activa el thinking adaptativo; estos modelos no admiten temperature
+          anthropic: { effort: validatedData.anthropicEffort },
+        },
       });
 
     case "google":
@@ -401,7 +415,7 @@ async function generateAnalysis(
       return generateText({
         model: google(modelConfig.model),
         system: systemPrompt,
-        messages: convertToModelMessages(messageContent),
+        messages,
         temperature,
         topP: top_p,
       });
@@ -458,18 +472,19 @@ export async function POST(request: NextRequest) {
     // 4. Lógica de comparación vs análisis simple
     if (validatedData.compare && validatedData.model_to_compare_1 && validatedData.selectedModel) {
       debugLogger.info("Modo comparación activado", {
-        model1: validatedData.model_to_compare_1,
-        model2: validatedData.selectedModel,
+        model1: validatedData.selectedModel,
+        model2: validatedData.model_to_compare_1,
       });
 
-      // Obtener API keys para ambos modelos
-      const apiKey1 = await getApiKey(organizationId, validatedData.model_to_compare_1.provider, debugLogger);
-      const apiKey2 = await getApiKey(organizationId, validatedData.selectedModel.provider, debugLogger);
+      // Obtener API keys para ambos modelos. El orden importa: `generated1`
+      // corresponde siempre al modelo principal y `generated2` al de comparación.
+      const apiKey1 = await getApiKey(organizationId, validatedData.selectedModel.provider, debugLogger);
+      const apiKey2 = await getApiKey(organizationId, validatedData.model_to_compare_1.provider, debugLogger);
 
       // Generar análisis con ambos modelos de forma simultánea
       const [result1, result2] = await Promise.all([
-        generateAnalysis(validatedData.model_to_compare_1, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
-        generateAnalysis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
+        generateAnalysis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
+        generateAnalysis(validatedData.model_to_compare_1, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
       ]);
 
       // Retornar respuesta JSON con ambos resultados

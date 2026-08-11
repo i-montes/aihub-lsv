@@ -2,6 +2,11 @@ import { useState } from "react";
 import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
 import { UploadedFile, FormSchema } from "../constants";
 import { generateId } from "../utils";
+import { compressImageIfNeeded } from "@/lib/image-utils";
+
+// Las imágenes viajan al modelo en base64 dentro del prompt, así que se
+// comprimen antes de guardarlas en el formulario.
+const MAX_IMAGE_SIZE_KB = 500;
 
 /**
  * Hook personalizado para manejar la subida de archivos y drag & drop
@@ -49,21 +54,26 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
   const handleFileUpload = async (files: FileList) => {
     const newFiles: UploadedFile[] = [];
 
-    for (const file of Array.from(files)) {
-      if (file.size > 5 * 1024 * 1024) {
+    for (const original of Array.from(files)) {
+      if (original.size > 5 * 1024 * 1024) {
         // 5MB limit
         continue;
       }
 
-      const fileType = file.type.startsWith("image/") ? "image" : "document";
+      const fileType = original.type.startsWith("image/")
+        ? "image"
+        : "document";
+
+      let file = original;
       let preview = "";
 
-      // Si es una imagen, crear el preview de forma asíncrona
+      // Si es una imagen, comprimirla y crear el preview de forma asíncrona
       if (fileType === "image") {
         try {
+          file = await compressImageIfNeeded(original, MAX_IMAGE_SIZE_KB);
           preview = await createImagePreview(file);
         } catch (error) {
-          console.error('Error al crear preview:', error);
+          console.error('Error al procesar la imagen:', error);
           preview = "";
         }
       }

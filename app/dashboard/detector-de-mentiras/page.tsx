@@ -36,7 +36,9 @@ export default function LieDetectorPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...defaultFormValues,
-      selectedModel: { provider: "openai", model: "gpt-4" }, // Valor temporal hasta que se carguen los modelos
+      // Se completa al cargar los modelos disponibles de la organización.
+      // Vacío a propósito: así la validación bloquea el envío si no cargan.
+      selectedModel: { provider: "", model: "" },
     } as FormSchema,
   });
 

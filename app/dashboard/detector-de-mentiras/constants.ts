@@ -14,23 +14,68 @@ export interface UploadedFile {
 }
 
 /**
- * Opciones de calificación para el detector de mentiras
+ * Opciones de calificación para el detector de mentiras.
+ * `promptValue` es el texto que se envía al modelo: el slug (`cierto-pero`,
+ * `enganoso`) no es lo que el prompt espera leer.
  */
 export const RATING_OPTIONS = [
-  { value: "cierto", label: "Cierto", color: "bg-green-100 text-green-800" },
+  {
+    value: "cierto",
+    label: "Cierto",
+    promptValue: "cierto",
+    color: "bg-green-100 text-green-800",
+  },
   {
     value: "cierto-pero",
     label: "Cierto, pero",
+    promptValue: "cierto, pero",
     color: "bg-yellow-100 text-yellow-800",
   },
   {
     value: "debatible",
     label: "Debatible",
+    promptValue: "debatible",
     color: "bg-orange-100 text-orange-800",
   },
-  { value: "enganoso", label: "Engañoso", color: "bg-red-100 text-red-800" },
-  { value: "falso", label: "Falso", color: "bg-red-100 text-red-800" },
+  {
+    value: "enganoso",
+    label: "Engañoso",
+    promptValue: "engañoso",
+    color: "bg-red-100 text-red-800",
+  },
+  {
+    value: "falso",
+    label: "Falso",
+    promptValue: "falso",
+    color: "bg-red-100 text-red-800",
+  },
 ];
+
+/**
+ * Traduce el valor del formulario a la calificación que lee el modelo
+ */
+export const getRatingPromptValue = (rating: string): string =>
+  RATING_OPTIONS.find((option) => option.value === rating)?.promptValue ?? rating;
+
+/**
+ * Niveles de esfuerzo de razonamiento soportados por OpenAI
+ */
+export const OPENAI_REASONING_EFFORTS = [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
+
+/**
+ * Niveles de verbosidad soportados por OpenAI
+ */
+export const OPENAI_VERBOSITY_LEVELS = ["low", "medium", "high"] as const;
+
+/**
+ * Niveles de esfuerzo soportados por Anthropic (thinking adaptativo)
+ */
+export const ANTHROPIC_EFFORTS = ["low", "medium", "high"] as const;
 
 /**
  * Schema de Zod para metadata de URLs
@@ -46,6 +91,9 @@ export const metadataSchema = z.record(
     isValid: z.boolean().optional(),
     error: z.string().optional(),
     complete_text: z.string().optional(),
+
+    // YouTube metadata
+    isYouTube: z.boolean().optional(),
 
     // Twitter metadata
     isTwitter: z.boolean().optional(),
@@ -76,6 +124,13 @@ export const formSchema = z.object({
     model: z.string(),
   }).optional(),
   compare: z.boolean().default(false),
+  // Hiperparámetros por proveedor. Se aplican al modelo que corresponda,
+  // así que se envían siempre aunque sólo uno esté en uso.
+  openaiReasoningEffort: z
+    .enum(OPENAI_REASONING_EFFORTS)
+    .default("medium"),
+  openaiVerbosity: z.enum(OPENAI_VERBOSITY_LEVELS).default("medium"),
+  anthropicEffort: z.enum(ANTHROPIC_EFFORTS).default("medium"),
   rating: z
     .enum(["cierto", "cierto-pero", "debatible", "enganoso", "falso"], {
       required_error: "Selecciona una calificación",
@@ -142,6 +197,9 @@ export const defaultFormValues: Partial<FormSchema> = {
     provider: "",
     model: "",
   },
+  openaiReasoningEffort: "medium",
+  openaiVerbosity: "medium",
+  anthropicEffort: "medium",
   // selectedModel se establecerá dinámicamente cuando se carguen los modelos disponibles
   rating: "cierto",
   disinformation: {

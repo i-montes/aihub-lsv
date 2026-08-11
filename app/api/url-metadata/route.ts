@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { JSDOM } from "jsdom";
 import { TwitterResponse, UrlMetadata } from "./types";
 import { scrapeWebsite } from "./scraper";
+import { getYouTubeMetadata, isYouTubeUrl } from "./youtube";
 
 
 
@@ -49,6 +50,36 @@ async function getTwitterData(tweetId: string): Promise<TwitterResponse> {
   }
 }
 
+// Arma el bloque de texto de un tweet para inyectarlo en el prompt.
+// Sin esto el contenido del tuit no llega al modelo, porque el prompt sólo
+// consume `complete_text`.
+function formatTweetInfo(data: TwitterResponse): string {
+  const creationDate = data.created_at
+    ? new Date(data.created_at).toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "Fecha desconocida";
+
+  const media = data.entities?.media || [];
+  const images = media.filter((item: any) => item.type === "photo");
+  const videos = media.filter((item: any) => item.type === "video");
+
+  return `TWEET DE @${data.author?.screen_name || "usuario desconocido"} (${
+    data.author?.name || "Nombre desconocido"
+  }):
+
+Texto: ${data.text || "Sin texto"}
+
+Fecha de publicación: ${creationDate}
+Seguidores: ${(data.author?.sub_count || 0).toLocaleString("es-ES")}
+Likes: ${(data.likes || 0).toLocaleString("es-ES")}
+Retweets: ${(data.retweets || 0).toLocaleString("es-ES")}
+${images.length > 0 ? `Contiene ${images.length} imagen(es)` : ""}
+${videos.length > 0 ? `Contiene ${videos.length} video(s)` : ""}`.trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { urls }: { urls: string[] } = await request.json();
@@ -94,6 +125,7 @@ export async function POST(request: NextRequest) {
                   creation_date: new Date(twitterData.created_at || ""),
                   media_image:`${images && images.length > 0 ? `Contiene ${images.length} imagen(es)` : ""}`,
                   media_video: `${videos && videos.length > 0 ? `Contiene ${videos.length} video(s)` : ""}`,
+                  complete_text: formatTweetInfo(twitterData),
                   complete_response: twitterData,
                 };
               } catch (twitterError) {
@@ -106,6 +138,37 @@ export async function POST(request: NextRequest) {
                   error: "Twitter API failed",
                 };
               }
+            }
+          }
+
+          // Videos de YouTube: se extrae la info del video y su transcripción
+          if (isYouTubeUrl(normalizedUrl)) {
+            try {
+              const youtube = await getYouTubeMetadata(normalizedUrl);
+              return {
+                url: normalizedUrl,
+                statusCode: 200,
+                isValid: true,
+                isYouTube: true,
+                title: youtube.title,
+                description: youtube.description,
+                image: youtube.image,
+                text: youtube.complete_text,
+                complete_text: youtube.complete_text,
+                error: youtube.warning,
+              };
+            } catch (youtubeError) {
+              console.error("Error fetching YouTube data:", youtubeError);
+              return {
+                url: normalizedUrl,
+                statusCode: 0,
+                isValid: false,
+                isYouTube: true,
+                error:
+                  youtubeError instanceof Error
+                    ? youtubeError.message
+                    : "No se pudo procesar el video de YouTube",
+              };
             }
           }
 

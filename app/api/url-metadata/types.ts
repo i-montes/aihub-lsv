@@ -8,6 +8,9 @@ export interface UrlMetadata {
   error?: string;
   complete_text?: string;
 
+  // YouTube response
+  isYouTube?: boolean;
+
   // Twitter response
   isTwitter?: boolean;
   text?: string;
