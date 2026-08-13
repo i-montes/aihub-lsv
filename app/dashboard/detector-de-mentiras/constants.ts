@@ -9,9 +9,18 @@ export interface UploadedFile {
   name: string;
   size: number;
   base64?: string;
+  /** Data URL (`data:<mime>;base64,...`); es como viajan los archivos al modelo */
   preview?: string;
+  /** Media type real del archivo, ej. "image/png" o "application/pdf" */
+  mimeType?: string;
   type: "image" | "document";
 }
+
+/** Tipos de archivo que aceptan los adjuntos del detector */
+export const ACCEPTED_FILE_TYPES = ".png,.jpg,.jpeg,.webp,.gif,.pdf";
+
+/** Tamaño máximo por archivo adjunto */
+export const MAX_FILE_SIZE_MB = 5;
 
 /**
  * Opciones de calificación para el detector de mentiras.

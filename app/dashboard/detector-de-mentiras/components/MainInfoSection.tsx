@@ -16,7 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormMessage } from "@/components/ui/form";
-import { RATING_OPTIONS, type FormSchema } from "../constants";
+import {
+  ACCEPTED_FILE_TYPES,
+  MAX_FILE_SIZE_MB,
+  RATING_OPTIONS,
+  type FormSchema,
+} from "../constants";
 import {
   FileText,
   HelpCircle,
@@ -83,12 +88,12 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <Label className="text-base font-medium flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
-                Imágenes de la desinformación
+                Archivos de la desinformación
               </Label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Sube las imágenes del contenido que quieres verificar
+                  Sube imágenes o PDFs del contenido que quieres verificar
                 </div>
               </div>
             </div>
@@ -105,16 +110,16 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
                 <Upload className="w-8 h-8 text-gray-400" />
                 <div>
                   <p className="text-sm font-medium text-gray-700">
-                    Arrastra o selecciona tus imágenes
+                    Arrastra o selecciona tus archivos
                   </p>
                   <p className="text-xs text-gray-500">
-                    Formatos permitidos: .png,.jpg,.jpeg
+                    Imágenes y PDF, hasta {MAX_FILE_SIZE_MB}MB por archivo
                   </p>
                 </div>
                 <input
                   type="file"
                   multiple
-                  accept=".png,.jpg,.jpeg"
+                  accept={ACCEPTED_FILE_TYPES}
                   onChange={(e) => handleFileSelect(e)}
                   className="hidden"
                   id="file-upload"
@@ -141,10 +146,10 @@ export const MainInfoSection: React.FC<MainInfoSectionProps> = ({
                     className="flex items-center justify-between p-2 text-sm"
                   >
                     <div className="flex items-center gap-2">
-                      {file.type.startsWith("image/") ? (
+                      {file.type === "image" ? (
                         <Image className="w-4 h-4 text-blue-500" />
                       ) : (
-                        <FileText className="w-4 h-4 text-green-500" />
+                        <FileText className="w-4 h-4 text-red-500" />
                       )}
                       <span className="font-medium truncate max-w-[200px]">
                         {file.name}

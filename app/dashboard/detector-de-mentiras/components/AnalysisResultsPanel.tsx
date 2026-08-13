@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Loader2, Copy, Check } from "lucide-react";
-import { MODELS } from "@/lib/utils";
 
 /**
  * Props para el componente AnalysisResultsPanel
@@ -44,9 +43,6 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
   if (!isVisible) {
     return null;
   }
-
-  const name1 = model1Name.split(" - ")[1];
-  const name2 = model2Name.split(" - ")[1];
 
   // Función para convertir markdown a HTML usando los mismos componentes de estilo
   const convertMarkdownToHtml = (markdown: string) => {
@@ -208,12 +204,9 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
           <CardHeader>
             {isCompareMode && (
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="model1">
-                  {MODELS[name1 as keyof typeof MODELS]}
-                </TabsTrigger>
-                <TabsTrigger value="model2">
-                  {MODELS[name2 as keyof typeof MODELS]}
-                </TabsTrigger>
+                {/* Los nombres ya vienen formateados desde useAnalysis */}
+                <TabsTrigger value="model1">{model1Name}</TabsTrigger>
+                <TabsTrigger value="model2">{model2Name}</TabsTrigger>
               </TabsList>
             )}
           </CardHeader>
@@ -319,7 +312,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Los resultados del {model1Name} aparecerán aquí</p>
+                          <p>Los resultados de {model1Name} aparecerán aquí</p>
                         </div>
                       )}
                     </div>
@@ -414,7 +407,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Los resultados del {model2Name} aparecerán aquí</p>
+                          <p>Los resultados de {model2Name} aparecerán aquí</p>
                         </div>
                       )}
                     </div>

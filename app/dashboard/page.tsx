@@ -26,6 +26,7 @@ import {
   ExternalLink,
   ChevronDown,
   Edit,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -47,7 +48,7 @@ export default function Dashboard() {
   const [usefulLinks, setUsefulLinks] = useState<UsefulLink[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingLinks, setIsLoadingLinks] = useState(true);
-  const { profile } = useAuth();
+  const { profile, organization } = useAuth();
 
   // Cargar enlaces útiles al montar el componente
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function Dashboard() {
 
       {/* Main Tools Section */}
       <section>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {/* Style Checker */}
           <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
@@ -207,6 +208,39 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Detector de mentiras — restringido igual que en el sidebar */}
+          {organization?.name == "La Silla Vacía" && (
+            <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                      <Search className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                      Activo
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Detector de mentiras</h3>
+                  <p className="text-gray-500 mb-4 flex-grow">
+                    Redacta el borrador de tu chequeo a partir de la
+                    desinformación y tus evidencias de verificación.
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <Link href="/dashboard/detector-de-mentiras">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        Usar <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 

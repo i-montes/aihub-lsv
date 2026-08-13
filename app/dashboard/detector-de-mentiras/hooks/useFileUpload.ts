@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
-import { UploadedFile, FormSchema } from "../constants";
+import { toast } from "sonner";
+import { UploadedFile, FormSchema, MAX_FILE_SIZE_MB } from "../constants";
 import { generateId } from "../utils";
 import { compressImageIfNeeded } from "@/lib/image-utils";
 
 // Las imágenes viajan al modelo en base64 dentro del prompt, así que se
 // comprimen antes de guardarlas en el formulario.
 const MAX_IMAGE_SIZE_KB = 500;
+
+const isSupportedFile = (file: File): boolean =>
+  file.type.startsWith("image/") || file.type === "application/pdf";
 
 /**
  * Hook personalizado para manejar la subida de archivos y drag & drop
@@ -30,9 +34,10 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
   const isDragOver = dragOver === fieldName;
 
   /**
-   * Crea un preview para un archivo de imagen usando FileReader
-   * @param file - Archivo de imagen
-   * @returns Promise que resuelve con el preview en base64
+   * Lee un archivo como data URL. Sirve tanto para la vista previa de las
+   * imágenes como para el payload que se envía al modelo.
+   * @param file - Archivo a leer
+   * @returns Promise que resuelve con el data URL en base64
    */
   const createImagePreview = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -55,27 +60,33 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
     const newFiles: UploadedFile[] = [];
 
     for (const original of Array.from(files)) {
-      if (original.size > 5 * 1024 * 1024) {
-        // 5MB limit
+      if (!isSupportedFile(original)) {
+        toast.error(`"${original.name}" no es una imagen ni un PDF`);
         continue;
       }
 
-      const fileType = original.type.startsWith("image/")
-        ? "image"
-        : "document";
+      if (original.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        toast.error(
+          `"${original.name}" supera los ${MAX_FILE_SIZE_MB}MB permitidos`
+        );
+        continue;
+      }
 
+      const isImage = original.type.startsWith("image/");
+
+      // Las imágenes se comprimen; los PDFs se envían tal cual
       let file = original;
       let preview = "";
 
-      // Si es una imagen, comprimirla y crear el preview de forma asíncrona
-      if (fileType === "image") {
-        try {
+      try {
+        if (isImage) {
           file = await compressImageIfNeeded(original, MAX_IMAGE_SIZE_KB);
-          preview = await createImagePreview(file);
-        } catch (error) {
-          console.error('Error al procesar la imagen:', error);
-          preview = "";
         }
+        preview = await createImagePreview(file);
+      } catch (error) {
+        console.error("Error al procesar el archivo:", error);
+        toast.error(`No se pudo procesar "${original.name}"`);
+        continue;
       }
 
       const uploadedFile: UploadedFile = {
@@ -83,7 +94,8 @@ export const useFileUpload = ({ setValue, getValues, fieldName }: Props) => {
         size: file.size,
         id: generateId(),
         file,
-        type: fileType,
+        type: isImage ? "image" : "document",
+        mimeType: file.type,
         preview,
       };
 

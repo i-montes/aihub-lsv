@@ -252,6 +252,24 @@ async function getToolConfig(
   return tool;
 }
 
+/**
+ * Describe los adjuntos de una sección para el prompt, distinguiendo imágenes
+ * de PDFs para que el modelo sepa qué tipo de material recibe.
+ */
+function describeAttachments(files: any[], category: string): string {
+  const images = files.filter((file) => file?.type === "image").length;
+  const documents = files.length - images;
+
+  if (files.length === 0) return "No proporcionados";
+
+  const parts: string[] = [];
+  if (images > 0) parts.push(`${images} ${images === 1 ? "imagen" : "imágenes"}`);
+  if (documents > 0)
+    parts.push(`${documents} ${documents === 1 ? "documento PDF" : "documentos PDF"}`);
+
+  return `${parts.join(" y ")} (etiquetados como "${category}")`;
+}
+
 // Generate prompt function
 function generatePrompt(validatedData: FormSchema): string {
   const links_desinformacion = searchAndReplaceURLText(
@@ -272,11 +290,10 @@ function generatePrompt(validatedData: FormSchema): string {
   return `
 INSUMOS PARA EL TITULAR Y EL PÁRRAFO INICIAL:
 
-Imágenes de la desinformación que circula: ${
-    validatedData.disinformation.images.length > 0
-      ? `${validatedData.disinformation.images.length} imágenes adjuntas (etiquetadas como "desinformacion")`
-      : "No proporcionadas"
-  }
+Archivos de la desinformación que circula: ${describeAttachments(
+    validatedData.disinformation.images,
+    "desinformacion"
+  )}
 
 Enlaces de la desinformación que circula:
 ${links_desinformacion || "No proporcionados"}
@@ -291,11 +308,10 @@ INSUMOS PARA VERIFICACIÓN Y EVIDENCIAS:
 Métodos de verificación con sus enlaces:
 ${links_verificacion || "No proporcionados"}
 
-Imágenes de verificación: ${
-    validatedData.verification.images.length > 0
-      ? `${validatedData.verification.images.length} imágenes adjuntas (etiquetadas como "verificacion")`
-      : "No proporcionadas"
-  }
+Archivos de verificación: ${describeAttachments(
+    validatedData.verification.images,
+    "verificacion"
+  )}
 
 CONTEXTO ADICIONAL:
 ${contexto || "No proporcionado"}`;
@@ -304,45 +320,57 @@ ${contexto || "No proporcionado"}`;
 
 
 /**
- * Convierte una imagen subida en una parte de imagen del mensaje.
- * El cliente manda `preview` como data URL (`data:image/png;base64,...`),
- * de donde se sacan el media type y el payload base64.
+ * Convierte un archivo subido en una parte del mensaje.
+ * El cliente manda `preview` como data URL (`data:<mime>;base64,...`), de donde
+ * se sacan el media type y el payload. Las imágenes van como parte de imagen y
+ * los PDFs como parte de archivo, que los tres proveedores saben leer.
  */
-function toImagePart(image: any) {
-  const preview: string | undefined = image?.preview;
+function toContentPart(file: any) {
+  const preview: string | undefined = file?.preview;
   if (!preview) return null;
 
   const match = preview.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
 
-  return {
-    type: "image" as const,
-    image: match[2],
-    mediaType: match[1],
-  };
+  const [, mediaType, data] = match;
+
+  if (mediaType.startsWith("image/")) {
+    return { type: "image" as const, image: data, mediaType };
+  }
+
+  if (mediaType === "application/pdf") {
+    return {
+      type: "file" as const,
+      data,
+      mediaType,
+      filename: file?.name || "documento.pdf",
+    };
+  }
+
+  return null;
 }
 
 /**
- * Arma el contenido del mensaje: el prompt seguido de las imágenes,
- * separadas por categoría para que el modelo sepa qué está mirando.
+ * Arma el contenido del mensaje: el prompt seguido de los adjuntos,
+ * separados por categoría para que el modelo sepa qué está mirando.
  */
 function buildUserContent(userPrompt: string, validatedData: FormSchema) {
   const content: any[] = [{ type: "text", text: userPrompt }];
 
   const sections = [
     {
-      label: "--- IMÁGENES DE DESINFORMACIÓN ---",
-      images: validatedData.disinformation?.images ?? [],
+      label: "--- ARCHIVOS DE LA DESINFORMACIÓN ---",
+      files: validatedData.disinformation?.images ?? [],
     },
     {
-      label: "--- IMÁGENES DE VERIFICACIÓN Y EVIDENCIAS ---",
-      images: validatedData.verification?.images ?? [],
+      label: "--- ARCHIVOS DE VERIFICACIÓN Y EVIDENCIAS ---",
+      files: validatedData.verification?.images ?? [],
     },
   ];
 
   for (const section of sections) {
-    const parts = section.images
-      .map(toImagePart)
+    const parts = section.files
+      .map(toContentPart)
       .filter((part): part is NonNullable<typeof part> => part !== null);
 
     if (parts.length > 0) {
@@ -377,6 +405,7 @@ async function generateAnalysis(
 
   debugLogger.info("Contenido del mensaje preparado", {
     imageParts: content.filter((part) => part.type === "image").length,
+    fileParts: content.filter((part) => part.type === "file").length,
   });
 
   switch (modelConfig.provider.toLowerCase()) {

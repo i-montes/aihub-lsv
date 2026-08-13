@@ -10,7 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form";
-import { type FormSchema, type UploadedFile } from "../constants";
+import {
+  ACCEPTED_FILE_TYPES,
+  MAX_FILE_SIZE_MB,
+  type FormSchema,
+  type UploadedFile,
+} from "../constants";
 import { useFileUpload } from "../hooks/useFileUpload";
 import {
   CheckCircle,
@@ -102,16 +107,16 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <Label className="text-base font-medium flex items-center gap-2">
               <ImageIcon className="w-4 h-4" />
-              Imágenes de evidencia
+              Archivos de evidencia
             </Label>
             <div className="group relative">
               <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                Suba imágenes que demuestren la veracidad de la información.
+                Suba imágenes o PDFs que demuestren la veracidad de la información.
                 <br />
                 <br />
                 <span className="text-xs text-gray-300">
-                  Formatos permitidos: .png,.jpg,.jpeg
+                  Imágenes y PDF, hasta {MAX_FILE_SIZE_MB}MB por archivo
                 </span>
               </div>
             </div>
@@ -129,16 +134,16 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
               <Upload className="w-8 h-8 text-gray-400" />
               <div>
                 <p className="text-sm font-medium text-gray-700">
-                  Arrastra o selecciona tus imágenes
+                  Arrastra o selecciona tus archivos
                 </p>
                 <p className="text-xs text-gray-500">
-                  Formatos permitidos: .png,.jpg,.jpeg
+                  Imágenes y PDF, hasta {MAX_FILE_SIZE_MB}MB por archivo
                 </p>
               </div>
               <input
                 type="file"
                 multiple
-                accept=".png,.jpg,.jpeg"
+                accept={ACCEPTED_FILE_TYPES}
                 onChange={(e) => handleFileSelect(e)}
                 className="hidden"
                 id="file-upload-validations"
@@ -165,10 +170,10 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
                   className="flex items-center justify-between p-2 text-sm"
                 >
                   <div className="flex items-center gap-2">
-                    {file.type.startsWith("image/") ? (
+                    {file.type === "image" ? (
                       <Image className="w-4 h-4 text-blue-500" />
                     ) : (
-                      <FileText className="w-4 h-4 text-green-500" />
+                      <FileText className="w-4 h-4 text-red-500" />
                     )}
                     <span className="font-medium truncate max-w-[200px]">
                       {file.name}
