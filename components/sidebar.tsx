@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Settings,
-  RssIcon,
   BookOpen,
   Shield,
   Search,
@@ -128,14 +127,6 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/generador-resumen"}
               isExpanded={isExpanded}
             />
-            <NavItem
-              icon={<RssIcon className="size-5" />}
-              label="Newsletter"
-              href="/dashboard/boletin"
-              isActive={pathname === "/dashboard/boletin"}
-              isExpanded={isExpanded}
-            />
-
             {
               organization?.name == "La Silla Vacía" && (
                 <NavItem
