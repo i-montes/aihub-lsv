@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest) {
     // Obtener el organization_id del usuario
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("organization_id")
+      .select("organizationId")
       .eq("id", user.id)
       .single();
 
@@ -194,7 +194,7 @@ export async function PUT(request: NextRequest) {
         link,
       })
       .eq("id", id)
-      .eq("organization_id", profile.organization_id)
+      .eq("organization_id", profile.organizationId)
       .select()
       .single();
 

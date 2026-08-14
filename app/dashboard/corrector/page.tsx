@@ -143,58 +143,86 @@ export default function ProofreaderPage() {
         }
       });
 
-      // Función para buscar y resaltar texto en nodos
-      const findAndHighlightText = (
-        node: Node,
-        searchText: string
-      ): boolean => {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-          const text = node.textContent;
-          const index = text.indexOf(searchText);
-
-          if (index >= 0) {
-            const before = text.substring(0, index);
-            const highlight = text.substring(index, index + searchText.length);
-            const after = text.substring(index + searchText.length);
-
-            const span = document.createElement("span");
-            span.textContent = highlight;
-            span.className = "suggestion-highlight";
-            span.setAttribute("data-suggestion-id", suggestion.id);
-            span.style.backgroundColor = "#FFEB3B";
-            span.style.padding = "0 2px";
-            span.style.borderRadius = "2px";
-
-            const fragment = document.createDocumentFragment();
-            if (before) fragment.appendChild(document.createTextNode(before));
-            fragment.appendChild(span);
-            if (after) fragment.appendChild(document.createTextNode(after));
-
-            node.parentNode?.replaceChild(fragment, node);
-
-            setTimeout(() => {
-              span.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 100);
-
-            return true;
-          }
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const tagName = (node as Element).tagName.toLowerCase();
-          if (tagName === "script" || tagName === "style") {
-            return false;
-          }
-
-          for (let i = 0; i < node.childNodes.length; i++) {
-            if (findAndHighlightText(node.childNodes[i], searchText)) {
-              return true;
-            }
-          }
+      // Búsqueda tolerante: el texto de una corrección puede cruzar una
+      // negrita o un enlace (varios nodos de texto) y diferir en espacios o
+      // saltos de línea. Buscar con indexOf dentro de un solo nodo fallaba
+      // en silencio: al hacer clic no pasaba nada y la app parecía rota.
+      const walker = document.createTreeWalker(
+        correctedContainer,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            const tag = node.parentElement?.tagName.toLowerCase();
+            return tag === "script" || tag === "style"
+              ? NodeFilter.FILTER_REJECT
+              : NodeFilter.FILTER_ACCEPT;
+          },
         }
+      );
 
-        return false;
-      };
+      // Se concatena el texto de todos los nodos, guardando para cada
+      // posición del texto normalizado a qué nodo y offset corresponde.
+      const nodes: Text[] = [];
+      let normalized = "";
+      const map: { node: Text; offset: number }[] = [];
+      let lastWasSpace = true;
 
-      findAndHighlightText(correctedContainer, suggestion.original);
+      let current = walker.nextNode() as Text | null;
+      while (current) {
+        nodes.push(current);
+        const content = current.textContent || "";
+        for (let i = 0; i < content.length; i++) {
+          const isSpace = /\s/.test(content[i]);
+          if (isSpace && lastWasSpace) continue;
+          normalized += isSpace ? " " : content[i];
+          map.push({ node: current, offset: i });
+          lastWasSpace = isSpace;
+        }
+        current = walker.nextNode() as Text | null;
+      }
+
+      const needle = (suggestion.original || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!needle) return;
+
+      const index = normalized.indexOf(needle);
+      if (index < 0 || !map[index] || !map[index + needle.length - 1]) {
+        // No encontrado: se avisa en consola en vez de fallar mudo
+        console.warn(
+          "No se encontró el fragmento a resaltar en el texto:",
+          needle
+        );
+        return;
+      }
+
+      const startPos = map[index];
+      const endPos = map[index + needle.length - 1];
+
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset + 1);
+
+      const span = document.createElement("span");
+      span.className = "suggestion-highlight";
+      span.setAttribute("data-suggestion-id", suggestion.id);
+      span.style.backgroundColor = "#FFEB3B";
+      span.style.padding = "0 2px";
+      span.style.borderRadius = "2px";
+
+      try {
+        range.surroundContents(span);
+      } catch {
+        // surroundContents falla si el rango parte un elemento por la mitad;
+        // en ese caso se extrae el contenido y se reinserta envuelto.
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      }
+
+      setTimeout(() => {
+        span.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     } catch (error) {
       console.error("Error al resaltar texto:", error);
     }
@@ -512,8 +540,10 @@ export default function ProofreaderPage() {
     setDebugLogs([]); // Limpiar logs anteriores
 
     try {
-      // const textContent = editorRef.current?.getText() || "";
-      const htmlContent = editorRef.current?.getHTML() || "";
+      // El prompt exige texto plano: mandar getHTML() inflaba tokens y hacía
+      // que el modelo devolviera fragmentos con markup en `original`, que
+      // luego no casaban al resaltar la sugerencia en el editor.
+      const htmlContent = editorRef.current?.getText() || "";
 
       setOriginalText(htmlContent);
 
@@ -1149,6 +1179,11 @@ export default function ProofreaderPage() {
                                           ? "bg-purple-100 text-purple-800"
                                           : ""
                                       }
+                                      ${
+                                        suggestion.type === "punctuation"
+                                          ? "bg-amber-100 text-amber-800"
+                                          : ""
+                                      }
                                     `}
                                     >
                                       {suggestion.type === "grammar" &&
@@ -1156,6 +1191,8 @@ export default function ProofreaderPage() {
                                       {suggestion.type === "spelling" &&
                                         "Ortografía"}
                                       {suggestion.type === "style" && "Estilo"}
+                                      {suggestion.type === "punctuation" &&
+                                        "Puntuación"}
                                     </span>
                                   </div>
                                 </div>

@@ -29,6 +29,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Cambiar de organización es una acción de administración. La pantalla que
+    // la usa ya lo comprueba en cliente, pero sin esta verificación cualquier
+    // usuario autenticado podía unirse a cualquier organización llamando a la
+    // API directamente, y con ello acceder a sus API keys y credenciales.
+    const { data: currentProfile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError || !currentProfile) {
+      return NextResponse.json(
+        { error: "No se pudo verificar el perfil del usuario" },
+        { status: 403 }
+      )
+    }
+
+    if (currentProfile.role !== "ADMIN" && currentProfile.role !== "OWNER") {
+      return NextResponse.json(
+        { error: "No tienes permisos para cambiar de organización" },
+        { status: 403 }
+      )
+    }
+
     // Verificar que la organización existe y está activa
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from("organization")

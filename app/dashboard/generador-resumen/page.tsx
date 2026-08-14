@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { marked } from "marked";
+import ReactMarkdown from "react-markdown";
 import { MODELS } from "@/lib/utils";
 
 export type WordPressPost = {
@@ -119,7 +120,9 @@ export default function GeneradorResumenes() {
         end_date: endDate,
         page: "1",
         per_page: "20",
-        categories: "4932",
+        // Las páginas siguientes piden las tres categorías; con una sola aquí
+        // la primera página traía un corpus distinto al resto.
+        categories: allowedCategories.join(","),
       });
 
       setGenerationProgress({
@@ -890,10 +893,21 @@ export default function GeneradorResumenes() {
               </div>
             ) : resumen ? (
               <div className="text-gray-800">
-                <div
-                  className="whitespace-pre-wrap [&_a]:text-blue-600 [&_a:hover]:text-blue-800 [&_a]:underline"
-                  dangerouslySetInnerHTML={{ __html: marked(resumen) }}
-                />
+                {/* ReactMarkdown escapa el HTML; `marked` + dangerouslySetInnerHTML
+                    dejaba pasar cualquier script que viniera del contenido */}
+                <div className="whitespace-pre-wrap [&_a]:text-blue-600 [&_a:hover]:text-blue-800 [&_a]:underline">
+                  <ReactMarkdown
+                    components={{
+                      a: ({ children, href }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer">
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {resumen}
+                  </ReactMarkdown>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">

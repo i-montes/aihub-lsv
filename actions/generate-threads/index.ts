@@ -331,8 +331,8 @@ INSTRUCCIONES ADICIONALES:
       uso_buscar_wordpress: !!link, // Si hay link, asumimos que se usó WordPress
       feedback_like: null, // No se puede obtener aquí
       feedback_rank_like: null, // No se puede obtener aquí
-      input_tokens: result?.usage?.promptTokens || null,
-      output_tokens: result?.usage?.completionTokens || null,
+      input_tokens: result?.usage?.inputTokens || null,
+      output_tokens: result?.usage?.outputTokens || null,
       total_tokens: result?.usage?.totalTokens || null,
       reasoning_tokens: null, // No disponible en este contexto
       cached_input_tokens: null, // No disponible en este contexto

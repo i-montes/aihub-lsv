@@ -65,7 +65,12 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
             </h3>
           ),
           a: ({ children, href }) => (
-            <a style={{ color: '#2563eb', textDecoration: 'underline' }} href={href}>
+            <a
+              style={{ color: '#2563eb', textDecoration: 'underline' }}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {children}
             </a>
           ),
@@ -250,6 +255,8 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                 <a
                                   className="text-blue-600 hover:underline"
                                   href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
                                   {children}
                                 </a>
@@ -345,6 +352,8 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                                 <a
                                   className="text-blue-600 hover:underline"
                                   href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
                                   {children}
                                 </a>
@@ -441,6 +450,8 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
                             <a
                               className="text-blue-600 hover:underline"
                               href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
                               {children}
                             </a>

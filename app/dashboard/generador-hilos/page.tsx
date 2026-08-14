@@ -298,9 +298,14 @@ export default function ThreadGenerator() {
     handleCopy(allContent, "all");
   };
 
+  // checkApiKeyExists consulta por profile.organizationId; con deps vacías
+  // corría antes de que el perfil cargara y mostraba el modal de "API key
+  // requerida" aunque la organización sí tuviera claves.
   useEffect(() => {
-    checkApiKeyExists();
-  }, []);
+    if (profile?.organizationId) {
+      checkApiKeyExists();
+    }
+  }, [profile?.organizationId]);
 
   return (
     <div className="container py-8">

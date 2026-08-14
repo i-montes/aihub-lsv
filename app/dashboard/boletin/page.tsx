@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -265,7 +266,14 @@ export default function NewsletterGenerator() {
 
       setGeneratedNewsletter(result);
     } catch (error) {
+      // Sin esto el usuario se quedaba mirando una vista previa vacía,
+      // sin ninguna señal de que la generación había fallado.
       console.error("Error calling generateNewsletter:", error);
+      toast.error(
+        error instanceof Error
+          ? `No se pudo generar el boletín: ${error.message}`
+          : "No se pudo generar el boletín"
+      );
     } finally {
       setIsGenerating(false);
     }

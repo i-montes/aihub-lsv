@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { TwitterResponse, UrlMetadata } from "./types";
 import { scrapeWebsite } from "./scraper";
 import { getYouTubeMetadata, isYouTubeUrl } from "./youtube";
+import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 
 
 
@@ -84,8 +85,73 @@ ${videos.length > 0 ? `Contiene ${videos.length} video(s)` : ""}`.trim();
 // decenas de scrapes y llamadas a APIs externas a la vez.
 const BATCH_SIZE = 5;
 
+// Rangos privados, loopback y link-local (incluido el metadata endpoint de la
+// nube, 169.254.169.254). Sin esto el endpoint es un proxy SSRF: cualquiera
+// podía hacer que el servidor consultara direcciones internas y devolviera
+// el contenido.
+const BLOCKED_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "metadata.google.internal",
+]);
+
+const BLOCKED_IP_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^169\.254\./,
+  /^0\./,
+  /^::1$/,
+  /^f[cd][0-9a-f]{2}:/i,
+  /^fe80:/i,
+];
+
+/**
+ * Rechaza esquemas que no sean http(s) y destinos internos.
+ * No cubre el caso de un dominio público que resuelva a una IP privada
+ * (requeriría resolver DNS y fijar la IP), pero corta el abuso directo.
+ */
+function isSafePublicUrl(rawUrl: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (BLOCKED_HOSTNAMES.has(host)) return false;
+  if (host.endsWith(".localhost") || host.endsWith(".internal")) return false;
+  if (BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(host))) return false;
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Endpoint sólo para usuarios autenticados: hace peticiones salientes
+    // arbitrarias en nombre del servidor.
+    const supabase = await getSupabaseRouteHandler();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Usuario no autenticado" },
+        { status: 401 }
+      );
+    }
+
     const { urls }: { urls: string[] } = await request.json();
 
     if (!urls || !Array.isArray(urls)) {
@@ -99,6 +165,15 @@ export async function POST(request: NextRequest) {
         try {
           // Validar y normalizar URL
           const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
+
+          if (!isSafePublicUrl(normalizedUrl)) {
+            return {
+              url: normalizedUrl,
+              statusCode: 0,
+              isValid: false,
+              error: "URL no permitida",
+            };
+          }
 
           // Verificar si es una URL de Twitter/X
           const isTwitter = isTwitterUrl(normalizedUrl);

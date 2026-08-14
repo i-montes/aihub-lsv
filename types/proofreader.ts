@@ -1,4 +1,6 @@
-export type SuggestionType = "spelling" | "grammar" | "style";
+// El backend también emite "punctuation"; sin él la UI lo pintaba como
+// "Estilo" y con un badge sin color.
+export type SuggestionType = "spelling" | "grammar" | "style" | "punctuation";
 
 export type Suggestion = {
   id: string;

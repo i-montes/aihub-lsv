@@ -6,7 +6,7 @@ export const GET = createApiHandler(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url)
   const filter = searchParams.get("filter") || "all"
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Authenticate the user by verifying with Supabase
   const {
@@ -47,7 +47,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
     return errorResponse("Title is required", 400)
   }
 
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Get the current session
   const {

@@ -416,7 +416,7 @@ ${articlesContent}`
           result = await generateText({
             model: openai(selectedModel.model),
             prompt: combinedPrompt,
-            maxTokens: 2048,
+            maxOutputTokens: 2048,
           });
           break;
         case "anthropic":
@@ -428,7 +428,7 @@ ${articlesContent}`
           result = await generateText({
             model: anthropic(selectedModel.model),
             prompt: combinedPrompt,
-            maxTokens: 2048,
+            maxOutputTokens: 2048,
           });
           break;
         case "google":
@@ -441,7 +441,7 @@ ${articlesContent}`
             model: google(selectedModel.model),
             prompt: combinedPrompt,
             temperature,
-            maxTokens: 2048,
+            maxOutputTokens: 2048,
             topP: top_p,
           });
           break;
@@ -602,7 +602,7 @@ async function processImages(
       result = await generateText({
         model: openai(selectedModel.model),
         messages,
-        maxTokens: 4096,
+        maxOutputTokens: 4096,
         maxRetries: 3, // Intentar hasta 3 veces en caso de error
       });
       break;
@@ -615,7 +615,7 @@ async function processImages(
       result = await generateText({
         model: anthropic(selectedModel.model),
         messages,
-        maxTokens: 4096,
+        maxOutputTokens: 4096,
         maxRetries: 3, // Intentar hasta 3 veces en caso de error
       });
       break;
@@ -628,7 +628,7 @@ async function processImages(
       result = await generateText({
         model: google(selectedModel.model),
         messages,
-        maxTokens: 4096,
+        maxOutputTokens: 4096,
         maxRetries: 3, // Intentar hasta 3 veces en caso de error
       });
       break;

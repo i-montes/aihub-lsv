@@ -929,8 +929,8 @@ export async function POST(request: NextRequest) {
       uso_copiar_resumen: false, // Por defecto false, se actualizaría desde el frontend
       feedback_like: null, // Se actualizaría posteriormente desde el frontend
       feedback_rank_like: null, // Se actualizaría posteriormente desde el frontend
-      input_tokens: result.usage?.promptTokens || null,
-      output_tokens: result.usage?.completionTokens || null,
+      input_tokens: result.usage?.inputTokens || null,
+      output_tokens: result.usage?.outputTokens || null,
       total_tokens: result.usage?.totalTokens || null,
       tiempo_procesamiento: debugLogger.getDuration(),
       tiempo_respuesta_api: null, // Se podría medir específicamente el tiempo de la API

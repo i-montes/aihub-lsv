@@ -15,10 +15,18 @@ interface SuggestionItemProps {
   onHoverEnd?: () => void
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  spelling: "Ortografía",
+  grammar: "Gramática",
+  style: "Estilo",
+  punctuation: "Puntuación",
+}
+
 const typeColors = {
   spelling: "bg-red-50 text-red-700 border-red-200",
   grammar: "bg-amber-50 text-amber-700 border-amber-200",
   style: "bg-blue-50 text-blue-700 border-blue-200",
+  punctuation: "bg-purple-50 text-purple-700 border-purple-200",
 }
 
 export function SuggestionItem({ 
@@ -42,7 +50,7 @@ export function SuggestionItem({
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
           <Badge className={`${typeColors[suggestion.type]} border px-2 py-1`} variant="outline">
-            {suggestion.type === "spelling" ? "Ortografía" : suggestion.type === "grammar" ? "Gramática" : "Estilo"}
+            {TYPE_LABELS[suggestion.type] ?? "Estilo"}
           </Badge>
         </div>
       </div>

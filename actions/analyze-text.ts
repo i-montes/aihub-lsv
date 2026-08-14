@@ -1,6 +1,6 @@
 "use server";
 
-import { generateText } from "ai";
+import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -10,6 +10,10 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsCorrectorDeTextosService } from "@/lib/analytics";
 
 // Schema para la respuesta del modelo
+// Artículos largos truncaban el JSON a la mitad y el usuario recibía
+// "Error al procesar la respuesta del modelo" sin ninguna corrección.
+const MAX_OUTPUT_TOKENS = 16000;
+
 const ProofreaderResponseSchema = z.object({
   correcciones: z.array(
     z.object({
@@ -332,15 +336,39 @@ export async function analyzeText(
     let principalPrompt = "";
     let styleGuidePrompt = "";
 
-    // Buscar los prompts por título
+    // Buscar los prompts por título. La comparación se normaliza (sin tildes,
+    // sin mayúsculas, sin espacios de más) porque antes era exacta: un prompt
+    // llamado "Guía de estilo" en vez de "Guia de estilo" dejaba la guía
+    // vacía y el modelo caía en español estándar, sin ningún aviso.
+    const normalize = (value: string) =>
+      (value || "")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .trim()
+        .toLowerCase();
+
     for (const prompt of prompts) {
-      if (prompt.title === "Principal") {
+      const title = normalize(prompt.title);
+      if (title === "principal") {
         principalPrompt = prompt.content;
         debugLogger.info("Prompt principal encontrado");
-      } else if (prompt.title === "Guia de estilo") {
+      } else if (title.includes("estilo")) {
         styleGuidePrompt = prompt.content;
         debugLogger.info("Guía de estilo encontrada");
       }
+    }
+
+    // Que la guía no aparezca es la causa típica de que el corrector ignore
+    // el manual propio, así que se registra en vez de fallar en silencio.
+    if (!principalPrompt) {
+      debugLogger.error("No se encontró el prompt 'Principal' de la herramienta", {
+        titulosDisponibles: prompts.map((p: any) => p.title),
+      });
+    }
+    if (!styleGuidePrompt) {
+      debugLogger.error("No se encontró la guía de estilo de la herramienta", {
+        titulosDisponibles: prompts.map((p: any) => p.title),
+      });
     }
 
     // Combinar los prompts
@@ -386,13 +414,15 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           apiKey: apiKey,
         });
 
-        result = await generateText({
+        result = await generateObject({
           model: openai(selectedModel.model),
+          schema: ProofreaderResponseSchema,
           prompt: combinedPrompt,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
           providerOptions: {
             openai: {
-              effort: "medium",
-              verbosity: "medium",
+              reasoningEffort: "medium",
+              textVerbosity: "medium",
               store: false,
             },
           },
@@ -404,9 +434,11 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           apiKey: apiKey,
         });
 
-        result = await generateText({
+        result = await generateObject({
           model: anthropic(selectedModel.model),
+          schema: ProofreaderResponseSchema,
           prompt: combinedPrompt,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
         });
         break;
       case "google":
@@ -415,9 +447,11 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
           apiKey: apiKey,
         });
 
-        result = await generateText({
+        result = await generateObject({
           model: google(selectedModel.model),
+          schema: ProofreaderResponseSchema,
           prompt: combinedPrompt,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
         });
         break;
       default:
@@ -434,85 +468,17 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         throw new Error(errorMsg);
     }
 
-    debugLogger.info("Texto generado exitosamente", {
-      responseLength: result.text.length,
+    debugLogger.info("Respuesta generada exitosamente", {
+      correcciones: result.object.correcciones.length,
       usage: result.usage,
     });
 
-    // 6. Parsear la respuesta
-    debugLogger.info("Iniciando parseo de la respuesta");
+    // 6. La respuesta ya viene validada contra el schema: generateObject se
+    // encarga del formato, así que no hace falta extraer JSON con regex ni
+    // normalizar los tipos a mano.
     try {
-      // Intentar extraer el JSON de la respuesta
-      const textResponse = result.text;
-      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+      const validatedResponse = result.object;
 
-      if (!jsonMatch) {
-        const parseError = {
-          message: "No se pudo extraer JSON de la respuesta",
-          code: "JSON_PARSE_ERROR",
-          context: { textResponse },
-        };
-
-        await debugLogger.finalize("failed", {
-          error: parseError,
-        });
-
-        debugLogger.error("No se pudo extraer JSON de la respuesta", {
-          textResponse,
-        });
-        throw new Error("No se pudo extraer JSON de la respuesta");
-      }
-
-      debugLogger.info("JSON extraído de la respuesta");
-      const jsonResponse = JSON.parse(jsonMatch[0]);
-
-      // Intentar normalizar los tipos antes de validar
-      if (
-        jsonResponse.correcciones &&
-        Array.isArray(jsonResponse.correcciones)
-      ) {
-        debugLogger.info(
-          `Normalizando ${jsonResponse.correcciones.length} correcciones`,
-        );
-        jsonResponse.correcciones = jsonResponse.correcciones.map(
-          (correccion: any) => {
-            // Normalizar el tipo si no es uno de los permitidos
-            if (
-              correccion.type &&
-              !["spelling", "grammar", "style", "punctuation"].includes(
-                correccion.type,
-              )
-            ) {
-              const originalType = correccion.type;
-              // Asignar un tipo por defecto basado en heurísticas simples
-              if (
-                correccion.type.includes("punt") ||
-                correccion.type.includes("punct")
-              ) {
-                correccion.type = "punctuation";
-              } else if (correccion.type.includes("gram")) {
-                correccion.type = "grammar";
-              } else if (
-                correccion.type.includes("spell") ||
-                correccion.type.includes("ort")
-              ) {
-                correccion.type = "spelling";
-              } else {
-                correccion.type = "style";
-              }
-              debugLogger.info(
-                `Tipo normalizado: ${originalType} -> ${correccion.type}`,
-              );
-            }
-            return correccion;
-          },
-        );
-      }
-
-      debugLogger.info("Validando respuesta con schema");
-      const validatedResponse = ProofreaderResponseSchema.parse(jsonResponse);
-
-      // Añadir IDs a las correcciones para facilitar su manejo en el frontend
       const correcciones = validatedResponse.correcciones.map(
         (correccion, index) => ({
           ...correccion,
@@ -556,8 +522,8 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         modelo_utilizado: selectedModel.model,
         uso_copiar_texto: false,
         total_tokens: result.usage?.totalTokens,
-        input_tokens: (result?.usage as any)?.promptTokens,
-        output_tokens: (result?.usage as any)?.completionTokens,
+        input_tokens: (result?.usage as any)?.inputTokens,
+        output_tokens: (result?.usage as any)?.outputTokens,
       };
       const analitics = new AnalyticsCorrectorDeTextosService(metrics);
       await analitics.save();
@@ -571,7 +537,8 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         },
         metrics: {
           inputLength: text.length,
-          outputLength: result.text.length,
+          // generateObject devuelve `object`, no `text`
+          outputLength: JSON.stringify(result.object).length,
           tokensUsed: result.usage?.totalTokens,
           processingTime: debugLogger.getDuration(),
           itemsProcessed: correcciones.length,
