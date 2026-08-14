@@ -483,8 +483,6 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         (correccion, index) => ({
           ...correccion,
           id: `correction-${index}`,
-          startIndex: 0, // Estos valores se calcularán en el frontend
-          endIndex: 0,
         }),
       )
 

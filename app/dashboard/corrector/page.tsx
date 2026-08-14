@@ -7,7 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Suggestion, WordPressPost } from "@/types/proofreader";
-import { ProofreaderEditor } from "@/components/proofreader/editor";
+import {
+  ProofreaderEditor,
+  type ProofreaderEditorHandle,
+} from "@/components/proofreader/editor";
 import { SuggestionsPanel } from "@/components/proofreader/suggestions-panel";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { ProofreaderHeader } from "@/components/proofreader/header";
@@ -48,7 +51,6 @@ const getProviderDisplayName = (provider: string): string => {
 export default function ProofreaderPage() {
   // State
   const [originalText, setOriginalText] = useState("");
-  const [correctedText, setCorrectedText] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState<Suggestion | null>(
     null
@@ -99,133 +101,22 @@ export default function ProofreaderPage() {
   const [analyticsId, setAnalyticsId] = useState<string | number | null>(null);
 
   // Refs
-  const editorRef = useRef<{
-    getHTML: () => string;
-    getText: () => string;
-    setContent: (content: string) => void;
-    highlightText: (suggestion: Suggestion) => void;
-    removeHoverHighlight: () => void;
-  } | null>(null);
+  const editorRef = useRef<ProofreaderEditorHandle | null>(null);
+  // Documento original, para poder volver atrás tras aplicar correcciones
+  const originalDocRef = useRef<Record<string, any> | null>(null);
+  // Avanza en orden de documento, para que un fragmento repetido
+  // («gobierno», por ejemplo) se corrija en la ocurrencia que toca
+  const matchCursorRef = useRef(0);
 
   // Verificar si existe alguna API key al cargar la página
   useEffect(() => {
     checkApiKeyExists();
   }, []);
 
-  // Modificar la función scrollToSuggestion para marcar el texto
+  // Resaltar y desplazarse a una sugerencia, sin tocar el documento
   const scrollToSuggestion = (suggestion: Suggestion) => {
     setActiveSuggestion(suggestion);
-    highlightTextInContainer(suggestion);
-  };
-
-  // Función para resaltar texto en el contenedor de HTML renderizado
-  const highlightTextInContainer = (suggestion: Suggestion) => {
-    try {
-      // Obtener el contenedor del texto corregido
-      const correctedContainer = document.querySelector(
-        ".rendered-html-container"
-      );
-      if (!correctedContainer) return;
-
-      // Eliminar cualquier resaltado previo
-      const previousHighlights = correctedContainer.querySelectorAll(
-        ".suggestion-highlight"
-      );
-      previousHighlights.forEach((el) => {
-        const span = el as HTMLElement;
-        const parent = span.parentNode;
-        if (parent) {
-          parent.replaceChild(
-            document.createTextNode(span.textContent || ""),
-            span
-          );
-          parent.normalize();
-        }
-      });
-
-      // Búsqueda tolerante: el texto de una corrección puede cruzar una
-      // negrita o un enlace (varios nodos de texto) y diferir en espacios o
-      // saltos de línea. Buscar con indexOf dentro de un solo nodo fallaba
-      // en silencio: al hacer clic no pasaba nada y la app parecía rota.
-      const walker = document.createTreeWalker(
-        correctedContainer,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: (node) => {
-            const tag = node.parentElement?.tagName.toLowerCase();
-            return tag === "script" || tag === "style"
-              ? NodeFilter.FILTER_REJECT
-              : NodeFilter.FILTER_ACCEPT;
-          },
-        }
-      );
-
-      // Se concatena el texto de todos los nodos, guardando para cada
-      // posición del texto normalizado a qué nodo y offset corresponde.
-      const nodes: Text[] = [];
-      let normalized = "";
-      const map: { node: Text; offset: number }[] = [];
-      let lastWasSpace = true;
-
-      let current = walker.nextNode() as Text | null;
-      while (current) {
-        nodes.push(current);
-        const content = current.textContent || "";
-        for (let i = 0; i < content.length; i++) {
-          const isSpace = /\s/.test(content[i]);
-          if (isSpace && lastWasSpace) continue;
-          normalized += isSpace ? " " : content[i];
-          map.push({ node: current, offset: i });
-          lastWasSpace = isSpace;
-        }
-        current = walker.nextNode() as Text | null;
-      }
-
-      const needle = (suggestion.original || "")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      if (!needle) return;
-
-      const index = normalized.indexOf(needle);
-      if (index < 0 || !map[index] || !map[index + needle.length - 1]) {
-        // No encontrado: se avisa en consola en vez de fallar mudo
-        console.warn(
-          "No se encontró el fragmento a resaltar en el texto:",
-          needle
-        );
-        return;
-      }
-
-      const startPos = map[index];
-      const endPos = map[index + needle.length - 1];
-
-      const range = document.createRange();
-      range.setStart(startPos.node, startPos.offset);
-      range.setEnd(endPos.node, endPos.offset + 1);
-
-      const span = document.createElement("span");
-      span.className = "suggestion-highlight";
-      span.setAttribute("data-suggestion-id", suggestion.id);
-      span.style.backgroundColor = "#FFEB3B";
-      span.style.padding = "0 2px";
-      span.style.borderRadius = "2px";
-
-      try {
-        range.surroundContents(span);
-      } catch {
-        // surroundContents falla si el rango parte un elemento por la mitad;
-        // en ese caso se extrae el contenido y se reinserta envuelto.
-        span.appendChild(range.extractContents());
-        range.insertNode(span);
-      }
-
-      setTimeout(() => {
-        span.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
-    } catch (error) {
-      console.error("Error al resaltar texto:", error);
-    }
+    editorRef.current?.highlightSuggestion(suggestion);
   };
 
   // Añadir estilos globales para la animación de resaltado
@@ -540,14 +431,17 @@ export default function ProofreaderPage() {
     setDebugLogs([]); // Limpiar logs anteriores
 
     try {
-      // El prompt exige texto plano: mandar getHTML() inflaba tokens y hacía
-      // que el modelo devolviera fragmentos con markup en `original`, que
-      // luego no casaban al resaltar la sugerencia en el editor.
-      const htmlContent = editorRef.current?.getText() || "";
+      // El modelo trabaja siempre en texto plano. Este texto sale del mismo
+      // índice que luego se usa para localizar las correcciones en el
+      // documento, que es lo que garantiza que se puedan volver a encontrar.
+      const plainText = editorRef.current?.getPlainText() || "";
 
-      setOriginalText(htmlContent);
+      // El documento (con enlaces y formato) se guarda para poder volver
+      originalDocRef.current = editorRef.current?.getJSON() ?? null;
+      setOriginalText(editorRef.current?.getHTML() || "");
+      matchCursorRef.current = 0;
 
-      if (!htmlContent.trim()) {
+      if (!plainText.trim()) {
         toast.error("El texto está vacío", {
           description: "Por favor, escribe algo para analizar.",
         });
@@ -556,7 +450,7 @@ export default function ProofreaderPage() {
       }
 
       // Llamar a la función de análisis de texto
-      const result = await analyzeText(htmlContent, selectedModel);
+      const result = await analyzeText(plainText, selectedModel);
       console.log("ANALYZE RESULT:", result);
       const analitics_id = result.analitics_id;
       
@@ -581,8 +475,7 @@ export default function ProofreaderPage() {
       // Actualizar las sugerencias
       setSuggestions((result.correcciones || []) as Suggestion[]);
 
-      // Establecer el texto corregido y cambiar al modo analizado
-      setCorrectedText(htmlContent);
+      // El propio editor pasa a modo revisión; no hay copia paralela del texto
       setIsAnalyzed(true);
 
       // Actualizar estadísticas basadas en las correcciones
@@ -619,7 +512,9 @@ export default function ProofreaderPage() {
         setActiveSuggestion(result.correcciones[0] as Suggestion);
         // Resaltar la primera sugerencia después de un pequeño delay
         setTimeout(() => {
-          highlightTextInContainer(result.correcciones[0] as Suggestion);
+          editorRef.current?.highlightSuggestion(
+            result.correcciones[0] as Suggestion
+          );
         }, 100);
       }
 
@@ -642,7 +537,12 @@ export default function ProofreaderPage() {
 
   const handleBackToEditor = () => {
     setIsAnalyzed(false);
-    setCorrectedText("");
+    // Descartar las correcciones aplicadas y recuperar el texto tal como estaba
+    if (originalDocRef.current) {
+      editorRef.current?.restoreDoc(originalDocRef.current);
+    }
+    editorRef.current?.clearHighlight();
+    matchCursorRef.current = 0;
     setSuggestions([]);
     setActiveSuggestion(null);
     setAppliedSuggestions([]);
@@ -665,7 +565,7 @@ export default function ProofreaderPage() {
   }
 
     // Determinar qué texto copiar
-    const textToCopy = isAnalyzed ? correctedText : originalText;
+    const textToCopy = editorRef.current?.getHTML() || originalText;
 
     if (!textToCopy) return;
 
@@ -692,9 +592,7 @@ export default function ProofreaderPage() {
     `;
 
       const blob = new Blob([styledHtml], { type: "text/html" });
-      const plainText = isAnalyzed
-        ? document.querySelector(".rendered-html-container")?.textContent || ""
-        : editorRef.current?.getText() || "";
+      const plainText = editorRef.current?.getPlainText() || "";
       const plainTextBlob = new Blob([plainText], { type: "text/plain" });
 
       await navigator.clipboard.write([
@@ -736,116 +634,49 @@ export default function ProofreaderPage() {
 
   // Función para aplicar una sugerencia
   const applySuggestion = (suggestion: Suggestion) => {
-    try {
-      const correctedContainer = document.querySelector(
-        ".rendered-html-container"
+    const handle = editorRef.current;
+    if (!handle) return;
+
+    // Toda la lógica vive en el documento de ProseMirror: se localiza el
+    // fragmento aunque cruce un enlace o una negrita, y se reemplaza solo el
+    // tramo que cambia, de modo que el formato alrededor queda intacto.
+    const result = handle.applySuggestion(suggestion, matchCursorRef.current);
+
+    if (!result.applied) {
+      const description =
+        result.reason === "cross-block"
+          ? "La corrección abarca más de un párrafo. Aplícala a mano."
+          : "No se encontró el fragmento en el texto. Puede que lo hayas editado.";
+
+      toast.error("No se pudo aplicar la corrección", { description });
+
+      // Se marca para que el usuario sepa cuál quedó sin aplicar
+      setSuggestions((prev) =>
+        prev.map((s) =>
+          s.id === suggestion.id ? { ...s, unresolved: true } : s
+        )
       );
-      if (!correctedContainer) {
-        console.error("No se encontró el contenedor del texto corregido");
-        return;
-      }
-
-      const highlightedElement = correctedContainer.querySelector(
-        `.suggestion-highlight[data-suggestion-id="${suggestion.id}"]`
-      ) as HTMLElement;
-
-      if (highlightedElement) {
-        const correctedSpan = document.createElement("span");
-        correctedSpan.textContent = suggestion.suggestion;
-        correctedSpan.className = "applied-suggestion";
-        correctedSpan.title = `Corrección aplicada: "${suggestion.original}" → "${suggestion.suggestion}"`;
-
-        highlightedElement.parentNode?.replaceChild(
-          correctedSpan,
-          highlightedElement
-        );
-
-        const newCorrectedHtml = correctedContainer.innerHTML;
-        setCorrectedText(newCorrectedHtml);
-
-        setAppliedSuggestions((prev) => [...prev, suggestion]);
-      } else {
-        // Buscar y reemplazar directamente en el HTML
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(correctedText, "text/html");
-
-        const findAndReplaceText = (
-          node: Node,
-          searchText: string,
-          replaceText: string
-        ): boolean => {
-          if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-            const text = node.textContent;
-            const index = text.indexOf(searchText);
-
-            if (index >= 0) {
-              const before = text.substring(0, index);
-              const after = text.substring(index + searchText.length);
-
-              const beforeNode = document.createTextNode(before);
-              const afterNode = document.createTextNode(after);
-              const replacementSpan = document.createElement("span");
-              replacementSpan.textContent = replaceText;
-              replacementSpan.className = "applied-suggestion";
-              replacementSpan.title = `Corrección aplicada: "${searchText}" → "${replaceText}"`;
-
-              const fragment = document.createDocumentFragment();
-              fragment.appendChild(beforeNode);
-              fragment.appendChild(replacementSpan);
-              fragment.appendChild(afterNode);
-
-              node.parentNode?.replaceChild(fragment, node);
-              return true;
-            }
-          } else if (node.nodeType === Node.ELEMENT_NODE) {
-            const tagName = (node as Element).tagName.toLowerCase();
-            if (tagName === "script" || tagName === "style") {
-              return false;
-            }
-
-            const childNodes = Array.from(node.childNodes);
-            for (let i = 0; i < childNodes.length; i++) {
-              if (findAndReplaceText(childNodes[i], searchText, replaceText)) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-
-        findAndReplaceText(
-          doc.body,
-          suggestion.original,
-          suggestion.suggestion
-        );
-
-        const newCorrectedHtml = doc.body.innerHTML;
-        setCorrectedText(newCorrectedHtml);
-
-        setAppliedSuggestions((prev) => [...prev, suggestion]);
-      }
-    } catch (error) {
-      console.error("Error al aplicar la sugerencia:", error);
-      toast.error("Error al aplicar la corrección", {
-        description:
-          "No se pudo aplicar la corrección. Por favor, inténtalo de nuevo.",
-      });
-    } finally {
-      setSuggestions(suggestions.filter((s) => s.id !== suggestion.id));
       setActiveSuggestion(null);
-      
-      // Registrar la corrección como aceptada en analytics
-      if (analyticsId) {
-        agregarCorreccionAnalytics(analyticsId, suggestion, true)
-          .then((result) => {
-            if (!result.success) {
-              console.error("Error al registrar corrección aceptada:", result.error);
-            }
-          })
-          .catch((error) => {
-            console.error("Error en analytics:", error);
-          });
-      }
+      return;
+    }
+
+    matchCursorRef.current = result.nextCursor;
+    handle.clearHighlight();
+    setAppliedSuggestions((prev) => [...prev, suggestion]);
+    setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
+    setActiveSuggestion(null);
+
+    // Registrar la corrección como aceptada en analytics
+    if (analyticsId) {
+      agregarCorreccionAnalytics(analyticsId, suggestion, true)
+        .then((res) => {
+          if (!res.success) {
+            console.error("Error al registrar corrección:", res.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error en analytics:", error);
+        });
     }
   };
 
@@ -925,13 +756,16 @@ export default function ProofreaderPage() {
   // Funciones para manejar hover en sugerencias
   const handleSuggestionHover = (suggestion: Suggestion) => {
     if (editorRef.current) {
-      editorRef.current.highlightText(suggestion);
+      editorRef.current.highlightSuggestion(suggestion, {
+        className: "proofreader-highlight-hover",
+        scroll: false,
+      });
     }
   };
 
   const handleSuggestionHoverEnd = () => {
     if (editorRef.current) {
-      editorRef.current.removeHoverHighlight();
+      editorRef.current.clearHighlight();
     }
   };
 
@@ -1041,53 +875,39 @@ export default function ProofreaderPage() {
 
             <Card className="flex-1 overflow-hidden border-0 shadow-lg flex flex-col h-full">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
-                {!isAnalyzed ? (
-                  <ProofreaderEditor
-                    onTextChange={handleTextChange}
-                    onAnalyzeText={handleAnalyzeText}
-                    isAnalyzing={isAnalyzing}
-                    suggestions={suggestions}
-                    activeSuggestion={activeSuggestion}
-                    setActiveSuggestion={setActiveSuggestion}
-                    navigateSuggestions={navigateSuggestions}
-                    editorRef={
-                      editorRef as React.RefObject<{
-                        getHTML: () => string;
-                        getText: () => string;
-                        setContent: (content: string) => void;
-                      }>
-                    }
-                  />
+                {isAnalyzing ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em]"></div>
+                      <p className="mt-4 text-gray-500">Analizando texto...</p>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="h-full overflow-auto relative">
-                    {isAnalyzing ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em]"></div>
-                          <p className="mt-4 text-gray-500">
-                            Analizando texto...
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rendered-html-container h-full overflow-auto p-6 bg-white ">
-                        <div className="prose max-w-none text-gray-900">
-                          <div
-                            dangerouslySetInnerHTML={{ __html: correctedText }}
-                            className="flex flex-col gap-4"
-                          />
-                        </div>
-                      </div>
+                  <div className="h-full overflow-auto relative flex flex-col">
+                    {/* Un solo editor: al analizar pasa a solo lectura y las
+                        correcciones se aplican sobre este mismo documento */}
+                    <ProofreaderEditor
+                      onTextChange={handleTextChange}
+                      onAnalyzeText={handleAnalyzeText}
+                      isAnalyzing={isAnalyzing}
+                      isAnalyzed={isAnalyzed}
+                      suggestions={suggestions}
+                      activeSuggestion={activeSuggestion}
+                      setActiveSuggestion={setActiveSuggestion}
+                      navigateSuggestions={navigateSuggestions}
+                      editorRef={editorRef}
+                    />
+                    {isAnalyzed && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="shadow-sm hover:shadow-md transition-all absolute bottom-4 right-6 z-10"
+                        onClick={copyText}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar texto
+                      </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="shadow-sm hover:shadow-md transition-all absolute bottom-4 right-6 z-10"
-                      onClick={copyText}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copiar texto
-                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -1108,9 +928,7 @@ export default function ProofreaderPage() {
                   onSuggestionClick={scrollToSuggestion}
                   onApplySuggestion={applySuggestion}
                   onIgnoreSuggestion={ignoreSuggestion}
-                  onSuggestionHover={(sugg: Suggestion) =>
-                    highlightTextInContainer(sugg)
-                  }
+                  onSuggestionHover={handleSuggestionHover}
                   onSuggestionHoverEnd={handleSuggestionHoverEnd}
                 />
 

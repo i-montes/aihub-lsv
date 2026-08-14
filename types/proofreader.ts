@@ -8,8 +8,12 @@ export type Suggestion = {
   original: string;
   suggestion: string;
   explanation: string;
-  startIndex: number;
-  endIndex: number;
+  /**
+   * La corrección no se pudo localizar en el documento (texto editado a mano
+   * o fragmento que cruza párrafos). Se marca para avisar al usuario en vez
+   * de descartarla en silencio.
+   */
+  unresolved?: boolean;
 };
 
 export type WordPressPost = {

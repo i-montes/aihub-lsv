@@ -4,36 +4,61 @@ import type React from "react"
 
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, ChevronRight, ChevronLeft, Copy } from "lucide-react"
+import { RefreshCw, ChevronRight, ChevronLeft } from "lucide-react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
 import Highlight from "@tiptap/extension-highlight"
 import Placeholder from "@tiptap/extension-placeholder"
-import { toast } from "sonner"
 import type { Suggestion } from "@/types/proofreader"
+import {
+  ProofreaderHighlight,
+  proofreaderHighlightKey,
+} from "@/lib/proofreader/highlight-plugin"
+import {
+  applyCorrectionToEditor,
+  findRangeInEditor,
+  getPlainTextFromEditor,
+  type CorrectionResult,
+} from "@/lib/proofreader/document-corrections"
+
+/**
+ * API que la página usa para operar sobre el documento. Todo pasa por el
+ * documento de ProseMirror: no hay strings de HTML ni manipulación del DOM.
+ */
+export interface ProofreaderEditorHandle {
+  getHTML: () => string
+  getJSON: () => Record<string, any>
+  /** Texto plano que se envía al modelo */
+  getPlainText: () => string
+  setContent: (content: string) => void
+  restoreDoc: (doc: Record<string, any>) => void
+  setEditable: (editable: boolean) => void
+  applySuggestion: (suggestion: Suggestion, cursor: number) => CorrectionResult
+  highlightSuggestion: (
+    suggestion: Suggestion,
+    options?: { cursor?: number; className?: string; scroll?: boolean }
+  ) => boolean
+  clearHighlight: () => void
+}
 
 interface ProofreaderEditorProps {
   onTextChange: (html: string) => void
   onAnalyzeText: () => void
   isAnalyzing: boolean
+  isAnalyzed?: boolean
   suggestions: Suggestion[]
   activeSuggestion: Suggestion | null
   setActiveSuggestion: (suggestion: Suggestion | null) => void
   navigateSuggestions: (direction: "next" | "prev") => void
-  editorRef?: React.RefObject<{
-    getHTML: () => string
-    getText: () => string
-    setContent: (content: string) => void
-    highlightText: (suggestion: Suggestion) => void
-    removeHoverHighlight: () => void
-  }>
+  editorRef?: React.RefObject<ProofreaderEditorHandle | null>
 }
 
 export function ProofreaderEditor({
   onTextChange,
   onAnalyzeText,
   isAnalyzing,
+  isAnalyzed = false,
   suggestions,
   activeSuggestion,
   setActiveSuggestion,
@@ -70,6 +95,7 @@ export function ProofreaderEditor({
         emptyEditorClass:
           "before:content-[attr(data-placeholder)] before:text-gray-400 before:float-left before:pointer-events-none",
       }),
+      ProofreaderHighlight,
     ],
     content: "",
     onUpdate: ({ editor }) => {
@@ -83,130 +109,75 @@ export function ProofreaderEditor({
     immediatelyRender: false,
   })
 
-  // Funciones para manejar el highlight en hover
-  const highlightTextOnHover = (suggestion: Suggestion) => {
-    if (!editor) return
-    
-    // Remover highlights previos de hover
-    removeHoverHighlight()
-    
-    try {
-      // Obtener el texto plano del editor
-      const editorText = editor.getHTML()
-      
-      // Buscar el texto de la sugerencia en el contenido del editor
-      const textToFind = suggestion.original
-      const searchStartIndex = editorText.indexOf(textToFind)
-      
-      if (searchStartIndex === -1) {
-        console.warn('Texto de sugerencia no encontrado en el editor:', textToFind)
-        return
-      }
-
-      console.log("Highlighting suggestion on hover:", {
-        text: textToFind,
-        startIndex: searchStartIndex + 1, // +1 porque TipTap usa posiciones basadas en 1
-        endIndex: searchStartIndex + 1 + textToFind.length,
-        editorLength: editorText.length,
-      })
-      
-      // Definir las constantes de índices basadas en la búsqueda
-      const startIndex = searchStartIndex + 1 // +1 porque TipTap usa posiciones basadas en 1
-      const endIndex = startIndex + textToFind.length
-    
-      
-      // Verificar que los índices calculados sean válidos
-      if (startIndex >= editorText.length + 1 || endIndex > editorText.length + 1) {
-        console.warn('Índices calculados fuera de rango:', { startIndex, endIndex, editorLength: editorText.length })
-        return
-      }
-      
-      // Guardar la selección actual
-      const currentSelection = editor.state.selection
-      
-      // Aplicar highlight temporal sin cambiar la selección del usuario
-      const { tr } = editor.state
-      
-      // Verificar que tenemos el schema correcto
-      if (!editor.schema.marks.highlight) {
-        console.warn('Mark highlight no disponible en el schema')
-        return
-      }
-      
-      tr.addMark(
-        startIndex,
-        endIndex,
-        editor.schema.marks.highlight.create({ 
-          class: 'bg-blue-200 px-1 rounded hover-highlight transition-colors duration-200' 
-        })
-      )
-      
-      // Restaurar la selección original
-      tr.setSelection(currentSelection)
-      
-      editor.view.dispatch(tr)
-    } catch (error) {
-      console.error('Error al aplicar highlight de hover:', error)
-    }
-  }
-
-  const removeHoverHighlight = () => {
-    if (!editor) return
-    
-    try {
-      // Guardar la selección actual
-      const currentSelection = editor.state.selection
-      const { tr, doc } = editor.state
-      
-      let modified = false
-      doc.descendants((node, pos) => {
-        if (node.isText && node.marks) {
-          node.marks.forEach((mark) => {
-            if (mark.type.name === 'highlight' && mark.attrs.class?.includes('hover-highlight')) {
-              tr.removeMark(pos, pos + node.nodeSize, mark.type)
-              modified = true
-            }
-          })
-        }
-      })
-      
-      if (modified) {
-        // Restaurar la selección original
-        tr.setSelection(currentSelection)
-        editor.view.dispatch(tr)
-      }
-    } catch (error) {
-      console.error('Error al remover highlight de hover:', error)
-    }
-  }
-
-  // Exponer métodos del editor a través de la ref
+  // Mientras se revisan las correcciones el documento es de solo lectura,
+  // para que el texto no cambie bajo los pies de las sugerencias.
   useEffect(() => {
-    if (editor && editorRef && "current" in editorRef) {
-      editorRef.current = {
-        getHTML: () => editor.getHTML(),
-        getText: () => editor.getText(),
-        setContent: (content) => {
-          editor.commands.setContent(content)
-          console.log("Contenido establecido en el editor:", content)
-        },
-        highlightText: highlightTextOnHover,
-        removeHoverHighlight: removeHoverHighlight,
-      }
+    editor?.setEditable(!isAnalyzed)
+  }, [editor, isAnalyzed])
+
+  const setHighlight = (range: { from: number; to: number } | null, className?: string) => {
+    if (!editor) return
+    const { tr } = editor.state
+    tr.setMeta(
+      proofreaderHighlightKey,
+      range ? { ...range, className } : null
+    )
+    editor.view.dispatch(tr)
+  }
+
+  // Exponer la API del editor
+  useEffect(() => {
+    if (!editor || !editorRef || !("current" in editorRef)) return
+
+    editorRef.current = {
+      getHTML: () => editor.getHTML(),
+      getJSON: () => editor.getJSON(),
+      getPlainText: () => getPlainTextFromEditor(editor),
+      setContent: (content) => editor.commands.setContent(content),
+      restoreDoc: (doc) => editor.commands.setContent(doc as any),
+      setEditable: (editable) => editor.setEditable(editable),
+      applySuggestion: (suggestion, cursor) =>
+        applyCorrectionToEditor(editor, suggestion, cursor),
+      highlightSuggestion: (suggestion, options) => {
+        const range = findRangeInEditor(
+          editor,
+          suggestion.original,
+          options?.cursor ?? 0
+        )
+        if (!range) {
+          setHighlight(null)
+          return false
+        }
+
+        setHighlight(range, options?.className)
+
+        if (options?.scroll !== false) {
+          const dom = editor.view.domAtPos(range.from).node as HTMLElement
+          const element =
+            dom.nodeType === Node.TEXT_NODE ? dom.parentElement : dom
+          element?.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+
+        return true
+      },
+      clearHighlight: () => setHighlight(null),
     }
   }, [editor, editorRef])
 
-  // Manejar la selección de texto cuando cambia la sugerencia activa
+  // Resaltar la sugerencia activa. Antes esto hacía
+  // setTextSelection({ from: 0, to: 0 }) porque el backend siempre devolvía
+  // startIndex 0, así que no seleccionaba nada útil.
   useEffect(() => {
-    if (editor && activeSuggestion) {
-      editor.commands.setTextSelection({
-        from: activeSuggestion.startIndex,
-        to: activeSuggestion.endIndex,
-      })
-      editor.commands.focus()
-    }
-  }, [editor, activeSuggestion])
+    if (!editor) return
 
+    if (!activeSuggestion) {
+      setHighlight(null)
+      return
+    }
+
+    const range = findRangeInEditor(editor, activeSuggestion.original)
+    setHighlight(range)
+  }, [editor, activeSuggestion])
 
   return (
     <div className="relative flex-1 overflow-hidden">
@@ -257,10 +228,20 @@ export function ProofreaderEditor({
             font-style: italic;
             color: #4b5563;
           }
-          .tiptap-editor-container .ProseMirror .hover-highlight {
-            background-color: #dbeafe !important;
+          .tiptap-editor-container .ProseMirror .proofreader-highlight {
+            background-color: #fef08a;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
             transition: background-color 0.2s ease;
+          }
+          .tiptap-editor-container .ProseMirror .proofreader-highlight-hover {
+            background-color: #dbeafe;
+            border-radius: 2px;
             box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+          }
+          .tiptap-editor-container .ProseMirror .applied-suggestion {
+            background-color: #e3f2fd;
+            border-radius: 2px;
           }
         `}</style>
       </div>
@@ -288,25 +269,27 @@ export function ProofreaderEditor({
             </Button>
           </>
         )}
-        
-        <Button
-          size="sm"
-          className="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"
-          onClick={onAnalyzeText}
-          disabled={isAnalyzing}
-        >
-          {isAnalyzing ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Analizando...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Analizar texto
-            </>
-          )}
-        </Button>
+
+        {!isAnalyzed && (
+          <Button
+            size="sm"
+            className="shadow-sm hover:shadow-md transition-all bg-gradient-to-r from-blue-600 to-blue-400 text-white hover:opacity-90"
+            onClick={onAnalyzeText}
+            disabled={isAnalyzing}
+          >
+            {isAnalyzing ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Analizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Analizar texto
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   )

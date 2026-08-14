@@ -41,7 +41,11 @@ export function SuggestionItem({
   return (
     <div
       className={`border rounded-xl p-4 transition-all cursor-pointer ${
-        isActive ? "border-blue-400 bg-blue-50 shadow-md" : "border-gray-200 hover:border-blue-200 hover:shadow-sm"
+        suggestion.unresolved
+          ? "border-amber-300 bg-amber-50"
+          : isActive
+            ? "border-blue-400 bg-blue-50 shadow-md"
+            : "border-gray-200 hover:border-blue-200 hover:shadow-sm"
       }`}
       onClick={() => onClick(suggestion)}
       onMouseEnter={() => onHover?.(suggestion)}
@@ -52,6 +56,14 @@ export function SuggestionItem({
           <Badge className={`${typeColors[suggestion.type]} border px-2 py-1`} variant="outline">
             {TYPE_LABELS[suggestion.type] ?? "Estilo"}
           </Badge>
+          {suggestion.unresolved && (
+            <Badge
+              className="bg-amber-100 text-amber-800 border-amber-200 border px-2 py-1"
+              variant="outline"
+            >
+              No localizada
+            </Badge>
+          )}
         </div>
       </div>
 
