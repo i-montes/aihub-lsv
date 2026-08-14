@@ -5,7 +5,6 @@ import {
   Controller,
   UseFormSetValue,
   UseFormGetValues,
-  useWatch,
 } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,13 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FormMessage } from "@/components/ui/form";
-import {
-  ANTHROPIC_EFFORTS,
-  OPENAI_REASONING_EFFORTS,
-  OPENAI_VERBOSITY_LEVELS,
-  type FormSchema,
-} from "../constants";
-import { Bot, HelpCircle, GitCompare, SlidersHorizontal } from "lucide-react";
+import { type FormSchema } from "../constants";
+import { Bot, HelpCircle, GitCompare } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -63,20 +57,6 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [compareEnabled, setCompareEnabled] = useState(
     getValues("compare") || false
-  );
-
-  // Los hiperparámetros dependen de qué proveedores estén en juego, así que
-  // hay que observar la selección en lugar de leerla una sola vez.
-  const selectedModel = useWatch({ control, name: "selectedModel" });
-  const modelToCompare = useWatch({ control, name: "model_to_compare_1" });
-
-  const activeProviders = new Set(
-    [
-      selectedModel?.provider,
-      compareEnabled ? modelToCompare?.provider : undefined,
-    ]
-      .filter(Boolean)
-      .map((provider) => (provider as string).toLowerCase())
   );
 
   /**
@@ -334,105 +314,6 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
           </div>
         )}
 
-        {/* Hiperparámetros del/los modelo(s) seleccionado(s) */}
-        {(activeProviders.has("openai") ||
-          activeProviders.has("anthropic")) && (
-          <div className="space-y-4 pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <Label className="text-base font-medium flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4" />
-                Ajustes del modelo
-              </Label>
-              <div className="group relative">
-                <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  Controlan cuánto razona el modelo y qué tan extensa es la respuesta
-                </div>
-              </div>
-            </div>
-
-            {activeProviders.has("openai") && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Esfuerzo de razonamiento (OpenAI)</Label>
-                  <Controller
-                    name="openaiReasoningEffort"
-                    control={control}
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {OPENAI_REASONING_EFFORTS.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <p className="text-xs text-gray-500">
-                    Cuánto razona el modelo antes de responder
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-sm">Verbosidad (OpenAI)</Label>
-                  <Controller
-                    name="openaiVerbosity"
-                    control={control}
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {OPENAI_VERBOSITY_LEVELS.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <p className="text-xs text-gray-500">
-                    Longitud y detalle de la respuesta
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {activeProviders.has("anthropic") && (
-              <div className="space-y-1">
-                <Label className="text-sm">Esfuerzo (Anthropic)</Label>
-                <Controller
-                  name="anthropicEffort"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ANTHROPIC_EFFORTS.map((level) => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <p className="text-xs text-gray-500">
-                  Profundidad del razonamiento adaptativo. Este modelo no admite temperatura.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

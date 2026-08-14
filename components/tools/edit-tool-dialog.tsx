@@ -12,7 +12,11 @@ import { BarChart2, Edit2, AlertCircle, Copy, Check } from "lucide-react";
 import { ToolEditor } from "@/components/tools/tool-editor";
 import { ToolConfig } from "@/components/tools/tool-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Tool } from "@/types/tool";
+import {
+  DEFAULT_REASONING_EFFORT,
+  DEFAULT_VERBOSITY,
+  type Tool,
+} from "@/types/tool";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "../proofreader/api-key-required-modal";
 
@@ -45,6 +49,11 @@ export function EditToolDialog({
   const [toolModels, setToolModels] = useState<
     { provider: string; model: string }[] | []
   >([]);
+  const [toolReasoningEffort, setToolReasoningEffort] = useState<string>(
+    DEFAULT_REASONING_EFFORT
+  );
+  const [toolVerbosity, setToolVerbosity] =
+    useState<string>(DEFAULT_VERBOSITY);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string>("");
 
@@ -89,6 +98,8 @@ export function EditToolDialog({
       setToolSchema(tool.schema || {});
       setToolTemperature(tool.temperature as number);
       setToolTopP(tool.topP as number);
+      setToolReasoningEffort(tool.reasoningEffort || DEFAULT_REASONING_EFFORT);
+      setToolVerbosity(tool.verbosity || DEFAULT_VERBOSITY);
 
       console.log("Tool models:", tool.models);
       
@@ -177,6 +188,8 @@ export function EditToolDialog({
         schema: toolSchema,
         temperature: toolTemperature as number,
         topP: toolTopP as number,
+        reasoningEffort: toolReasoningEffort,
+        verbosity: toolVerbosity,
         models: toolModels,
       });
     }
@@ -299,6 +312,10 @@ export function EditToolDialog({
                 onTopPChange={(topP) => setToolTopP(topP)}
                 models={toolModels}
                 onModelsChange={(models) => setToolModels(models)}
+                reasoningEffort={toolReasoningEffort}
+                onReasoningEffortChange={setToolReasoningEffort}
+                verbosity={toolVerbosity}
+                onVerbosityChange={setToolVerbosity}
               />
             </div>
           </div>

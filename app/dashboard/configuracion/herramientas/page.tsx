@@ -144,6 +144,8 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
+            reasoningEffort: tool.reasoning_effort,
+            verbosity: tool.verbosity,
             models: tool.models || [], // Ensure models is always an array
           })
         })
@@ -183,6 +185,8 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
+            reasoningEffort: tool.reasoning_effort,
+            verbosity: tool.verbosity,
             models: tool.models || [], // Ensure models is always an array
           })
         }
@@ -275,6 +279,8 @@ export default function ToolsSettingsPage() {
             organization_id: organizationId,
             temperature: tool.temperature,
             top_p: tool.topP,
+            reasoning_effort: tool.reasoningEffort,
+            verbosity: tool.verbosity,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             usage: 0,
@@ -300,6 +306,8 @@ export default function ToolsSettingsPage() {
             schema: tool.schema,
             temperature: tool.temperature,
             top_p: tool.topP,
+            reasoning_effort: tool.reasoningEffort,
+            verbosity: tool.verbosity,
             updated_at: new Date().toISOString(),
             models: tool.models,
           })

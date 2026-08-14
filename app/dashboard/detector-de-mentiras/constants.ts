@@ -67,26 +67,6 @@ export const getRatingPromptValue = (rating: string): string =>
   RATING_OPTIONS.find((option) => option.value === rating)?.promptValue ?? rating;
 
 /**
- * Niveles de esfuerzo de razonamiento soportados por OpenAI
- */
-export const OPENAI_REASONING_EFFORTS = [
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-] as const;
-
-/**
- * Niveles de verbosidad soportados por OpenAI
- */
-export const OPENAI_VERBOSITY_LEVELS = ["low", "medium", "high"] as const;
-
-/**
- * Niveles de esfuerzo soportados por Anthropic (thinking adaptativo)
- */
-export const ANTHROPIC_EFFORTS = ["low", "medium", "high"] as const;
-
-/**
  * Schema de Zod para metadata de URLs
  */
 export const metadataSchema = z.record(
@@ -133,13 +113,6 @@ export const formSchema = z.object({
     model: z.string(),
   }).optional(),
   compare: z.boolean().default(false),
-  // Hiperparámetros por proveedor. Se aplican al modelo que corresponda,
-  // así que se envían siempre aunque sólo uno esté en uso.
-  openaiReasoningEffort: z
-    .enum(OPENAI_REASONING_EFFORTS)
-    .default("medium"),
-  openaiVerbosity: z.enum(OPENAI_VERBOSITY_LEVELS).default("medium"),
-  anthropicEffort: z.enum(ANTHROPIC_EFFORTS).default("medium"),
   rating: z
     .enum(["cierto", "cierto-pero", "debatible", "enganoso", "falso"], {
       required_error: "Selecciona una calificación",
@@ -206,9 +179,6 @@ export const defaultFormValues: Partial<FormSchema> = {
     provider: "",
     model: "",
   },
-  openaiReasoningEffort: "medium",
-  openaiVerbosity: "medium",
-  anthropicEffort: "medium",
   // selectedModel se establecerá dinámicamente cuando se carguen los modelos disponibles
   rating: "cierto",
   disinformation: {

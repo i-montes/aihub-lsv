@@ -8,6 +8,19 @@ import { ResponseFormat } from "@/components/tools/response-format";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "../proofreader/api-key-required-modal";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DEFAULT_REASONING_EFFORT,
+  DEFAULT_VERBOSITY,
+  REASONING_EFFORTS,
+  VERBOSITY_LEVELS,
+} from "@/types/tool";
 
 interface ToolConfigProps {
   schema?: any;
@@ -18,6 +31,10 @@ interface ToolConfigProps {
   onTopPChange?: (topP: number) => void;
   models?: { provider: string; model: string }[];
   onModelsChange?: (models: { provider: string; model: string }[]) => void;
+  reasoningEffort?: string;
+  onReasoningEffortChange?: (reasoningEffort: string) => void;
+  verbosity?: string;
+  onVerbosityChange?: (verbosity: string) => void;
 }
 
 /**
@@ -32,6 +49,10 @@ export function ToolConfig({
   onTopPChange,
   models = [],
   onModelsChange,
+  reasoningEffort = DEFAULT_REASONING_EFFORT,
+  onReasoningEffortChange,
+  verbosity = DEFAULT_VERBOSITY,
+  onVerbosityChange,
 }: ToolConfigProps) {
   const [schemaText, setSchemaText] = useState<string>(
     schema ? JSON.stringify(schema, null, 2) : JSON.stringify({}, null, 2)
@@ -199,6 +220,11 @@ export function ToolConfig({
     checkApiKeyExists();
   }, []);
 
+  // Anthropic no acepta el nivel "xhigh", así que se avisa si está en juego
+  const usesAnthropic = selectedModels.some(
+    (model) => modelProviderMap[model]?.toLowerCase() === "anthropic"
+  );
+
   return (
     <div className="space-y-6">
       <ApiKeyRequiredModal
@@ -246,6 +272,71 @@ export function ToolConfig({
             Seleccione al menos un modelo para continuar
           </p>
         )}
+      </div>
+
+      <div>
+        <Label
+          htmlFor="reasoning-effort"
+          className="text-sm font-medium text-gray-700 mb-1 block"
+        >
+          Esfuerzo de razonamiento
+        </Label>
+        <Select
+          value={reasoningEffort}
+          onValueChange={(value) =>
+            onReasoningEffortChange && onReasoningEffortChange(value)
+          }
+        >
+          <SelectTrigger id="reasoning-effort">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {REASONING_EFFORTS.map((level) => (
+              <SelectItem key={level} value={level}>
+                {level}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-gray-500 mt-1">
+          Cuánto razona el modelo antes de responder.
+          {reasoningEffort === "xhigh" && usesAnthropic && (
+            <span className="text-amber-600">
+              {" "}
+              Anthropic no admite «xhigh»; con esos modelos se usará «high».
+            </span>
+          )}
+        </p>
+      </div>
+
+      <div>
+        <Label
+          htmlFor="verbosity"
+          className="text-sm font-medium text-gray-700 mb-1 block"
+        >
+          Verbosidad
+        </Label>
+        <Select
+          value={verbosity}
+          onValueChange={(value) =>
+            onVerbosityChange && onVerbosityChange(value)
+          }
+        >
+          <SelectTrigger id="verbosity">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {VERBOSITY_LEVELS.map((level) => (
+              <SelectItem key={level} value={level}>
+                {level}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-gray-500 mt-1">
+          Longitud y detalle de la respuesta. Sólo la aplican los modelos de
+          OpenAI.
+        </p>
       </div>
 
       {/* <div>

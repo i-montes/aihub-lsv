@@ -224,23 +224,12 @@ const TextUrlExtractor: React.FC<TextUrlExtractorProps> = ({
         }
       }
 
-      // Limitar a un máximo de 7 URLs
-      const limitedUrls = uniqueUrls.slice(0, 7);
-      const hasMoreUrls = uniqueUrls.length > 7;
-
-      const result = limitedUrls.map((url, index) => ({
+      // Sin tope: se procesan todas las URLs que pegue el usuario
+      return uniqueUrls.map((url, index) => ({
         url: normalizeUrl(url),
         id: `url-${index}-${Date.now()}`,
         isValid: isValidUrl(url),
       }));
-
-      // Agregar información sobre URLs adicionales si las hay
-      if (hasMoreUrls) {
-        (result as any).hasMoreUrls = true;
-        (result as any).totalUrls = uniqueUrls.length;
-      }
-
-      return result;
     },
     [normalizeUrl, isValidUrl, normalizeUrlForComparison]
   );
@@ -356,12 +345,6 @@ const TextUrlExtractor: React.FC<TextUrlExtractorProps> = ({
                   {invalidUrls.length !== 1 ? "s" : ""})
                 </span>
               )}
-              {(extractedUrls as any).hasMoreUrls && (
-                <span className="text-blue-600 ml-2">
-                  (Mostrando 7 de {(extractedUrls as any).totalUrls} URLs
-                  encontradas)
-                </span>
-              )}
             </span>
           )}
         </div>
@@ -378,7 +361,7 @@ const TextUrlExtractor: React.FC<TextUrlExtractorProps> = ({
                   variant="secondary"
                   className="bg-blue-50 text-blue-700 border-blue-200"
                 >
-                  {validUrls.length}/7
+                  {validUrls.length}
                 </Badge>
                 {(() => {
                   const totalCharacters = validUrls.reduce((total, urlObj) => {

@@ -30,6 +30,21 @@ interface ToolConfig {
   temperature: number;
   top_p: number;
   schema?: any;
+  /** OpenAI `reasoningEffort` / Anthropic `effort` */
+  reasoning_effort?: string;
+  /** OpenAI `textVerbosity` */
+  verbosity?: string;
+}
+
+const DEFAULT_REASONING_EFFORT = "medium";
+const DEFAULT_VERBOSITY = "medium";
+
+/**
+ * Anthropic sólo admite low | medium | high; "xhigh" es exclusivo de OpenAI,
+ * así que se recorta al nivel más alto que acepta.
+ */
+function anthropicEffort(effort: string): "low" | "medium" | "high" {
+  return effort === "xhigh" ? "high" : (effort as "low" | "medium" | "high");
 }
 
 interface ModelConfig {
@@ -193,7 +208,7 @@ async function getToolConfig(
   const supabase = await getSupabaseRouteHandler();
   const { data: toolData, error: toolError } = await supabase
     .from("tools")
-    .select("prompts, temperature, top_p, schema")
+    .select("*")
     .eq("organization_id", organizationId)
     .eq("identity", "detector")
     .single();
@@ -207,7 +222,7 @@ async function getToolConfig(
     );
     const { data: defaultToolData, error: defaultToolError } = await supabase
       .from("default_tools")
-      .select("prompts, temperature, top_p, schema")
+      .select("*")
       .eq("identity", "detector")
       .single();
 
@@ -400,6 +415,11 @@ async function generateAnalysis(
   const temperature = toolConfig.temperature;
   const top_p = toolConfig.top_p;
 
+  // Los hiperparámetros se configuran por herramienta, no por generación
+  const reasoningEffort =
+    toolConfig.reasoning_effort || DEFAULT_REASONING_EFFORT;
+  const verbosity = toolConfig.verbosity || DEFAULT_VERBOSITY;
+
   const content = buildUserContent(userPrompt, validatedData);
   const messages: ModelMessage[] = [{ role: "user", content }];
 
@@ -418,8 +438,8 @@ async function generateAnalysis(
         messages,
         providerOptions: {
           openai: {
-            reasoningEffort: validatedData.openaiReasoningEffort,
-            textVerbosity: validatedData.openaiVerbosity,
+            reasoningEffort,
+            textVerbosity: verbosity,
             store: false,
           },
         },
@@ -434,7 +454,7 @@ async function generateAnalysis(
         messages,
         providerOptions: {
           // `effort` activa el thinking adaptativo; estos modelos no admiten temperature
-          anthropic: { effort: validatedData.anthropicEffort },
+          anthropic: { effort: anthropicEffort(reasoningEffort) },
         },
       });
 

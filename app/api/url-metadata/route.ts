@@ -80,6 +80,10 @@ ${images.length > 0 ? `Contiene ${images.length} imagen(es)` : ""}
 ${videos.length > 0 ? `Contiene ${videos.length} video(s)` : ""}`.trim();
 }
 
+// No hay tope de URLs, así que se procesan por lotes para no disparar
+// decenas de scrapes y llamadas a APIs externas a la vez.
+const BATCH_SIZE = 5;
+
 export async function POST(request: NextRequest) {
   try {
     const { urls }: { urls: string[] } = await request.json();
@@ -91,8 +95,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const results: UrlMetadata[] = await Promise.all(
-      urls.map(async (url) => {
+    const analyzeUrl = async (url: string): Promise<UrlMetadata> => {
         try {
           // Validar y normalizar URL
           const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
@@ -247,8 +250,13 @@ export async function POST(request: NextRequest) {
             error: error instanceof Error ? error.message : "Error desconocido",
           };
         }
-      })
-    );
+    };
+
+    const results: UrlMetadata[] = [];
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      const batch = urls.slice(i, i + BATCH_SIZE);
+      results.push(...(await Promise.all(batch.map(analyzeUrl))));
+    }
 
     return NextResponse.json({ results });
   } catch (error) {
