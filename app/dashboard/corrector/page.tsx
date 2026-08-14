@@ -875,41 +875,45 @@ export default function ProofreaderPage() {
 
             <Card className="flex-1 overflow-hidden border-0 shadow-lg flex flex-col h-full">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
-                {isAnalyzing ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em]"></div>
-                      <p className="mt-4 text-gray-500">Analizando texto...</p>
+                {/* El editor NUNCA se desmonta: useEditor lo recrearía con
+                    contenido vacío y se perdería el texto. El estado de carga
+                    va superpuesto. */}
+                <div className="h-full overflow-auto relative flex flex-col">
+                  {/* Un solo editor: al analizar pasa a solo lectura y las
+                      correcciones se aplican sobre este mismo documento */}
+                  <ProofreaderEditor
+                    onTextChange={handleTextChange}
+                    onAnalyzeText={handleAnalyzeText}
+                    isAnalyzing={isAnalyzing}
+                    isAnalyzed={isAnalyzed}
+                    suggestions={suggestions}
+                    activeSuggestion={activeSuggestion}
+                    setActiveSuggestion={setActiveSuggestion}
+                    navigateSuggestions={navigateSuggestions}
+                    editorRef={editorRef}
+                  />
+
+                  {isAnalyzing && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur-[1px]">
+                      <div className="text-center">
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em]"></div>
+                        <p className="mt-4 text-gray-500">Analizando texto...</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="h-full overflow-auto relative flex flex-col">
-                    {/* Un solo editor: al analizar pasa a solo lectura y las
-                        correcciones se aplican sobre este mismo documento */}
-                    <ProofreaderEditor
-                      onTextChange={handleTextChange}
-                      onAnalyzeText={handleAnalyzeText}
-                      isAnalyzing={isAnalyzing}
-                      isAnalyzed={isAnalyzed}
-                      suggestions={suggestions}
-                      activeSuggestion={activeSuggestion}
-                      setActiveSuggestion={setActiveSuggestion}
-                      navigateSuggestions={navigateSuggestions}
-                      editorRef={editorRef}
-                    />
-                    {isAnalyzed && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="shadow-sm hover:shadow-md transition-all absolute bottom-4 right-6 z-10"
-                        onClick={copyText}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copiar texto
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+
+                  {isAnalyzed && !isAnalyzing && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="shadow-sm hover:shadow-md transition-all absolute bottom-4 right-6 z-10"
+                      onClick={copyText}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar texto
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
