@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Edit,
   Search,
+  UserSearch,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -189,6 +190,39 @@ export default function Dashboard() {
                   </p>
                   <div className="flex justify-between items-center mt-2">
                     <Link href="/dashboard/detector-de-mentiras">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        Usar <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quién es quién — mismo alcance que el detector */}
+          {organization?.name == "La Silla Vacía" && (
+            <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                      <UserSearch className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                      Nuevo
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Quién es quién</h3>
+                  <p className="text-gray-500 mb-4 flex-grow">
+                    Escribe un nombre y recibe su perfil, con las fuentes ya
+                    citadas.
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <Link href="/dashboard/quien-es-quien">
                       <Button
                         variant="outline"
                         className="flex items-center gap-1"

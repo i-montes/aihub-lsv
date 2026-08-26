@@ -13,6 +13,7 @@ import {
   BookOpen,
   Shield,
   Search,
+  UserSearch,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -134,6 +135,17 @@ export function Sidebar() {
                   label="Detector"
                   href="/dashboard/detector-de-mentiras"
                   isActive={pathname === "/dashboard/detector-de-mentiras"}
+                  isExpanded={isExpanded}
+                />
+              )
+            }
+            {
+              organization?.name == "La Silla Vacía" && (
+                <NavItem
+                  icon={<UserSearch className="size-5" />}
+                  label="Quién es quién"
+                  href="/dashboard/quien-es-quien"
+                  isActive={pathname === "/dashboard/quien-es-quien"}
                   isExpanded={isExpanded}
                 />
               )
