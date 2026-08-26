@@ -63,7 +63,7 @@ const completeUrlMetadata = async (data: FormSchema): Promise<FormSchema> => {
     (results ?? []).map((result: any) => [result.url, result])
   );
 
-  const merge = (field: (typeof fields)[number]) => {
+  const merge = <F extends (typeof fields)[number]>(field: F): FormSchema[F] => {
     const metadata = { ...(data[field].metadata ?? {}) };
 
     for (const url of extractUrlsFromText(data[field].text)) {

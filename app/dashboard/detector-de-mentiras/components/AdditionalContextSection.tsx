@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { FormMessage } from "@/components/ui/form";
 import { type FormSchema } from "../constants";
-import { HelpCircle, MessageCircle } from "lucide-react";
+import { HelpCircle, MessageCircle, Youtube } from "lucide-react";
 import TextUrlExtractor from "@/components/shared/text-url-extractor";
+import YoutubeTranscriptExtractor from "@/components/shared/youtube-transcript-extractor";
 
 /**
  * Props para el componente AdditionalContextSection
@@ -66,6 +67,33 @@ export const AdditionalContextSection: React.FC<
           {errors.additional_context?.text && (
             <FormMessage>{errors.additional_context.text.message}</FormMessage>
           )}
+        </div>
+
+        {/* Transcripciones de videos de YouTube */}
+        <div className="mt-6 space-y-2 border-t pt-4">
+          <div className="mb-2 flex items-center gap-2">
+            <Youtube className="h-4 w-4 text-red-500" />
+            <Label className="text-sm font-medium">
+              Transcripciones de video (opcional)
+            </Label>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 cursor-help text-gray-400" />
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                Extrae la transcripción de videos de YouTube para incluirla en el análisis.
+              </div>
+            </div>
+          </div>
+
+          <Controller
+            name="additional_context.transcripts"
+            control={control}
+            render={({ field }) => (
+              <YoutubeTranscriptExtractor
+                value={field.value ?? []}
+                onChange={field.onChange}
+              />
+            )}
+          />
         </div>
       </CardContent>
     </Card>
