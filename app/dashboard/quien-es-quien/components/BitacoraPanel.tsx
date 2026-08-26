@@ -96,8 +96,9 @@ export const BitacoraPanel: React.FC<BitacoraPanelProps> = ({
   entradas,
   onCancelar,
 }) => {
-  // El progreso sale de los pasos reales del agente, pero nunca llega al 100 %
-  // hasta que llegue el evento `fin`: no se inventa el tramo final.
+  // La barra usa los pasos reales contra una estimación, pero esa estimación no
+  // se le muestra al usuario: el agente pide los pasos que necesite y un "paso 7
+  // de ~5" no significa nada. Nunca llega al 100 % hasta el evento `fin`.
   const progreso = Math.min((paso / PASOS_ESTIMADOS) * 100, 95);
   const demorado = segundos > DURACION_ESTIMADA_SEGUNDOS.max;
 
@@ -114,9 +115,7 @@ export const BitacoraPanel: React.FC<BitacoraPanelProps> = ({
             {formatearDuracion(segundos)}
           </span>
           {paso > 0 && (
-            <span className="text-sm text-gray-400">
-              · paso {paso} de ~{PASOS_ESTIMADOS}
-            </span>
+            <span className="text-sm text-gray-400">· paso {paso}</span>
           )}
         </div>
 
