@@ -80,6 +80,7 @@ export const metadataSchema = z.record(
     isValid: z.boolean().optional(),
     error: z.string().optional(),
     complete_text: z.string().optional(),
+    isPdf: z.boolean().optional(),
 
     // YouTube metadata
     isYouTube: z.boolean().optional(),

@@ -508,6 +508,18 @@ const TextUrlExtractor: React.FC<TextUrlExtractorProps> = ({
                                     </Badge>
                                   )}
 
+                                  {/* PDF Badge */}
+                                  {metadata?.isPdf && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-orange-50 text-orange-700 border-orange-200 shadow-sm"
+                                      title="El enlace apunta a un documento PDF"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1.5" />
+                                      PDF
+                                    </Badge>
+                                  )}
+
                                   {/* Character Count Badge */}
                                   {(metadata?.complete_text ||
                                     (metadata?.isTwitter &&

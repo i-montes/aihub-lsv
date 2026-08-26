@@ -8,6 +8,9 @@ export interface UrlMetadata {
   error?: string;
   complete_text?: string;
 
+  // PDF: el enlace apunta a un documento PDF
+  isPdf?: boolean;
+
   // YouTube response
   isYouTube?: boolean;
 

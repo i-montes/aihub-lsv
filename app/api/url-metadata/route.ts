@@ -296,6 +296,7 @@ export async function POST(request: NextRequest) {
             title: result.title,
             description: result.description,
             complete_text: result.text,
+            isPdf: result.isPdf,
           };
 
           
