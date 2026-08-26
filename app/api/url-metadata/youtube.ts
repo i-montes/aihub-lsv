@@ -231,6 +231,22 @@ export interface YouTubeMetadata {
   complete_text: string;
   /** Advertencia cuando no hubo subtítulos disponibles */
   warning?: string;
+  /** ID del video, para identificarlo sin volver a parsear la URL */
+  videoId?: string;
+  /** Nombre del canal */
+  channel?: string;
+  /** Duración del video en segundos (0 si no se pudo determinar) */
+  durationSeconds?: number;
+  /** true si se pudo extraer la transcripción real de los subtítulos */
+  hasTranscript?: boolean;
+}
+
+/** Convierte una duración ISO 8601 (ej. "PT1H2M19S") a segundos */
+function isoDurationToSeconds(duration: string): number {
+  const match = duration?.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const [, h, m, s] = match;
+  return Number(h || 0) * 3600 + Number(m || 0) * 60 + Number(s || 0);
 }
 
 /**
@@ -302,6 +318,12 @@ export async function getYouTubeMetadata(
     image:
       videoInfo.snippet.thumbnails?.high?.url ||
       videoInfo.snippet.thumbnails?.default?.url,
+    videoId,
+    channel: videoInfo.snippet.channelTitle,
+    durationSeconds: isoDurationToSeconds(
+      videoInfo.contentDetails?.duration ?? ""
+    ),
+    hasTranscript: Boolean(transcription),
     complete_text: formatVideoInformation(
       videoInfo,
       channelInfo,
