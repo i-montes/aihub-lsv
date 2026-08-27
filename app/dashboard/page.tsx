@@ -218,8 +218,8 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-xl font-bold mb-2">Quién es quién</h3>
                   <p className="text-gray-500 mb-4 flex-grow">
-                    Escribe un nombre y recibe su perfil, con las fuentes ya
-                    citadas.
+                    Genera perfiles tipo ‘Quién es quién’ con el archivo de La
+                    Silla Vacía y la base de datos de leyes de Orza.
                   </p>
                   <div className="flex justify-between items-center mt-2">
                     <Link href="/dashboard/quien-es-quien">

@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState } from "react";
-import { AlertTriangle, Check, Copy, Plus } from "lucide-react";
+import { AlertTriangle, Check, Copy, UserSearch } from "lucide-react";
 
 import {
   Accordion,
@@ -18,7 +18,6 @@ import { ListaBitacora } from "./BitacoraPanel";
 interface PerfilPanelProps {
   resultado: PerfilResultado;
   entradas: EntradaBitacora[];
-  onNuevoPerfil: () => void;
 }
 
 /** Métricas del perfil, en el orden en que le sirven a quien lo va a usar */
@@ -48,13 +47,13 @@ function resumirMetricas(resultado: PerfilResultado): string[] {
 }
 
 /**
- * Perfil terminado. La bitácora de la espera queda accesible en un acordeón:
- * sirve para saber qué se buscó y qué no.
+ * Perfil terminado. El encabezado de la herramienta se reemplaza por el del
+ * personaje: el nombre y las métricas de la generación. La bitácora de la
+ * espera queda accesible en un acordeón: sirve para saber qué se buscó y qué no.
  */
 export const PerfilPanel: React.FC<PerfilPanelProps> = ({
   resultado,
   entradas,
-  onNuevoPerfil,
 }) => {
   const [copiado, setCopiado] = useState(false);
 
@@ -74,47 +73,39 @@ export const PerfilPanel: React.FC<PerfilPanelProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            {resultado.personaje}
-          </h2>
-          {metricas.length > 0 && (
-            <p className="text-sm text-gray-500 mt-0.5">
-              {metricas.join(" · ")}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopiar}
-            className="flex items-center gap-2"
-          >
-            {copiado ? (
-              <>
-                <Check className="w-4 h-4 text-green-600" />
-                <span className="text-green-600">Copiado</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                <span>Copiar</span>
-              </>
+      <div className="border-b border-gray-200 pb-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+            <UserSearch className="w-5 h-5 text-primary-600" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Quién es {resultado.personaje}
+            </h1>
+            {metricas.length > 0 && (
+              <p className="text-gray-600 mt-1">{metricas.join(" · ")}</p>
             )}
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={onNuevoPerfil}
-            className="flex items-center gap-2 text-white"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo perfil
-          </Button>
+          </div>
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopiar}
+          className="flex items-center gap-2"
+        >
+          {copiado ? (
+            <>
+              <Check className="w-4 h-4 text-green-600" />
+              <span className="text-green-600">Copiado</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>Copiar</span>
+            </>
+          )}
+        </Button>
       </div>
 
       {incompleto && (

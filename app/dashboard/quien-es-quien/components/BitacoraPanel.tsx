@@ -106,7 +106,7 @@ export const BitacoraPanel: React.FC<BitacoraPanelProps> = ({
     <div className="flex-1 flex items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-sm p-8 text-center">
         <h2 className="text-xl font-bold text-gray-900">
-          Perfilando a {nombre}
+          Generando perfil de {nombre}
         </h2>
 
         <div className="flex items-center justify-center gap-2 mt-2 text-gray-500">
@@ -129,7 +129,11 @@ export const BitacoraPanel: React.FC<BitacoraPanelProps> = ({
         <p className="text-xs text-gray-400 mt-3">
           {demorado
             ? "Está tardando más de lo normal, pero sigue trabajando."
-            : `Suele tardar entre ${DURACION_ESTIMADA_SEGUNDOS.min} y ${DURACION_ESTIMADA_SEGUNDOS.max} segundos.`}
+            : `Suele tardar entre ${Math.round(
+                DURACION_ESTIMADA_SEGUNDOS.min / 60
+              )} y ${Math.ceil(
+                DURACION_ESTIMADA_SEGUNDOS.max / 60
+              )} minutos. No cierre la pestaña o perderá la generación.`}
         </p>
 
         <div className="mt-6 pt-6 border-t border-gray-100 max-h-[38vh] overflow-y-auto">

@@ -5,7 +5,6 @@ import { Lock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ORGANIZACION_HABILITADA } from "./constants";
 import { usePerfil } from "./hooks/usePerfil";
-import { FormHeader } from "./components/FormHeader";
 import { BuscadorNombre } from "./components/BuscadorNombre";
 import { BitacoraPanel } from "./components/BitacoraPanel";
 import { PerfilPanel } from "./components/PerfilPanel";
@@ -55,8 +54,6 @@ export default function QuienEsQuienPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <FormHeader />
-
       {estado === "inicial" && <BuscadorNombre onGenerar={generar} />}
 
       {estado === "generando" && (
@@ -70,11 +67,7 @@ export default function QuienEsQuienPage() {
       )}
 
       {estado === "listo" && resultado && (
-        <PerfilPanel
-          resultado={resultado}
-          entradas={bitacora}
-          onNuevoPerfil={reiniciar}
-        />
+        <PerfilPanel resultado={resultado} entradas={bitacora} />
       )}
 
       {estado === "error" && error && (
