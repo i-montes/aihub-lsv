@@ -6,6 +6,7 @@ import {
   TIMEOUT_SEGUNDOS,
   type Avance,
   type EntradaBitacora,
+  type ParaGenerar,
   type PerfilError,
   type PerfilResultado,
 } from "../constants";
@@ -22,10 +23,15 @@ export type EstadoPerfil = "inicial" | "generando" | "listo" | "error";
  *    explícita del usuario: nunca desde un efecto y nunca reintentando sola.
  * 2. En streaming el HTTP siempre es 200 y los fallos llegan como
  *    `event: error`. Sólo se da por bueno un perfil si llegó `event: fin`.
+ *
+ * Lo que recibe `generar` es el `para_generar` que devolvió `/api/nombre`, ya
+ * confirmado por el usuario. Se reenvía tal cual: reescribirlo con lo que se
+ * tecleó al principio devolvería el nombre al estado ambiguo que la
+ * verificación acaba de resolver.
  */
 export function usePerfil() {
   const [estado, setEstado] = useState<EstadoPerfil>("inicial");
-  const [nombreEnCurso, setNombreEnCurso] = useState("");
+  const [entradaEnCurso, setEntradaEnCurso] = useState<ParaGenerar | null>(null);
   const [paso, setPaso] = useState(0);
   const [bitacora, setBitacora] = useState<EntradaBitacora[]>([]);
   const [resultado, setResultado] = useState<PerfilResultado | null>(null);
@@ -75,7 +81,7 @@ export function usePerfil() {
 
   const reiniciar = useCallback(() => {
     setEstado("inicial");
-    setNombreEnCurso("");
+    setEntradaEnCurso(null);
     setPaso(0);
     setBitacora([]);
     setResultado(null);
@@ -84,16 +90,16 @@ export function usePerfil() {
   }, []);
 
   const generar = useCallback(
-    async (nombre: string) => {
-      const limpio = nombre.trim();
-      if (!limpio || abortRef.current) return;
+    async (entrada: ParaGenerar) => {
+      const nombre = entrada.nombre?.trim();
+      if (!nombre || abortRef.current) return;
 
       const controller = new AbortController();
       abortRef.current = controller;
       canceladoRef.current = false;
 
       setEstado("generando");
-      setNombreEnCurso(limpio);
+      setEntradaEnCurso(entrada);
       setPaso(0);
       setBitacora([]);
       setResultado(null);
@@ -112,7 +118,7 @@ export function usePerfil() {
         const response = await fetch("/api/perfil", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre: limpio }),
+          body: JSON.stringify(entrada),
           signal: controller.signal,
         });
 
@@ -182,7 +188,8 @@ export function usePerfil() {
   return {
     estado,
     generando,
-    nombreEnCurso,
+    entradaEnCurso,
+    nombreEnCurso: entradaEnCurso?.nombre ?? "",
     paso,
     bitacora,
     resultado,

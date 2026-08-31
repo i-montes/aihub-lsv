@@ -1,10 +1,7 @@
 import { NextRequest } from "next/server";
 
-import { getSupabaseRouteHandler } from "@/lib/supabase/server";
-import {
-  MAX_NOMBRE_LENGTH,
-  ORGANIZACION_HABILITADA,
-} from "@/app/dashboard/quien-es-quien/constants";
+import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
+import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 
 /**
  * El agente de perfiles tarda entre 80 y 160 segundos y tiene un tope duro de
@@ -66,38 +63,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = await getSupabaseRouteHandler();
-  const {
-    data: { user },
-    error: userAuthError,
-  } = await supabase.auth.getUser();
-
-  if (userAuthError || !user) {
-    return sseError("No hay usuario autenticado", 401);
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organizationId")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.organizationId) {
-    return sseError("No se pudo obtener la organización del usuario", 403);
-  }
-
-  const { data: organization } = await supabase
-    .from("organization")
-    .select("name")
-    .eq("id", profile.organizationId)
-    .single();
-
-  if (organization?.name !== ORGANIZACION_HABILITADA) {
-    return sseError(
-      "Tu organización no tiene habilitada esta herramienta",
-      403
-    );
-  }
+  const negado = await verificarAccesoQuienEsQuien();
+  if (negado) return sseError(negado.mensaje, negado.status);
 
   const body = await request.json().catch(() => null);
   const nombre = typeof body?.nombre === "string" ? body.nombre.trim() : "";
@@ -113,6 +80,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /**
+   * El cuerpo es el `para_generar` que devolvió `/api/nombre`, y se reenvía sin
+   * tocar: `confirmado: true` es lo que le dice al agente que ese nombre ya fue
+   * verificado contra el archivo y que no lo complete ni lo corrija por su
+   * cuenta. La `descripcion` es la que desempata entre homónimos.
+   */
+  const descripcion =
+    typeof body?.descripcion === "string" ? body.descripcion : undefined;
+  const confirmado = body?.confirmado === true;
+
   let upstream: Response;
 
   try {
@@ -122,7 +99,7 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ nombre }),
+      body: JSON.stringify({ nombre, descripcion, confirmado }),
       // El usuario cancela desde la UI: hay que cortar también el upstream.
       signal: request.signal,
     });

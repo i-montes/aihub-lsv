@@ -34,6 +34,64 @@ export const perfilSchema = z.object({
 
 export type PerfilFormSchema = z.infer<typeof perfilSchema>;
 
+/* ------------------------------------------------------------------ *
+ * Verificación del nombre (`/api/nombre`)
+ *
+ * Paso previo y barato (~$0,003, 3–10 s) que resuelve lo que escribió el
+ * usuario contra el archivo. Sirve para no gastar dos minutos y ~$0,20 en un
+ * perfil impecable de la persona equivocada.
+ * ------------------------------------------------------------------ */
+
+/**
+ * `confirmar`: una sola persona, pero igual hay que confirmarla.
+ * `elegir`: homónimos o un apellido suelto; escoge el usuario.
+ * `sin_resultados`: el archivo no tiene a nadie así; no se llama al generador.
+ */
+export type EstadoNombre = "confirmar" | "elegir" | "sin_resultados";
+
+/**
+ * Cuerpo exacto para `POST /api/perfil`. Se manda tal cual: `confirmado: true`
+ * es lo que cambia la instrucción del agente de "si el nombre es ambiguo,
+ * elige la figura con más material" a "no lo cambies ni lo completes".
+ */
+export interface ParaGenerar {
+  nombre: string;
+  descripcion?: string;
+  confirmado?: boolean;
+}
+
+/** El perfil que esa persona ya tiene publicado en el sitio */
+export interface PerfilPublicado {
+  titulo: string;
+  link: string;
+}
+
+export interface OpcionNombre {
+  /** El nombre como lo escribe el archivo: esto es lo que va al generador */
+  nombre: string;
+  /** Cargo y filiación en una línea; es lo que distingue a dos homónimos */
+  descripcion: string;
+  /** `alta` (nombrado igual y varias veces) · `media` · `baja` (sólo parecido) */
+  confianza: "alta" | "media" | "baja";
+  perfil_publicado: PerfilPublicado | null;
+  para_generar: ParaGenerar;
+}
+
+export interface NombreResultado {
+  /** El nombre tal como lo tecleó el usuario */
+  consulta: string;
+  estado: EstadoNombre;
+  /** Frase en español, lista para mostrarse tal cual */
+  mensaje: string;
+  opciones: OpcionNombre[];
+  /** Cuánta evidencia hubo de cada fuente. Sirve para depurar, no para mostrar. */
+  fuentes?: {
+    perfiles_publicados?: number;
+    notas?: number;
+    proyectos_de_ley?: number;
+  };
+}
+
 /** Un paso nuevo del agente */
 export interface AvancePaso {
   tipo: "paso";
