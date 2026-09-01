@@ -84,6 +84,81 @@ export type AnalyticsGeneradorResumen = {
   updated_at?: Date | null;
 };
 
+/**
+ * Analytics del Detector de mentiras.
+ *
+ * A diferencia de las otras tres herramientas, el detector puede correr dos
+ * modelos en paralelo sobre el mismo insumo. Por eso todo lo que depende del
+ * modelo —salida, tiempo y tokens— va duplicado con sufijo _1 y _2, y las
+ * columnas _2 quedan nulas cuando sólo corrió uno.
+ */
+export type AnalyticsDetector = {
+  id?: number | string;
+  session_id?: string;
+  user_id?: string | null;
+  organization_id?: string | null;
+
+  /** "simple" (un modelo) o "comparacion" (dos en paralelo) */
+  modo?: "simple" | "comparacion" | null;
+  proveedor_1?: string | null;
+  modelo_1?: string | null;
+  proveedor_2?: string | null;
+  modelo_2?: string | null;
+  /** Legible: "gpt-5.6-terra" o "gpt-5.6-terra + claude-opus-4-8" */
+  modelos_resumen?: string | null;
+
+  output_1?: string | null;
+  output_2?: string | null;
+  longitud_output_1?: number | null;
+  longitud_output_2?: number | null;
+
+  /**
+   * Los dos modelos corren en paralelo, así que `tiempo_total` no es la suma:
+   * es el tiempo de pared del request completo.
+   */
+  tiempo_modelo_1?: number | null;
+  tiempo_modelo_2?: number | null;
+  tiempo_total?: number | null;
+
+  input_tokens_1?: number | null;
+  output_tokens_1?: number | null;
+  total_tokens_1?: number | null;
+  reasoning_tokens_1?: number | null;
+  cached_input_tokens_1?: number | null;
+  input_tokens_2?: number | null;
+  output_tokens_2?: number | null;
+  total_tokens_2?: number | null;
+  reasoning_tokens_2?: number | null;
+  cached_input_tokens_2?: number | null;
+  total_tokens?: number | null;
+
+  /** Formulario completo, sin los data URL de los adjuntos */
+  input_completo?: Record<string, any> | null;
+  prompt_usuario?: string | null;
+  calificacion?: string | null;
+  numero_imagenes?: number | null;
+  numero_pdfs?: number | null;
+  numero_enlaces?: number | null;
+  numero_transcripciones?: number | null;
+
+  /** Documento de revisión en Drive; llega unos segundos después del resto */
+  documento_url?: string | null;
+  documento_id?: string | null;
+  documento_error?: string | null;
+
+  uso_copiar?: boolean | null;
+  /** En comparación, cuál salida copió el periodista: "1" o "2" */
+  modelo_copiado?: "1" | "2" | null;
+  feedback_like?: boolean | null;
+  feedback_rank_like?: number | null;
+
+  estado?: "completado" | "fallido" | null;
+  error_mensaje?: string | null;
+
+  created_at?: Date | null;
+  updated_at?: Date | null;
+};
+
 // Clase madre Analytics
 abstract class Analytics<T extends { id?: any } = any> {
   protected supabasePromise = getSupabaseRouteHandler();
@@ -367,5 +442,29 @@ class AnalyticsGeneradorResumenService extends Analytics<AnalyticsGeneradorResum
   }
 }
 
+class AnalyticsDetectorService extends Analytics<AnalyticsDetector> {
+  constructor(schema: AnalyticsDetector = {} as AnalyticsDetector, existingId?: string | number) {
+    super('detector', schema, existingId);
+  }
+
+  /**
+   * Guarda el enlace al documento de revisión.
+   *
+   * Se llama después de haber respondido al usuario (Next `after()`), así que
+   * nunca debe tumbar nada: si Drive falló, se registra el motivo en la misma
+   * fila en vez de propagarlo.
+   */
+  async registrarDocumento(
+    resultado: { id: string; url: string } | { error: string }
+  ): Promise<void> {
+    const cambios: Partial<AnalyticsDetector> =
+      'error' in resultado
+        ? { documento_error: resultado.error.slice(0, 1000) }
+        : { documento_id: resultado.id, documento_url: resultado.url };
+
+    await this.updateSchema(cambios);
+  }
+}
+
 // Exportar las clases por si se necesitan crear instancias personalizadas
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService };
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService };

@@ -2,11 +2,20 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, type ModelMessage } from 'ai';
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
+import { AnalyticsDetectorService, type AnalyticsDetector } from "@/lib/analytics";
+import { crearDocumento } from "@/lib/google/drive-docs";
+import {
+  construirHtmlDocumento,
+  contarInsumos,
+  nombreDocumento,
+  resumirEntrada,
+  type SalidaModelo,
+} from "@/lib/detector/documento";
 import type { FormSchema } from "@/app/dashboard/detector-de-mentiras/constants";
 import {
   formSchema,
@@ -517,27 +526,157 @@ async function generateAnalysis(
 }
 
 /**
+ * Corre un modelo midiendo cuánto tarda.
+ *
+ * El tiempo se toma por modelo y no del request completo porque en modo
+ * comparación los dos corren en paralelo: el total de pared no dice nada sobre
+ * cuál de los dos es más lento.
+ */
+async function medirAnalisis(
+  modelConfig: ModelConfig,
+  systemPrompt: string,
+  userPrompt: string,
+  toolConfig: ToolConfig,
+  apiKey: string,
+  debugLogger: DebugLogger,
+  validatedData: FormSchema
+): Promise<SalidaModelo> {
+  const inicio = Date.now();
+
+  const resultado = await generateAnalysis(
+    modelConfig,
+    systemPrompt,
+    userPrompt,
+    toolConfig,
+    apiKey,
+    debugLogger,
+    validatedData
+  );
+
+  return {
+    proveedor: modelConfig.provider,
+    modelo: modelConfig.model,
+    texto: resultado.text,
+    tiempoMs: Date.now() - inicio,
+    uso: resultado.usage ?? null,
+  };
+}
+
+/** Columnas de tokens y tiempo de un modelo, con el sufijo _1 o _2 */
+function metricasDeSalida(
+  salida: SalidaModelo | null,
+  sufijo: "1" | "2"
+): Partial<AnalyticsDetector> {
+  if (!salida) return {};
+
+  const uso = salida.uso ?? {};
+
+  return {
+    [`proveedor_${sufijo}`]: salida.proveedor,
+    [`modelo_${sufijo}`]: salida.modelo,
+    [`output_${sufijo}`]: salida.texto,
+    [`longitud_output_${sufijo}`]: salida.texto.length,
+    [`tiempo_modelo_${sufijo}`]: salida.tiempoMs,
+    [`input_tokens_${sufijo}`]: uso.inputTokens ?? null,
+    [`output_tokens_${sufijo}`]: uso.outputTokens ?? null,
+    [`total_tokens_${sufijo}`]: uso.totalTokens ?? null,
+    [`reasoning_tokens_${sufijo}`]: uso.reasoningTokens ?? null,
+    [`cached_input_tokens_${sufijo}`]: uso.cachedInputTokens ?? null,
+  } as Partial<AnalyticsDetector>;
+}
+
+/**
+ * Guarda la fila de analytics del análisis y devuelve el servicio ya
+ * construido.
+ *
+ * Se devuelve la instancia, y no sólo el id, porque el documento de Drive se
+ * crea después de responder: su cliente de Supabase se creó dentro del request
+ * (leyendo las cookies), que es lo que permite seguir escribiendo desde
+ * `after()`.
+ */
+async function guardarAnalytics(
+  datos: Partial<AnalyticsDetector>
+): Promise<AnalyticsDetectorService> {
+  const analytics = new AnalyticsDetectorService(datos as AnalyticsDetector);
+  await analytics.save();
+  return analytics;
+}
+
+/**
+ * Programa la creación del documento de revisión para después de responder.
+ *
+ * Crear el Doc toma unos segundos y el análisis ya tomó minutos: hacerlo dentro
+ * del request sólo alargaría la espera del periodista. Si Drive falla, queda el
+ * motivo en `documento_error` y el análisis no se ve afectado.
+ */
+function programarDocumento(
+  analytics: AnalyticsDetectorService,
+  contexto: {
+    datos: FormSchema;
+    promptUsuario: string;
+    salida1: SalidaModelo | null;
+    salida2: SalidaModelo | null;
+    usuarioEmail?: string | null;
+  }
+) {
+  after(async () => {
+    try {
+      const fecha = new Date();
+
+      const documento = await crearDocumento({
+        nombre: nombreDocumento(contexto.datos, fecha),
+        html: construirHtmlDocumento({ ...contexto, fecha }),
+        subcarpeta: "Detector de mentiras",
+        fecha,
+      });
+
+      await analytics.registrarDocumento(documento);
+    } catch (error) {
+      console.error("No se pudo crear el documento de revisión:", error);
+      await analytics
+        .registrarDocumento({
+          error: error instanceof Error ? error.message : "Error desconocido",
+        })
+        .catch(() => {
+          // Ya se respondió al cliente; no hay a quién avisarle.
+        });
+    }
+  });
+}
+
+/**
  * POST /api/detector
  * Recibe y valida datos del formulario del detector de mentiras
  * Retorna un stream de texto usando AI SDK
  */
 export async function POST(request: NextRequest) {
-  try {
-    const debugLogger = new DebugLogger({
-      toolIdentity: "detector",
-      source: "detector",
-    });
+  const debugLogger = new DebugLogger({
+    toolIdentity: "detector",
+    source: "detector",
+  });
 
+  const inicioRequest = Date.now();
+
+  // Declarados fuera del try para que el catch pueda dejar constancia de los
+  // análisis que fallan. Sin esto la tabla sólo mostraría los que salieron bien
+  // y sobrerrepresentaría la tasa de éxito.
+  let validatedData: FormSchema | null = null;
+  let organizationId: string | null = null;
+  let usuario: { id?: string; email?: string } | null = null;
+
+  try {
     // Parsear el body de la request
     const body = await request.json();
 
     // Validar los datos contra el schema
-    const validatedData = formSchema.parse(body);
+    validatedData = formSchema.parse(body);
 
     debugLogger.info("Validacion del formulario completada:", validatedData);
 
     // 1. Autenticar usuario
-    const { organizationId } = await authenticateUser(debugLogger);
+    const autenticacion = await authenticateUser(debugLogger);
+    organizationId = autenticacion.organizationId;
+    usuario = autenticacion.user;
 
     // 2. Obtener configuración de herramienta
     const toolConfig = await getToolConfig(organizationId, debugLogger);
@@ -559,7 +698,18 @@ export async function POST(request: NextRequest) {
     });
 
     // 4. Lógica de comparación vs análisis simple
-    if (validatedData.compare && validatedData.model_to_compare_1 && validatedData.selectedModel) {
+    const esComparacion = Boolean(
+      validatedData.compare &&
+        validatedData.model_to_compare_1 &&
+        validatedData.selectedModel
+    );
+
+    // Los dos modos comparten todo lo que va a analytics, así que sólo cambia
+    // cómo se obtienen las salidas.
+    let salida1: SalidaModelo;
+    let salida2: SalidaModelo | null = null;
+
+    if (esComparacion) {
       debugLogger.info("Modo comparación activado", {
         model1: validatedData.selectedModel,
         model2: validatedData.model_to_compare_1,
@@ -568,22 +718,13 @@ export async function POST(request: NextRequest) {
       // Obtener API keys para ambos modelos. El orden importa: `generated1`
       // corresponde siempre al modelo principal y `generated2` al de comparación.
       const apiKey1 = await getApiKey(organizationId, validatedData.selectedModel.provider, debugLogger);
-      const apiKey2 = await getApiKey(organizationId, validatedData.model_to_compare_1.provider, debugLogger);
+      const apiKey2 = await getApiKey(organizationId, validatedData.model_to_compare_1!.provider, debugLogger);
 
       // Generar análisis con ambos modelos de forma simultánea
-      const [result1, result2] = await Promise.all([
-        generateAnalysis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
-        generateAnalysis(validatedData.model_to_compare_1, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
+      [salida1, salida2] = await Promise.all([
+        medirAnalisis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
+        medirAnalisis(validatedData.model_to_compare_1!, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
       ]);
-
-      // Retornar respuesta JSON con ambos resultados
-      return NextResponse.json({
-        success: true,
-        generated1: result1.text,
-        generated2: result2.text,
-        model1: validatedData.selectedModel,
-        model2: validatedData.model_to_compare_1,
-      });
     } else {
       debugLogger.info("Modo análisis simple", {
         model: validatedData.selectedModel,
@@ -591,7 +732,7 @@ export async function POST(request: NextRequest) {
 
       // Análisis simple con un solo modelo
       const apiKey = await getApiKey(organizationId, validatedData.selectedModel?.provider || "", debugLogger);
-      const result = await generateAnalysis(
+      salida1 = await medirAnalisis(
         validatedData.selectedModel || { provider: "", model: "" },
         systemPrompt,
         prompt,
@@ -600,15 +741,95 @@ export async function POST(request: NextRequest) {
         debugLogger,
         validatedData
       );
-
-      // Retornar respuesta JSON
-      return NextResponse.json({
-        success: true,
-        generated: result.text
-      });
     }
+
+    // 5. Registrar el análisis y programar el documento de revisión
+    const analytics = await guardarAnalytics({
+      session_id: debugLogger.getSessionId() as any,
+      user_id: usuario?.id ?? null,
+      organization_id: organizationId,
+
+      modo: esComparacion ? "comparacion" : "simple",
+      modelos_resumen: [salida1.modelo, salida2?.modelo]
+        .filter(Boolean)
+        .join(" + "),
+      ...metricasDeSalida(salida1, "1"),
+      ...metricasDeSalida(salida2, "2"),
+      total_tokens:
+        (salida1.uso?.totalTokens ?? 0) + (salida2?.uso?.totalTokens ?? 0) ||
+        null,
+      tiempo_total: Date.now() - inicioRequest,
+
+      input_completo: resumirEntrada(validatedData),
+      prompt_usuario: prompt,
+      calificacion: getRatingPromptValue(validatedData.rating),
+      ...contarInsumos(validatedData),
+
+      estado: "completado",
+      created_at: new Date(),
+    });
+
+    programarDocumento(analytics, {
+      datos: validatedData,
+      promptUsuario: prompt,
+      salida1,
+      salida2,
+      usuarioEmail: usuario?.email ?? null,
+    });
+
+    const analytics_id = analytics.schema.id;
+
+    // Retornar respuesta JSON
+    return esComparacion
+      ? NextResponse.json({
+          success: true,
+          generated1: salida1.texto,
+          generated2: salida2!.texto,
+          model1: validatedData.selectedModel,
+          model2: validatedData.model_to_compare_1,
+          analytics_id,
+        })
+      : NextResponse.json({
+          success: true,
+          generated: salida1.texto,
+          analytics_id,
+        });
   } catch (error) {
     console.error("Error en POST /api/detector:", error);
+
+    // Dejar rastro del fallo, sin dejar que un problema al registrarlo tape el
+    // error real que hay que devolverle al usuario.
+    if (organizationId && validatedData) {
+      try {
+        await guardarAnalytics({
+          session_id: debugLogger.getSessionId() as any,
+          user_id: usuario?.id ?? null,
+          organization_id: organizationId,
+          modo: validatedData.compare ? "comparacion" : "simple",
+          proveedor_1: validatedData.selectedModel?.provider ?? null,
+          modelo_1: validatedData.selectedModel?.model ?? null,
+          proveedor_2: validatedData.model_to_compare_1?.provider ?? null,
+          modelo_2: validatedData.model_to_compare_1?.model ?? null,
+          modelos_resumen: [
+            validatedData.selectedModel?.model,
+            validatedData.compare ? validatedData.model_to_compare_1?.model : null,
+          ]
+            .filter(Boolean)
+            .join(" + "),
+          input_completo: resumirEntrada(validatedData),
+          calificacion: getRatingPromptValue(validatedData.rating),
+          ...contarInsumos(validatedData),
+          tiempo_total: Date.now() - inicioRequest,
+          estado: "fallido",
+          error_mensaje:
+            error instanceof Error ? error.message : "Error desconocido",
+          created_at: new Date(),
+        });
+      } catch (errorAnalytics) {
+        console.error("No se pudo registrar el fallo en analytics:", errorAnalytics);
+      }
+    }
+
     return NextResponse.json(
       {
         success: false,

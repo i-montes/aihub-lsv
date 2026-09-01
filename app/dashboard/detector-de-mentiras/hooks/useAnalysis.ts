@@ -102,6 +102,11 @@ export const useAnalysis = (
     model1Name: string;
     model2Name: string;
   } | null>(null);
+  /**
+   * Fila de `analytics_detector` del análisis que se está mostrando. Sirve para
+   * colgarle después las interacciones del periodista (copiar, feedback).
+   */
+  const [analyticsId, setAnalyticsId] = useState<string | number | null>(null);
 
   /**
    * Genera el análisis con IA basado en los datos del formulario usando respuesta JSON
@@ -116,6 +121,7 @@ export const useAnalysis = (
     setAnalysisProgress(0);
     setAnalysisStep("Iniciando análisis con IA...");
     setAnalysisResult(""); // Limpiar resultado anterior
+    setAnalyticsId(null); // El id anterior ya no corresponde a lo que se ve
 
     try {
       // Asegurar que todos los enlaces tengan su contenido antes de generar
@@ -153,6 +159,8 @@ export const useAnalysis = (
         throw new Error(result.error || 'Error en la respuesta de la API');
       }
 
+      setAnalyticsId(result.analytics_id ?? null);
+
       // Manejar modo comparación vs análisis simple
       if (data.compare && result.generated1 && result.generated2) {
         // Modo comparación: guardar resultados por separado.
@@ -179,6 +187,7 @@ export const useAnalysis = (
       console.error("Error al generar análisis:", error);
       toast.error(error instanceof Error ? error.message : "Error al generar el análisis");
       setAnalysisResult("");
+      setAnalyticsId(null);
     } finally {
       setTimeout(() => {
         setIsAnalyzing(false);
@@ -193,6 +202,7 @@ export const useAnalysis = (
     analysisProgress,
     analysisStep,
     comparisonResults,
+    analyticsId,
     generateAnalysis,
   };
 };

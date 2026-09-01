@@ -25,3 +25,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# credenciales de la service account de Google (Drive/Docs)
+info-drive

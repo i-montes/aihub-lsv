@@ -55,8 +55,14 @@ export default function LieDetectorPage() {
 
   // Hooks personalizados para lógica de negocio
   const apiKeyStatus = useApiKeyStatus();
-  const { isAnalyzing, analysisResult, analysisStep, comparisonResults, generateAnalysis } =
-    useAnalysis(getValues, apiKeyStatus.hasApiKey);
+  const {
+    isAnalyzing,
+    analysisResult,
+    analysisStep,
+    comparisonResults,
+    analyticsId,
+    generateAnalysis,
+  } = useAnalysis(getValues, apiKeyStatus.hasApiKey);
 
   // Manejo del envío del formulario
   const onSubmit = async (data: FormSchema) => {
@@ -160,6 +166,7 @@ export default function LieDetectorPage() {
           result2={comparisonResults?.result2 || ""}
           model1Name={comparisonResults?.model1Name || ""}
           model2Name={comparisonResults?.model2Name || ""}
+          analyticsId={analyticsId}
         />
       </div>
     </Form>

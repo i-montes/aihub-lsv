@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Loader2, Copy, Check } from "lucide-react";
+import { registrarCopiaDetector } from "@/actions/update-analytics";
 
 /**
  * Props para el componente AnalysisResultsPanel
@@ -20,6 +21,8 @@ interface AnalysisResultsPanelProps {
   result2?: string | null;
   model1Name?: string;
   model2Name?: string;
+  /** Fila de analytics del análisis mostrado; null mientras no haya resultado */
+  analyticsId?: string | number | null;
 }
 
 /**
@@ -36,6 +39,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
   result2 = null,
   model1Name = "Modelo 1",
   model2Name = "Modelo 2",
+  analyticsId = null,
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("model1");
@@ -128,6 +132,22 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
     return renderToString(markdownComponent);
   };
 
+  /**
+   * Deja constancia de la copia en analytics.
+   *
+   * En comparación, la pestaña abierta al copiar es la salida que el periodista
+   * eligió: es la única señal que tenemos de cuál modelo prefirió. No se espera
+   * el resultado ni se avisa si falla, para no interferir con el copiado.
+   */
+  const registrarCopia = () => {
+    if (!analyticsId) return;
+
+    registrarCopiaDetector(
+      analyticsId,
+      isCompareMode ? (activeTab === "model1" ? "1" : "2") : null
+    ).catch((error) => console.error("Error al registrar la copia:", error));
+  };
+
   // Función para copiar contenido al portapapeles como HTML
   const handleCopy = async () => {
     let markdownToCopy = "";
@@ -156,6 +176,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
       
       await navigator.clipboard.write([clipboardItem]);
       setCopied(true);
+      registrarCopia();
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Error al copiar:', err);
@@ -163,6 +184,7 @@ export const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = ({
       try {
         await navigator.clipboard.writeText(markdownToCopy);
         setCopied(true);
+        registrarCopia();
         setTimeout(() => setCopied(false), 2000);
       } catch (fallbackErr) {
         console.error('Error en fallback:', fallbackErr);

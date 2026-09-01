@@ -4,16 +4,18 @@ import {
   AnalyticsCorrectorDeTextosService, 
   AnalyticsGeneradorHilosService, 
   AnalyticsGeneradorResumenService,
+  AnalyticsDetectorService,
   type AnalyticsCorrectorDeTextos,
   type AnalyticsGeneradorHilos,
-  type AnalyticsGeneradorResumen
+  type AnalyticsGeneradorResumen,
+  type AnalyticsDetector
 } from "@/lib/analytics";
 
 // Tipos de analytics disponibles
-type AnalyticsType = "corrector_de_textos" | "generador_de_hilos" | "generador_resumen";
+type AnalyticsType = "corrector_de_textos" | "generador_de_hilos" | "generador_resumen" | "detector";
 
 // Union type para los schemas
-type AnalyticsSchema = AnalyticsCorrectorDeTextos | AnalyticsGeneradorHilos | AnalyticsGeneradorResumen;
+type AnalyticsSchema = AnalyticsCorrectorDeTextos | AnalyticsGeneradorHilos | AnalyticsGeneradorResumen | AnalyticsDetector;
 
 /**
  * Action genérica para actualizar cualquier tipo de analytics
@@ -39,6 +41,9 @@ export async function updateAnalytics(
         break;
       case "generador_resumen":
         analyticsService = new AnalyticsGeneradorResumenService({ session_id: "" }, analyticsId);
+        break;
+      case "detector":
+        analyticsService = new AnalyticsDetectorService({}, analyticsId);
         break;
       default:
         return { success: false, error: `Tipo de analytics no válido: ${analyticsType}` };
@@ -100,6 +105,9 @@ export async function incrementAnalyticsCounter(
       case "generador_resumen":
         analyticsService = new AnalyticsGeneradorResumenService({ session_id: "" }, analyticsId);
         break;
+      case "detector":
+        analyticsService = new AnalyticsDetectorService({}, analyticsId);
+        break;
       default:
         return { success: false, error: `Tipo de analytics no válido: ${analyticsType}` };
     }
@@ -148,4 +156,21 @@ export async function agregarCorreccionAnalytics(
   }
   
   return updateAnalytics("corrector_de_textos", analyticsId, updateData);
+}
+
+/**
+ * Registra que el periodista copió el borrador del detector.
+ *
+ * En modo comparación `modeloCopiado` dice cuál de las dos pestañas estaba
+ * abierta al copiar, que es la señal de qué modelo prefirió. En modo simple
+ * llega null porque no hay nada que elegir.
+ */
+export async function registrarCopiaDetector(
+  analyticsId: string | number,
+  modeloCopiado: "1" | "2" | null
+): Promise<{ success: boolean; error?: string }> {
+  return updateAnalytics("detector", analyticsId, {
+    uso_copiar: true,
+    ...(modeloCopiado ? { modelo_copiado: modeloCopiado } : {}),
+  } as Partial<AnalyticsDetector>);
 }
