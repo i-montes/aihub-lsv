@@ -361,23 +361,6 @@ export default function Dashboard() {
                     <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">
-                          Nueva herramienta de newsletter
-                        </p>
-                        <span className="text-xs px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full">
-                          Nuevo
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Ya puedes crear newsletters personalizados con formatos
-                        optimizados.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-primary-600"></div>
-                    <div>
-                      <div className="flex items-center gap-2">
                         <p className="font-medium">Nuevo generador de hilos</p>
                         <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full">
                           Disponible

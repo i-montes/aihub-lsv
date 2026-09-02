@@ -6,7 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowRight, Check, Edit3, FileText, Layers, MessageSquare, Zap } from "lucide-react"
+import { ArrowRight, Check, Edit3, MessageSquare, Zap } from "lucide-react"
 
 export default function LandingPage() {
   const router = useRouter()
@@ -152,14 +152,6 @@ export default function LandingPage() {
                 Transform your article into an engaging social media thread with one click
               </p>
             </div>
-
-            <div className="absolute -bottom-10 -left-10 bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-48">
-              <div className="flex items-center mb-2">
-                <FileText className="h-5 w-5 text-primary-600 mr-2" />
-                <span className="font-medium">Newsletter Ready</span>
-              </div>
-              <p className="text-xs text-gray-600">Format your content for newsletters with proper sections and CTAs</p>
-            </div>
           </div>
         </div>
       </section>
@@ -172,7 +164,7 @@ export default function LandingPage() {
           journalism workflows.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-primary-50 rounded-bl-full opacity-50"></div>
             <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center mb-4">
@@ -224,31 +216,6 @@ export default function LandingPage() {
               </li>
             </ul>
           </div>
-
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-primary-50 rounded-bl-full opacity-50"></div>
-            <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center mb-4">
-              <Layers className="h-6 w-6 text-primary-600" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">Newsletter Generator</h3>
-            <p className="text-gray-600 mb-4">
-              Convert articles into newsletter-ready formats with proper sections, CTAs, and engagement elements.
-            </p>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                Multiple template options
-              </li>
-              <li className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                Automatic section creation
-              </li>
-              <li className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                Optimized for email clients
-              </li>
-            </ul>
-          </div>
         </div>
       </section>
 
@@ -284,7 +251,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-xl font-bold mb-2">Transform & Publish</h3>
             <p className="text-gray-600">
-              Convert your content into threads, newsletters, or other formats with one click.
+              Convert your content into threads, summaries, or other formats with one click.
             </p>
           </div>
         </div>

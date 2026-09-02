@@ -158,20 +158,6 @@ export function Sidebar() {
               isActive={pathname === "/dashboard/analiticas"}
               isExpanded={isExpanded}
             /> */}
-            {/* <NavItem
-              icon={<FileText className="size-5" />}
-              label="Boletín"
-              href="/dashboard/generador-boletin"
-              isActive={pathname === "/dashboard/generador-boletin"}
-              isExpanded={isExpanded}
-            />
-            <NavItem
-              icon={<BarChart className="size-5" />}
-              label="Analítica"
-              href="/dashboard/analiticas"
-              isActive={pathname === "/dashboard/analiticas"}
-              isExpanded={isExpanded}
-            /> */}
           </div>
         </div>
 

@@ -479,7 +479,7 @@ export class DebugLogger {
     const errorInfo = options.error || this.extractError();
 
     // Registrar evento de finalización como generación/procesamiento/análisis según el contexto disponible
-    if (options.template || this.context.toolIdentity === "thread-generator" || this.context.toolIdentity === "newsletter" || this.context.toolIdentity === "resume") {
+    if (options.template || this.context.toolIdentity === "thread-generator" || this.context.toolIdentity === "resume") {
       await this.logGeneration(
         errorInfo ? `Finalizado con error: ${errorInfo.message}` : "Finalizado con éxito",
         finalStatus,

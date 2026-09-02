@@ -16,7 +16,6 @@ import {
   FileCheck,
   MessageSquare,
   FileText,
-  Mail,
   BookOpen,
   ArrowRight,
   Zap,
@@ -57,7 +56,7 @@ export default function DocumentacionPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex flex-col gap-4">
-            <Link href="/documentacion/configuraciones/integraciones" className="group">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/integraciones" className="group">
               <div className="p-3 sm:p-4 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[80px] sm:min-h-[90px]">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
@@ -66,7 +65,7 @@ export default function DocumentacionPage() {
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">Conecta OpenAI, Anthropic o Gemini</p>
               </div>
             </Link>
-            <Link href="/documentacion/configuraciones/herramientas" className="group">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/herramientas" className="group">
               <div className="p-3 sm:p-4 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[80px] sm:min-h-[90px]">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
@@ -75,7 +74,7 @@ export default function DocumentacionPage() {
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">Ajusta prompts y configuraciones</p>
               </div>
             </Link>
-            <Link href="/documentacion/herramientas/corrector" className="group">
+            <Link href="/dashboard/configuracion/documentacion/herramientas/corrector" className="group">
               <div className="p-3 sm:p-4 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[80px] sm:min-h-[90px]">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
@@ -102,7 +101,7 @@ export default function DocumentacionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            <Link href="/documentacion/configuraciones/integraciones" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/integraciones" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Plug className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
                 <div>
@@ -113,7 +112,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-green-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/configuraciones/herramientas" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/herramientas" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                 <div>
@@ -124,7 +123,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/configuraciones/wordpress" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/wordpress" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Globe className="h-4 w-4 sm:h-5 sm:w-5 text-blue-800 flex-shrink-0" />
                 <div>
@@ -135,7 +134,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-blue-800 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/configuraciones/usuarios" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/usuarios" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
                 <div>
@@ -146,7 +145,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-purple-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/configuraciones/organizacion" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/organizacion" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Building className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 flex-shrink-0" />
                 <div>
@@ -171,7 +170,7 @@ export default function DocumentacionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            <Link href="/documentacion/cuenta/perfil" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/cuenta/perfil" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                 <div>
@@ -182,7 +181,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/cuenta/seguridad" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/cuenta/seguridad" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
                 <div>
@@ -207,7 +206,7 @@ export default function DocumentacionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            <Link href="/documentacion/herramientas/corrector" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/herramientas/corrector" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <FileCheck className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
                 <div>
@@ -218,7 +217,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-red-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/herramientas/hilos" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/herramientas/hilos" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                 <div>
@@ -229,7 +228,7 @@ export default function DocumentacionPage() {
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
             </Link>
 
-            <Link href="/documentacion/herramientas/resumenes" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
+            <Link href="/dashboard/configuracion/documentacion/herramientas/resumenes" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0" />
                 <div>
@@ -238,17 +237,6 @@ export default function DocumentacionPage() {
                 </div>
               </div>
               <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-yellow-600 flex-shrink-0" />
-            </Link>
-
-            <Link href="/documentacion/herramientas/newsletter" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
-                <div>
-                  <p className="font-medium group-hover:text-purple-600 text-sm sm:text-base leading-tight">Newsletter</p>
-                  <p className="text-xs sm:text-sm text-gray-600 leading-tight">Creador de newsletters</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-purple-600 flex-shrink-0" />
             </Link>
           </CardContent>
         </Card></div>

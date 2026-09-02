@@ -17,7 +17,6 @@ export async function proxy(req: NextRequest) {
   const dashboardRedirects: Record<string, string> = {
     '/dashboard/activity': '/dashboard/actividad',
     '/dashboard/analytics': '/dashboard/analiticas',
-    '/dashboard/newsletter': '/dashboard/boletin',
     '/dashboard/settings': '/dashboard/configuracion',
     '/dashboard/content': '/dashboard/contenido',
     '/dashboard/proofreader': '/dashboard/corrector',

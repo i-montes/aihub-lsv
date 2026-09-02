@@ -27,7 +27,6 @@ import {
   BookOpen,
   FileCheck,
   FileText,
-  Rss as RssIcon,
   Home,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
@@ -204,13 +203,6 @@ function DocumentationSidebar({ expandedGroups, toggleGroup, pathname }: {
               label="Resúmenes"
               href="/dashboard/configuracion/documentacion/herramientas/resumenes"
               isActive={pathname.includes('/documentacion/herramientas/resumenes')}
-              isSubItem={true}
-            />
-            <DocNavItem
-              icon={<RssIcon className="size-4" />}
-              label="Newsletter"
-              href="/dashboard/configuracion/documentacion/herramientas/newsletter"
-              isActive={pathname.includes('/documentacion/herramientas/newsletter')}
               isSubItem={true}
             />
           </DocSection>

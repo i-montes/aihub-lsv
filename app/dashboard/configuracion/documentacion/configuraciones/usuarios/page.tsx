@@ -238,7 +238,6 @@ export default function UsuariosPage() {
                   <li>• Corrector de Texto</li>
                   <li>• Generador de Hilos</li>
                   <li>• Generador de Resúmenes</li>
-                  <li>• Newsletter</li>
                 </ul>
               </div>
               
