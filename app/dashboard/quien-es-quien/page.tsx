@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { Lock } from "lucide-react";
 
-import { useAuth } from "@/hooks/use-auth";
-import { ORGANIZACION_HABILITADA, type ParaGenerar } from "./constants";
+import type { ParaGenerar } from "./constants";
 import { usePerfil } from "./hooks/usePerfil";
 import { useVerificacionNombre } from "./hooks/useVerificacionNombre";
 import { BuscadorNombre } from "./components/BuscadorNombre";
@@ -28,7 +26,6 @@ import { ErrorPanel } from "./components/ErrorPanel";
  * avances del agente son lo único que hay para mirar mientras tanto.
  */
 export default function QuienEsQuienPage() {
-  const { organization } = useAuth();
   const verificacion = useVerificacionNombre();
   const {
     estado,
@@ -53,23 +50,6 @@ export default function QuienEsQuienPage() {
   const reintentar = useCallback(() => {
     if (entradaEnCurso) generar(entradaEnCurso);
   }, [entradaEnCurso, generar]);
-
-  // El sidebar ya la esconde; esto cubre a quien llegue por la URL directa.
-  if (organization && organization.name !== ORGANIZACION_HABILITADA) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-center">
-        <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-          <Lock className="w-7 h-7 text-gray-400" />
-        </div>
-        <h1 className="text-xl font-bold text-gray-900">
-          Herramienta no disponible
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Tu organización no tiene habilitado Quién es quién.
-        </p>
-      </div>
-    );
-  }
 
   const enConfirmacion =
     estado === "inicial" &&

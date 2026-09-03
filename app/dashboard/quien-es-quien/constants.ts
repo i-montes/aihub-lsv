@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-/** Única organización con la herramienta habilitada */
-export const ORGANIZACION_HABILITADA = "La Silla Vacía";
-
 /** Límite del API: nombres más largos devuelven 400 */
 export const MAX_NOMBRE_LENGTH = 120;
 

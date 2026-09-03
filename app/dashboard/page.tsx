@@ -33,6 +33,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import UsefulLinksModal from "@/components/useful-links-modal";
 import { useAuth } from "@/hooks/use-auth";
+import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
 
 interface UsefulLink {
   id: number;
@@ -89,89 +90,96 @@ export default function Dashboard() {
       {/* Main Tools Section */}
       <section>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Style Checker */}
-          <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
-                    <FileCheck className="h-6 w-6 text-primary-600" />
+          {/* Corrector de estilo */}
+          {puedeVerHerramienta(organization?.name, "corrector") && (
+            <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                      <FileCheck className="h-6 w-6 text-primary-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Corrector de estilo</h3>
+                  <p className="text-gray-500 mb-4 flex-grow">
+                    Optimiza tu texto según pautas de la RAE, Fundéu y tu manual de estilo.
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <Link href="/dashboard/corrector">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        Usar <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Corrector de estilo</h3>
-                <p className="text-gray-500 mb-4 flex-grow">
-                  Optimiza tu texto según pautas de la RAE, Fundéu y tu manual de estilo.
-                </p>
-                <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/corrector">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
-                      Usar <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Thread Generator */}
-          <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
-                    <MessageSquare className="h-6 w-6 text-primary-600" />
+          {/* Generador de hilos */}
+          {puedeVerHerramienta(organization?.name, "hilos") && (
+            <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                      <MessageSquare className="h-6 w-6 text-primary-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Generador de hilos</h3>
+                  <p className="text-gray-500 mb-4 flex-grow">
+                    Convierte tus artículos en hilos de X listos para publicar. 🧵
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <Link href="/dashboard/generador-hilos">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        Usar <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Generador de hilos</h3>
-                <p className="text-gray-500 mb-4 flex-grow">
-                  Convierte tus artículos en hilos de X listos para publicar. 🧵
-                </p>
-                <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/generador-hilos">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
-                      Usar <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-primary-600" />
+          {/* Resumen */}
+          {puedeVerHerramienta(organization?.name, "resumenes") && (
+            <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                      <FileText className="h-6 w-6 text-primary-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Resumen</h3>
+                  <p className="text-gray-500 mb-4 flex-grow">
+                    Haz tus resúmenes de noticias en base a los últimos artículos
+                    publicados.
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <Link href="/dashboard/generador-resumen">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        Usar <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Resumen</h3>
-                <p className="text-gray-500 mb-4 flex-grow">
-                  Haz tus resúmenes de noticias en base a los últimos artículos
-                  publicados.
-                </p>
-                <div className="flex justify-between items-center mt-2">
-                  <Link href="/dashboard/generador-resumen">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
-                      Usar <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Detector de mentiras — restringido igual que en el sidebar */}
-          {organization?.name == "La Silla Vacía" && (
+          {/* Detector de mentiras */}
+          {puedeVerHerramienta(organization?.name, "detector-de-mentiras") && (
             <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col h-full">
@@ -203,8 +211,8 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {/* Quién es quién — mismo alcance que el detector */}
-          {organization?.name == "La Silla Vacía" && (
+          {/* Quién es quién */}
+          {puedeVerHerramienta(organization?.name, "quien-es-quien") && (
             <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col h-full">

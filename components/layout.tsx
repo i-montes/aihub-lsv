@@ -8,7 +8,8 @@ import { Header } from "@/components/header"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Mail } from "lucide-react"
+import { AlertTriangle, Mail, Lock } from "lucide-react"
+import { herramientaDeRuta, puedeVerHerramienta } from "@/lib/organizaciones/herramientas"
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -100,6 +101,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // El sidebar ya esconde lo que la organización no tiene; esto cubre a quien
+  // llegue por la URL directa. Va aquí y no en cada página para no depender de
+  // que cada herramienta se acuerde de mirar su organización.
+  const herramienta = herramientaDeRuta(pathname)
+  const bloqueada = herramienta !== null && !puedeVerHerramienta(organization?.name, herramienta)
+
   // Render the layout if authenticated and organization is active
   return (
     <div className="h-screen w-screen flex overflow-hidden dashboard-layout">
@@ -107,9 +114,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className={`flex-1 container ${isMessagesPage ? "p-0 overflow-hidden" : "p-6 overflow-auto"}`}>
-          {children}
+          {bloqueada ? <HerramientaNoDisponible /> : children}
         </main>
       </div>
+    </div>
+  )
+}
+
+/** Lo que ve quien entra a una herramienta que su organización no tiene */
+function HerramientaNoDisponible() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center">
+      <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+        <Lock className="w-7 h-7 text-gray-400" />
+      </div>
+      <h1 className="text-xl font-bold text-gray-900">Herramienta no disponible</h1>
+      <p className="text-sm text-gray-500 mt-1">
+        Tu organización no tiene habilitada esta herramienta.
+      </p>
     </div>
   )
 }

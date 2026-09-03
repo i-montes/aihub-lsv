@@ -1,5 +1,5 @@
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
-import { ORGANIZACION_HABILITADA } from "@/app/dashboard/quien-es-quien/constants";
+import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
 
 /** Motivo por el que se niega el acceso, con el status que le corresponde */
 export interface AccesoNegado {
@@ -8,7 +8,7 @@ export interface AccesoNegado {
 }
 
 /**
- * Comprueba que quien llama sea un usuario de la organización habilitada.
+ * Comprueba que quien llama sea usuario de una organización habilitada.
  *
  * Vive aparte porque las dos rutas de la herramienta —`/api/nombre` y
  * `/api/perfil`— exigen lo mismo pero reportan el fallo distinto: una en JSON
@@ -44,7 +44,7 @@ export async function verificarAccesoQuienEsQuien(): Promise<AccesoNegado | null
     .eq("id", profile.organizationId)
     .single();
 
-  if (organization?.name !== ORGANIZACION_HABILITADA) {
+  if (!puedeVerHerramienta(organization?.name, "quien-es-quien")) {
     return {
       mensaje: "Tu organización no tiene habilitada esta herramienta",
       status: 403,

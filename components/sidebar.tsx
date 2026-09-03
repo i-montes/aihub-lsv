@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
 
 // Componente para el icono de X/Twitter
 function XIcon({ className }: { className?: string }) {
@@ -107,49 +108,51 @@ export function Sidebar() {
               isActive={pathname === "/dashboard"}
               isExpanded={isExpanded}
             />
-            <NavItem
-              icon={<FileCheck className="size-5" />}
-              label="Corrector"
-              href="/dashboard/corrector"
-              isActive={pathname === "/dashboard/corrector"}
-              isExpanded={isExpanded}
-            />
-            <NavItem
-              icon={<XIcon className="size-5" />}
-              label="Hilos"
-              href="/dashboard/generador-hilos"
-              isActive={pathname === "/dashboard/generador-hilos"}
-              isExpanded={isExpanded}
-            />
-            <NavItem
-              icon={<FileText className="size-5" />}
-              label="Resúmenes"
-              href="/dashboard/generador-resumen"
-              isActive={pathname === "/dashboard/generador-resumen"}
-              isExpanded={isExpanded}
-            />
-            {
-              organization?.name == "La Silla Vacía" && (
-                <NavItem
-                  icon={<Search className="size-5" />}
-                  label="Detector"
-                  href="/dashboard/detector-de-mentiras"
-                  isActive={pathname === "/dashboard/detector-de-mentiras"}
-                  isExpanded={isExpanded}
-                />
-              )
-            }
-            {
-              organization?.name == "La Silla Vacía" && (
-                <NavItem
-                  icon={<UserSearch className="size-5" />}
-                  label="Quién es quién"
-                  href="/dashboard/quien-es-quien"
-                  isActive={pathname === "/dashboard/quien-es-quien"}
-                  isExpanded={isExpanded}
-                />
-              )
-            }
+            {puedeVerHerramienta(organization?.name, "corrector") && (
+              <NavItem
+                icon={<FileCheck className="size-5" />}
+                label="Corrector"
+                href="/dashboard/corrector"
+                isActive={pathname === "/dashboard/corrector"}
+                isExpanded={isExpanded}
+              />
+            )}
+            {puedeVerHerramienta(organization?.name, "hilos") && (
+              <NavItem
+                icon={<XIcon className="size-5" />}
+                label="Hilos"
+                href="/dashboard/generador-hilos"
+                isActive={pathname === "/dashboard/generador-hilos"}
+                isExpanded={isExpanded}
+              />
+            )}
+            {puedeVerHerramienta(organization?.name, "resumenes") && (
+              <NavItem
+                icon={<FileText className="size-5" />}
+                label="Resúmenes"
+                href="/dashboard/generador-resumen"
+                isActive={pathname === "/dashboard/generador-resumen"}
+                isExpanded={isExpanded}
+              />
+            )}
+            {puedeVerHerramienta(organization?.name, "detector-de-mentiras") && (
+              <NavItem
+                icon={<Search className="size-5" />}
+                label="Detector"
+                href="/dashboard/detector-de-mentiras"
+                isActive={pathname === "/dashboard/detector-de-mentiras"}
+                isExpanded={isExpanded}
+              />
+            )}
+            {puedeVerHerramienta(organization?.name, "quien-es-quien") && (
+              <NavItem
+                icon={<UserSearch className="size-5" />}
+                label="Quién es quién"
+                href="/dashboard/quien-es-quien"
+                isActive={pathname === "/dashboard/quien-es-quien"}
+                isExpanded={isExpanded}
+              />
+            )}
 
             {/* <NavItem
               icon={<BarChart className="size-5" />}
