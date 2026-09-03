@@ -166,15 +166,16 @@ export function Sidebar() {
 
         {/* Contenido inferior - Settings */}
         <div className="mt-4 flex-shrink-0">
-          {profile?.role == "OWNER" && (
-            <NavItem
-              icon={<BarChart className="size-5" />}
-              label="Analíticas"
-              href="/dashboard/analiticas"
-              isActive={pathname === "/dashboard/analiticas"}
-              isExpanded={isExpanded}
-            />
-          )}
+          {profile?.role == "OWNER" &&
+            puedeVerHerramienta(organization?.name, "analiticas") && (
+              <NavItem
+                icon={<BarChart className="size-5" />}
+                label="Analíticas"
+                href="/dashboard/analiticas"
+                isActive={pathname === "/dashboard/analiticas"}
+                isExpanded={isExpanded}
+              />
+            )}
           {isAdmin() && (
             <NavItem
               icon={<Shield className="size-5" />}

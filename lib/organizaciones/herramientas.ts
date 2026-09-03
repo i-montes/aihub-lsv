@@ -7,15 +7,25 @@
  * y los tres lugares la consultan.
  */
 
+/**
+ * Las herramientas del kit más Analíticas, que no es una herramienta pero se
+ * muestra u oculta por organización con la misma regla.
+ */
 export type Herramienta =
   | "corrector"
   | "hilos"
   | "resumenes"
   | "detector-de-mentiras"
-  | "quien-es-quien";
+  | "quien-es-quien"
+  | "analiticas";
 
 /** Lo que ve una organización que no aparece en la tabla de abajo */
-const HERRAMIENTAS_ABIERTAS: Herramienta[] = ["corrector", "hilos", "resumenes"];
+const HERRAMIENTAS_ABIERTAS: Herramienta[] = [
+  "corrector",
+  "hilos",
+  "resumenes",
+  "analiticas",
+];
 
 /**
  * Organizaciones con lista propia: ven exactamente esto y nada más.
@@ -55,6 +65,7 @@ export const RUTA_HERRAMIENTA: Record<Herramienta, string> = {
   resumenes: "/dashboard/generador-resumen",
   "detector-de-mentiras": "/dashboard/detector-de-mentiras",
   "quien-es-quien": "/dashboard/quien-es-quien",
+  analiticas: "/dashboard/analiticas",
 };
 
 /** Qué herramienta es esa ruta, o `null` si no es una herramienta */
