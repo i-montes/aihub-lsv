@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Sparkles, Trash2, Settings, Power, PowerOff } from "lucide-react"
+import { Sparkles, Trash2, Settings, Power, PowerOff, KeyRound } from "lucide-react"
 import { ApiKeyService, type ApiKey, type ApiKeyStatus } from "@/lib/services/api-key-service"
 import { DEFAULT_MODELS } from "@/lib/utils"
 import { AddApiKeyModal } from "@/components/modals/add-api-key-modal"
 import { ToggleApiKeyStatusModal } from "@/components/modals/toggle-api-key-status-modal"
+import { OrgTokenModal } from "@/components/modals/org-token-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,7 @@ import { getSupabaseClient } from "@/lib/supabase/client"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function IntegrationsSettingsPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -36,6 +37,7 @@ export default function IntegrationsSettingsPage() {
   }
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isToggleStatusModalOpen, setIsToggleStatusModalOpen] = useState(false)
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<{ id: string; provider: string; status: ApiKeyStatus } | null>(
     null,
   )
@@ -315,9 +317,17 @@ export default function IntegrationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <h2 className="text-2xl font-bold">Integraciones de IA</h2>
-        <Sparkles className="text-amber-500" size={20} />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold">Integraciones de IA</h2>
+          <Sparkles className="text-amber-500" size={20} />
+        </div>
+        {(profile?.role === "OWNER" || profile?.role === "ADMIN") && (
+          <Button variant="outline" className="rounded-lg" onClick={() => setIsTokenModalOpen(true)}>
+            <KeyRound size={16} className="mr-2" />
+            Token de acceso a la API
+          </Button>
+        )}
       </div>
 
       <div className="space-y-8">
@@ -557,6 +567,9 @@ export default function IntegrationsSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal para generar el token de acceso a la API */}
+      <OrgTokenModal open={isTokenModalOpen} onOpenChange={setIsTokenModalOpen} />
 
       {/* Modal para añadir nueva clave API */}
       <AddApiKeyModal
