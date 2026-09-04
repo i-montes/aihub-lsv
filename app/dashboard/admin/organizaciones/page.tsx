@@ -24,7 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Building, Users, Edit, Search, Filter, ChevronLeft, ChevronRight, Eye, UserPlus, Trash2, AlertTriangle, RefreshCw } from "lucide-react"
+import { Building, Users, Edit, Search, Filter, ChevronLeft, ChevronRight, Eye, UserPlus, Trash2, AlertTriangle, RefreshCw, KeyRound } from "lucide-react"
+import { OrgTokenModal } from "@/components/modals/org-token-modal"
+import { isSuperAdminEmail } from "@/lib/admin/super-admins"
 
 interface Organization {
   id: string
@@ -53,7 +55,7 @@ interface Profile {
 }
 
 export default function AdminOrganizationsPage() {
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [filteredOrganizations, setFilteredOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,6 +96,8 @@ export default function AdminOrganizationsPage() {
     api_key: "",
     provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
   })
+  const [tokenModalOpen, setTokenModalOpen] = useState(false)
+  const [orgForToken, setOrgForToken] = useState<Organization | null>(null)
   const [changeOrgModalOpen, setChangeOrgModalOpen] = useState(false)
   const [changeOrgLoading, setChangeOrgLoading] = useState(false)
   const [selectedOrgForChange, setSelectedOrgForChange] = useState<string>("")
@@ -103,6 +107,15 @@ export default function AdminOrganizationsPage() {
 
   // Verificar permisos de administrador
   const isAdmin = profile?.role === "ADMIN" || profile?.role === "OWNER"
+
+  // Emitir tokens de otras organizaciones es exclusivo del panel: el endpoint
+  // aplica la misma comprobación en el servidor.
+  const canGenerateTokens = isSuperAdminEmail(user?.email || profile?.email)
+
+  const handleGenerateToken = (org: Organization) => {
+    setOrgForToken(org)
+    setTokenModalOpen(true)
+  }
 
   useEffect(() => {
     if (!isAdmin) {
@@ -658,6 +671,16 @@ export default function AdminOrganizationsPage() {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
+                              {canGenerateTokens && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  title="Generar token de acceso a la API"
+                                  onClick={() => handleGenerateToken(org)}
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -706,6 +729,18 @@ export default function AdminOrganizationsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal para generar el token de acceso a la API de una organización */}
+        {orgForToken && (
+          <OrgTokenModal
+            open={tokenModalOpen}
+            onOpenChange={(open) => {
+              setTokenModalOpen(open)
+              if (!open) setOrgForToken(null)
+            }}
+            organization={{ id: orgForToken.id, name: orgForToken.name }}
+          />
+        )}
 
         {/* Modal para editar organización */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>

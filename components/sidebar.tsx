@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { isSuperAdminEmail } from "@/lib/admin/super-admins";
 import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
 
 // Componente para el icono de X/Twitter
@@ -43,18 +44,8 @@ export function Sidebar() {
 
   const { profile, user, organization } = useAuth();
 
-  // Lista de correos autorizados para acceso de admin
-  const adminEmails = [
-    "kdelahoz@lasillavacia.com",
-    "imontes@lasillavacia.com",
-    "jromero@lasillavacia.com"
-  ];
-
   // Verificar si el usuario es admin
-  const isAdmin = () => {
-    const userEmail = user?.email || profile?.email;
-    return userEmail && adminEmails.includes(userEmail);
-  };
+  const isAdmin = () => isSuperAdminEmail(user?.email || profile?.email);
 
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded);

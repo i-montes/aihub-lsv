@@ -17,6 +17,12 @@ import { AlertCircle, Check, Copy, KeyRound, Loader2, ShieldAlert } from "lucide
 interface OrgTokenModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * Organización para la que se emite el token. Sin ella el diálogo pide un
+   * token para la organización del usuario autenticado; con ella usa el
+   * endpoint del panel de administración, que exige ser administrador.
+   */
+  organization?: { id: string; name: string }
 }
 
 interface GeneratedToken {
@@ -38,7 +44,7 @@ function formatRemaining(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-export function OrgTokenModal({ open, onOpenChange }: OrgTokenModalProps) {
+export function OrgTokenModal({ open, onOpenChange, organization }: OrgTokenModalProps) {
   const [ttlSeconds, setTtlSeconds] = useState("300")
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,12 +91,18 @@ export function OrgTokenModal({ open, onOpenChange }: OrgTokenModalProps) {
     setCopiedField(null)
 
     try {
-      const response = await fetch("/api/internal/llm-keys/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ttlSeconds: Number(ttlSeconds) }),
-      })
+      const response = await fetch(
+        organization ? "/api/admin/organization/token" : "/api/internal/llm-keys/token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            ttlSeconds: Number(ttlSeconds),
+            ...(organization ? { organizationId: organization.id } : {}),
+          }),
+        },
+      )
 
       const data = await response.json()
 
@@ -128,8 +140,15 @@ export function OrgTokenModal({ open, onOpenChange }: OrgTokenModalProps) {
             Token de acceso a la API
           </DialogTitle>
           <DialogDescription>
-            Genera un token temporal para que un servicio externo consulte las claves de IA de tu organización a través
-            de <code className="text-xs">POST /api/internal/llm-keys</code>.
+            Genera un token temporal para que un servicio externo consulte las claves de IA{" "}
+            {organization ? (
+              <>
+                de <strong>{organization.name}</strong>
+              </>
+            ) : (
+              "de tu organización"
+            )}{" "}
+            a través de <code className="text-xs">POST /api/internal/llm-keys</code>.
           </DialogDescription>
         </DialogHeader>
 
@@ -157,7 +176,10 @@ export function OrgTokenModal({ open, onOpenChange }: OrgTokenModalProps) {
             <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex gap-2 text-sm">
               <ShieldAlert size={16} className="mt-0.5 shrink-0" />
               <p>
-                Quien tenga este token puede leer <strong>todas las claves de IA de tu organización en texto plano</strong>
+                Quien tenga este token puede leer{" "}
+                <strong>
+                  todas las claves de IA de {organization ? organization.name : "tu organización"} en texto plano
+                </strong>
                 . Trátalo como una contraseña: no lo compartas por canales abiertos ni lo publiques en una URL.
               </p>
             </div>
