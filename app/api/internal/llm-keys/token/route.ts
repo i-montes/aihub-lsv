@@ -7,7 +7,7 @@ import { createOrgToken } from "@/lib/services/org-token"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const MAX_TTL_SECONDS = 60 * 60 // 1 hora
+const MAX_TTL_SECONDS = 365 * 24 * 60 * 60 // 1 año
 const DEFAULT_TTL_SECONDS = 5 * 60
 
 /**

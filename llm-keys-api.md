@@ -70,7 +70,7 @@ echo '<payload>' | base64 -d
 ### Vigencia
 
 - Por defecto: **5 minutos**.
-- Máximo permitido al emitir: **1 hora**.
+- Máximo permitido al emitir: **1 año**.
 - Mínimo: 60 segundos.
 
 Los tokens son de un solo uso lógico pero no se invalidan al usarse: sirven hasta
@@ -126,7 +126,7 @@ para que nadie pueda pedir un token de una organización ajena.
 
 | Campo | Tipo | Por defecto | Descripción |
 |---|---|---|---|
-| `ttlSeconds` | number | `300` | Vigencia del token. Se limita al rango 60–3600 |
+| `ttlSeconds` | number | `300` | Vigencia del token. Se limita al rango 60–31536000 (1 minuto a 1 año) |
 
 ### Respuesta `200`
 

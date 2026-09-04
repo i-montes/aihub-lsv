@@ -31,14 +31,23 @@ interface GeneratedToken {
   expiresAt: string
 }
 
+const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
+
 const TTL_OPTIONS = [
   { value: "300", label: "5 minutos" },
   { value: "900", label: "15 minutos" },
   { value: "1800", label: "30 minutos" },
   { value: "3600", label: "1 hora" },
+  { value: String(ONE_YEAR_SECONDS), label: "1 año" },
 ]
 
 function formatRemaining(seconds: number): string {
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+
+  if (days > 0) return `${days} día${days === 1 ? "" : "s"}`
+  if (hours > 0) return `${hours} hora${hours === 1 ? "" : "s"}`
+
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, "0")}`
@@ -172,6 +181,17 @@ export function OrgTokenModal({ open, onOpenChange, organization }: OrgTokenModa
                 Cuanto más corta, mejor. Genera uno nuevo cada vez que lo necesites en lugar de guardarlo.
               </p>
             </div>
+
+            {Number(ttlSeconds) >= ONE_YEAR_SECONDS && (
+              <div className="bg-red-50 text-red-700 p-3 rounded-lg flex gap-2 text-sm">
+                <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+                <p>
+                  Un token de un año no se puede revocar por separado: la única forma de anularlo es rotar el secreto del
+                  servidor, y eso invalida los tokens de todas las organizaciones. Úsalo solo para un servicio
+                  permanente y guárdalo como variable de entorno.
+                </p>
+              </div>
+            )}
 
             <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex gap-2 text-sm">
               <ShieldAlert size={16} className="mt-0.5 shrink-0" />
