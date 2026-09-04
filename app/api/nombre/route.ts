@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const negado = await verificarAccesoQuienEsQuien();
+  const { negado } = await verificarAccesoQuienEsQuien();
   if (negado) return jsonError(negado.mensaje, negado.status);
 
   const body = await request.json().catch(() => null);

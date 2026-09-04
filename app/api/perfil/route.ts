@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
+import { createOrgToken } from "@/lib/services/org-token";
 import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 
 /**
@@ -12,6 +13,13 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 const PERFIL_API_URL = "https://quienai.vercel.app/api/perfil";
+
+/**
+ * Vigencia del token que identifica a la organización ante el upstream. Diez
+ * minutos cubren de sobra un perfil (80-160 s, con tope de 300) y se firma uno
+ * nuevo en cada petición, así que nunca hay que renovarlo ni guardarlo.
+ */
+const LSV_TOKEN_TTL_SECONDS = 10 * 60;
 
 /**
  * Empaqueta un error como evento SSE.
@@ -63,8 +71,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const negado = await verificarAccesoQuienEsQuien();
+  const { negado, organizationId } = await verificarAccesoQuienEsQuien();
   if (negado) return sseError(negado.mensaje, negado.status);
+
+  /**
+   * `LSV-TOKEN` le dice al upstream de qué organización viene la petición, y le
+   * sirve para pedir sus claves de IA a `POST /api/internal/llm-keys`. Se firma
+   * aquí en cada llamada: el navegador nunca lo ve y expira en diez minutos.
+   */
+  let lsvToken: string;
+
+  try {
+    lsvToken = createOrgToken(organizationId, LSV_TOKEN_TTL_SECONDS);
+  } catch (error) {
+    console.error("No se pudo firmar el token de organización:", error);
+    return sseError(
+      "Falta configurar el acceso al generador de perfiles. Avisa al equipo técnico.",
+      500
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const nombre = typeof body?.nombre === "string" ? body.nombre.trim() : "";
@@ -97,6 +122,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        "LSV-TOKEN": lsvToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ nombre, descripcion, confirmado }),
