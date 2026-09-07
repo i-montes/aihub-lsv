@@ -1,5 +1,5 @@
 /**
- * Precios por token de los modelos que usa el Detector de mentiras.
+ * Precios por token de los modelos que usan las herramientas del kit.
  *
  * Ningún proveedor devuelve el costo en dólares en la respuesta del API —
  * verificado contra su documentación oficial: OpenAI, Anthropic y Google sólo
@@ -68,10 +68,10 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
 /**
  * Tabla de precios por (proveedor, modelo).
  *
- * La clave es el string exacto que guarda `proveedor_1`/`modelo_1` en
- * analytics_detector (== lo que configura la organización en `api_key_table`).
- * Un modelo que no esté aquí no rompe nada: `calcularCosto` devuelve `null` y
- * la fila queda con `costo_1` en NULL, visible para agregarlo.
+ * La clave es el string exacto que guarda la columna de modelo de cada tabla
+ * de analytics (== lo que configura la organización en `api_key_table`). Un
+ * modelo que no esté aquí no rompe nada: `calcularCosto` devuelve `null` y la
+ * fila queda con el costo en NULL, visible para agregarlo.
  */
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {

@@ -565,7 +565,7 @@ async function medirAnalisis(
     // los alias `reasoningTokens`/`cachedInputTokens` de nivel superior: están
     // deprecados y, sobre todo, no tienen equivalente para cacheWriteTokens —
     // sin ese campo el costo de cualquier llamada que escriba caché en
-    // Anthropic saldría subestimado (ver lib/detector/costos.ts).
+    // Anthropic saldría subestimado (ver lib/costos.ts).
     uso: uso
       ? {
           inputTokens: uso.inputTokens ?? null,
@@ -770,6 +770,16 @@ export async function POST(request: NextRequest) {
       ? calcularCosto(salida2.proveedor, salida2.modelo, salida2.uso)
       : null;
 
+    // Nunca se guarda un costo parcial disfrazado de total: si falta la tarifa
+    // de cualquiera de los modelos que corrieron, `costo_total` queda NULL en
+    // vez de reportar sólo una parte del gasto como si fuera el total. En modo
+    // comparación eso incluye al segundo modelo: antes, un modelo_2 sin tarifa
+    // registrada dejaba el costo del modelo_1 solo, guardado como el total.
+    const costoTotal =
+      costo1 === null || (salida2 != null && costo2 === null)
+        ? null
+        : costo1 + (costo2 ?? 0);
+
     const analytics = await guardarAnalytics({
       session_id: debugLogger.getSessionId() as any,
       user_id: usuario?.id ?? null,
@@ -784,10 +794,7 @@ export async function POST(request: NextRequest) {
       total_tokens:
         (salida1.uso?.totalTokens ?? 0) + (salida2?.uso?.totalTokens ?? 0) ||
         null,
-      // Nunca se suma un costo parcial: si costo1 es NULL (modelo sin tarifa
-      // registrada), costo_total queda NULL en vez de mostrar sólo la mitad.
-      costo_total:
-        costo1 !== null ? costo1 + (costo2 ?? 0) : null,
+      costo_total: costoTotal,
       tiempo_total: Date.now() - inicioRequest,
 
       input_completo: resumirEntrada(validatedData),
