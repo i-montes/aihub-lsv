@@ -22,6 +22,10 @@ export type AnalyticsCorrectorDeTextos = {
   total_tokens?: number | null;
   reasoning_tokens?: number | null;
   cached_input_tokens?: number | null;
+  /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+  cache_write_tokens?: number | null;
+  /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
+  costo?: number | null;
   created_at?: Date | null;
   updated_at?: Date | null;
 };
@@ -48,6 +52,10 @@ export type AnalyticsGeneradorHilos = {
   total_tokens?: number | null;
   reasoning_tokens?: number | null;
   cached_input_tokens?: number | null;
+  /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+  cache_write_tokens?: number | null;
+  /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
+  costo?: number | null;
   tiempo_generacion?: number | null;
   reintentos_necesarios?: number | null;
   tweets_exceden_limite?: number | null;
@@ -78,6 +86,10 @@ export type AnalyticsGeneradorResumen = {
   total_tokens?: number | null;
   reasoning_tokens?: number | null;
   cached_input_tokens?: number | null;
+  /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+  cache_write_tokens?: number | null;
+  /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
+  costo?: number | null;
   tiempo_procesamiento?: number | null;
   tiempo_respuesta_api?: number | null;
   created_at?: Date | null;
@@ -125,12 +137,20 @@ export type AnalyticsDetector = {
   total_tokens_1?: number | null;
   reasoning_tokens_1?: number | null;
   cached_input_tokens_1?: number | null;
+  /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+  cache_write_tokens_1?: number | null;
   input_tokens_2?: number | null;
   output_tokens_2?: number | null;
   total_tokens_2?: number | null;
   reasoning_tokens_2?: number | null;
   cached_input_tokens_2?: number | null;
+  cache_write_tokens_2?: number | null;
   total_tokens?: number | null;
+
+  /** USD calculados con lib/costos.ts; NULL si el modelo no está ahí */
+  costo_1?: number | null;
+  costo_2?: number | null;
+  costo_total?: number | null;
 
   /** Formulario completo, sin los data URL de los adjuntos */
   input_completo?: Record<string, any> | null;
@@ -159,12 +179,71 @@ export type AnalyticsDetector = {
   updated_at?: Date | null;
 };
 
+/**
+ * Analytics de Quién es quién.
+ *
+ * Distinta de las otras cuatro: esta herramienta no llama modelos directo, es
+ * un proxy a un servicio externo (quienai.vercel.app) que factura por
+ * llamada. Por eso no hay tokens que multiplicar por precio — el costo se
+ * CAPTURA en vez de calcularse, y de dos formas distintas según el endpoint
+ * (ver `costo_estimado`).
+ */
+export type AnalyticsQuienEsQuien = {
+  id?: number | string;
+  session_id?: string;
+  user_id?: string | null;
+  organization_id?: string | null;
+
+  /** "nombre" (POST /api/nombre) o "perfil" (POST /api/perfil) */
+  tipo?: "nombre" | "perfil" | null;
+  nombre_consultado?: string | null;
+  /** nombre: confirmar|elegir|sin_resultados. perfil: completado|fallido. */
+  estado?: string | null;
+
+  // Sólo se llenan para "perfil", tal como vienen en PerfilResultado/PerfilMetricas.
+  modelo?: string | null;
+  effort?: string | null;
+  segundos?: number | null;
+  pasos?: number | null;
+  busquedas?: number | null;
+  consultas_leyes?: number | null;
+  leyes_encontradas?: number | null;
+  caracteres?: number | null;
+  stop_reason?: string | null;
+  citas_totales?: number | null;
+  citas_links_unicos?: number | null;
+
+  costo_usd?: number | null;
+  /**
+   * true en "nombre" (estimado fijo: el upstream no reporta costo ahí);
+   * false en "perfil" (viene tal cual del upstream, es el costo real).
+   */
+  costo_estimado?: boolean | null;
+
+  error_mensaje?: string | null;
+
+  created_at?: Date | null;
+  updated_at?: Date | null;
+};
+
 // Clase madre Analytics
 abstract class Analytics<T extends { id?: any } = any> {
   protected supabasePromise = getSupabaseRouteHandler();
   public readonly type: string;
   public readonly table_name: string;
   public schema: T;
+  /**
+   * true si el último `save()` de verdad llegó a la base de datos.
+   *
+   * `save()` nunca lanza — un fallo de analytics no debe tumbar la
+   * generación real (el análisis, el hilo, el resumen...) que sí le importa
+   * al periodista. Pero eso mismo hizo que tres fallas de permisos seguidas
+   * pasaran inadvertidas semanas: el análisis se veía normal, el documento de
+   * Drive se creaba igual, y la fila simplemente nunca existió. Esta bandera
+   * es lo mínimo para que cada punto de guardado pueda avisar en los logs sin
+   * cambiar en nada el flujo de respuesta al usuario.
+   */
+  public guardadoOk: boolean = true;
   private _existingId?: string | number;
   private _schemaOverrides?: T;
   private _needsLoad: boolean = false;
@@ -241,15 +320,32 @@ abstract class Analytics<T extends { id?: any } = any> {
         .single();
       if (error) {
         console.error(`Error upserting ${this.type}:`, error);
+        this.guardadoOk = false;
         return null;
       }
 
       // Actualizar el schema local con los datos guardados
       Object.assign(this.schema, result);
+      this.guardadoOk = true;
       return result;
     } catch (error) {
       console.error(`Error in save method for ${this.type}:`, error);
+      this.guardadoOk = false;
       return null;
+    }
+  }
+
+  /**
+   * Deja un log fácil de encontrar cuando `save()` falló — el `console.error`
+   * de `save()` ya dice por qué, esto es sólo para que el hecho de que la fila
+   * nunca se guardó no pase inadvertido entre el resto del ruido de logs.
+   * Se llama después de `save()`, nunca cambia el flujo de la respuesta.
+   */
+  public avisarSiNoGuardo(contexto: string): void {
+    if (!this.guardadoOk) {
+      console.error(
+        `[analytics] ${this.table_name} NO se guardó (${contexto}, id=${this.schema.id}). Ver "Error upserting ${this.type}" arriba para el motivo.`
+      );
     }
   }
 
@@ -467,4 +563,10 @@ class AnalyticsDetectorService extends Analytics<AnalyticsDetector> {
 }
 
 // Exportar las clases por si se necesitan crear instancias personalizadas
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService };
+class AnalyticsQuienEsQuienService extends Analytics<AnalyticsQuienEsQuien> {
+  constructor(schema: AnalyticsQuienEsQuien = {} as AnalyticsQuienEsQuien, existingId?: string | number) {
+    super('quien_es_quien', schema, existingId);
+  }
+}
+
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService };

@@ -16,6 +16,7 @@ import {
   resumirEntrada,
   type SalidaModelo,
 } from "@/lib/detector/documento";
+import { calcularCosto } from "@/lib/costos";
 import type { FormSchema } from "@/app/dashboard/detector-de-mentiras/constants";
 import {
   formSchema,
@@ -553,12 +554,28 @@ async function medirAnalisis(
     validatedData
   );
 
+  const uso = resultado.usage;
+
   return {
     proveedor: modelConfig.provider,
     modelo: modelConfig.model,
     texto: resultado.text,
     tiempoMs: Date.now() - inicio,
-    uso: resultado.usage ?? null,
+    // Se leen los campos canónicos (inputTokenDetails/outputTokenDetails), no
+    // los alias `reasoningTokens`/`cachedInputTokens` de nivel superior: están
+    // deprecados y, sobre todo, no tienen equivalente para cacheWriteTokens —
+    // sin ese campo el costo de cualquier llamada que escriba caché en
+    // Anthropic saldría subestimado (ver lib/detector/costos.ts).
+    uso: uso
+      ? {
+          inputTokens: uso.inputTokens ?? null,
+          outputTokens: uso.outputTokens ?? null,
+          totalTokens: uso.totalTokens ?? null,
+          reasoningTokens: uso.outputTokenDetails?.reasoningTokens ?? null,
+          cachedInputTokens: uso.inputTokenDetails?.cacheReadTokens ?? null,
+          cacheWriteTokens: uso.inputTokenDetails?.cacheWriteTokens ?? null,
+        }
+      : null,
   };
 }
 
@@ -582,6 +599,8 @@ function metricasDeSalida(
     [`total_tokens_${sufijo}`]: uso.totalTokens ?? null,
     [`reasoning_tokens_${sufijo}`]: uso.reasoningTokens ?? null,
     [`cached_input_tokens_${sufijo}`]: uso.cachedInputTokens ?? null,
+    [`cache_write_tokens_${sufijo}`]: uso.cacheWriteTokens ?? null,
+    [`costo_${sufijo}`]: calcularCosto(salida.proveedor, salida.modelo, uso),
   } as Partial<AnalyticsDetector>;
 }
 
@@ -595,10 +614,12 @@ function metricasDeSalida(
  * `after()`.
  */
 async function guardarAnalytics(
-  datos: Partial<AnalyticsDetector>
+  datos: Partial<AnalyticsDetector>,
+  contexto: string
 ): Promise<AnalyticsDetectorService> {
   const analytics = new AnalyticsDetectorService(datos as AnalyticsDetector);
   await analytics.save();
+  analytics.avisarSiNoGuardo(contexto);
   return analytics;
 }
 
@@ -744,6 +765,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Registrar el análisis y programar el documento de revisión
+    const costo1 = calcularCosto(salida1.proveedor, salida1.modelo, salida1.uso);
+    const costo2 = salida2
+      ? calcularCosto(salida2.proveedor, salida2.modelo, salida2.uso)
+      : null;
+
     const analytics = await guardarAnalytics({
       session_id: debugLogger.getSessionId() as any,
       user_id: usuario?.id ?? null,
@@ -758,6 +784,10 @@ export async function POST(request: NextRequest) {
       total_tokens:
         (salida1.uso?.totalTokens ?? 0) + (salida2?.uso?.totalTokens ?? 0) ||
         null,
+      // Nunca se suma un costo parcial: si costo1 es NULL (modelo sin tarifa
+      // registrada), costo_total queda NULL en vez de mostrar sólo la mitad.
+      costo_total:
+        costo1 !== null ? costo1 + (costo2 ?? 0) : null,
       tiempo_total: Date.now() - inicioRequest,
 
       input_completo: resumirEntrada(validatedData),
@@ -767,7 +797,7 @@ export async function POST(request: NextRequest) {
 
       estado: "completado",
       created_at: new Date(),
-    });
+    }, "análisis completado");
 
     programarDocumento(analytics, {
       datos: validatedData,
@@ -824,7 +854,7 @@ export async function POST(request: NextRequest) {
           error_mensaje:
             error instanceof Error ? error.message : "Error desconocido",
           created_at: new Date(),
-        });
+        }, "análisis fallido");
       } catch (errorAnalytics) {
         console.error("No se pudo registrar el fallo en analytics:", errorAnalytics);
       }

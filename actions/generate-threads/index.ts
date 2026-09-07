@@ -11,6 +11,7 @@ import { ExamplesInvestigacion } from "./examples/investigacion";
 import { ExamplesLista } from "./examples/lista";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsGeneradorHilosService} from "@/lib/analytics";
+import { calcularCosto } from "@/lib/costos";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -334,14 +335,24 @@ INSTRUCCIONES ADICIONALES:
       input_tokens: result?.usage?.inputTokens || null,
       output_tokens: result?.usage?.outputTokens || null,
       total_tokens: result?.usage?.totalTokens || null,
-      reasoning_tokens: null, // No disponible en este contexto
-      cached_input_tokens: null, // No disponible en este contexto
+      // Sí están disponibles: son un desglose del mismo `result.usage`, sólo
+      // que en inputTokenDetails/outputTokenDetails en vez del nivel superior.
+      reasoning_tokens: result?.usage?.outputTokenDetails?.reasoningTokens ?? null,
+      cached_input_tokens: result?.usage?.inputTokenDetails?.cacheReadTokens ?? null,
+      cache_write_tokens: result?.usage?.inputTokenDetails?.cacheWriteTokens ?? null,
+      costo: calcularCosto(selectedModel.provider, selectedModel.model, {
+        inputTokens: result?.usage?.inputTokens,
+        outputTokens: result?.usage?.outputTokens,
+        cachedInputTokens: result?.usage?.inputTokenDetails?.cacheReadTokens,
+        cacheWriteTokens: result?.usage?.inputTokenDetails?.cacheWriteTokens,
+      }),
       tiempo_generacion: debugLogger.getDuration(), // Se podría calcular si se guarda el tiempo de inicio
       reintentos_necesarios: null, // No se puede obtener aquí
       tweets_exceden_limite: mergedThreads.filter(tweet => tweet.length > 280).length || 0,
     }
     const analitics= new AnalyticsGeneradorHilosService(metricas);
     await analitics.save();
+    analitics.avisarSiNoGuardo("hilos completado");
     return {
       success: true,
       threads: mergedThreads || [],

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsCorrectorDeTextosService } from "@/lib/analytics";
+import { calcularCosto } from "@/lib/costos";
 
 // Schema para la respuesta del modelo
 // Artículos largos truncaban el JSON a la mitad y el usuario recibía
@@ -520,11 +521,23 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         modelo_utilizado: selectedModel.model,
         uso_copiar_texto: false,
         total_tokens: result.usage?.totalTokens,
-        input_tokens: (result?.usage as any)?.inputTokens,
-        output_tokens: (result?.usage as any)?.outputTokens,
+        input_tokens: result.usage?.inputTokens,
+        output_tokens: result.usage?.outputTokens,
+        // Campos canónicos, no los alias `reasoningTokens`/`cachedInputTokens`
+        // de nivel superior (deprecados y sin equivalente para cacheWriteTokens).
+        reasoning_tokens: result.usage?.outputTokenDetails?.reasoningTokens,
+        cached_input_tokens: result.usage?.inputTokenDetails?.cacheReadTokens,
+        cache_write_tokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
+        costo: calcularCosto(selectedModel.provider, selectedModel.model, {
+          inputTokens: result.usage?.inputTokens,
+          outputTokens: result.usage?.outputTokens,
+          cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
+        }),
       };
       const analitics = new AnalyticsCorrectorDeTextosService(metrics);
       await analitics.save();
+      analitics.avisarSiNoGuardo("corrector completado");
       const analitics_id = analitics.schema.id;
       await debugLogger.finalize("completed", {
         model: {

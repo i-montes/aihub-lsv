@@ -27,6 +27,8 @@ export interface SalidaModelo {
     totalTokens?: number | null;
     reasoningTokens?: number | null;
     cachedInputTokens?: number | null;
+    /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+    cacheWriteTokens?: number | null;
   } | null;
 }
 

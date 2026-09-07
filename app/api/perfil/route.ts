@@ -1,8 +1,11 @@
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
 
 import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
 import { createOrgToken } from "@/lib/services/org-token";
 import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
+import type { PerfilResultado } from "@/app/dashboard/quien-es-quien/constants";
+import { leerEventosSse } from "@/app/dashboard/quien-es-quien/utils";
+import { AnalyticsQuienEsQuienService } from "@/lib/analytics";
 
 /**
  * El agente de perfiles tarda entre 80 y 160 segundos y tiene un tope duro de
@@ -53,13 +56,73 @@ async function readUpstreamError(response: Response): Promise<string | null> {
 }
 
 /**
+ * Recorre la copia del stream que no ve el cliente, esperando el evento `fin`
+ * (con el costo real que cobró el upstream) o `error`, y guarda la fila de
+ * analytics. Corre en `after()`: nunca debe interferir con lo que ya se le
+ * está transmitiendo al periodista.
+ *
+ * `stream.tee()` es lo que permite leer dos veces el mismo cuerpo — una copia
+ * se manda tal cual en la `Response` de esta ruta, la otra se consume aquí.
+ */
+function registrarAnalyticsDesdeStream(
+  stream: ReadableStream<Uint8Array>,
+  contexto: { userId: string; organizationId: string; nombre: string }
+) {
+  after(async () => {
+    try {
+      let resultado: PerfilResultado | null = null;
+      let mensajeError: string | null = null;
+
+      for await (const evento of leerEventosSse(stream)) {
+        if (evento.evento === "fin") {
+          resultado = evento.datos as PerfilResultado;
+        } else if (evento.evento === "error") {
+          const datos = evento.datos as { error?: string };
+          mensajeError = datos?.error ?? "Error desconocido del generador de perfiles";
+        }
+      }
+
+      const metricas = resultado?.metricas;
+      const analytics = new AnalyticsQuienEsQuienService({
+        user_id: contexto.userId,
+        organization_id: contexto.organizationId,
+        tipo: "perfil",
+        nombre_consultado: contexto.nombre,
+        estado: resultado ? "completado" : "fallido",
+        modelo: resultado?.modelo ?? null,
+        effort: resultado?.effort ?? null,
+        segundos: metricas?.segundos ?? null,
+        pasos: metricas?.pasos ?? null,
+        busquedas: metricas?.busquedas ?? null,
+        consultas_leyes: metricas?.consultas_leyes ?? null,
+        leyes_encontradas: metricas?.leyes_encontradas ?? null,
+        caracteres: metricas?.caracteres ?? null,
+        stop_reason: metricas?.stop_reason ?? null,
+        citas_totales: metricas?.citas?.totales ?? null,
+        citas_links_unicos: metricas?.citas?.links_unicos ?? null,
+        // Costo real: viene tal cual del upstream, no se calcula acá.
+        costo_usd: metricas?.costo_usd?.total ?? null,
+        costo_estimado: false,
+        error_mensaje: mensajeError,
+        created_at: new Date(),
+      });
+      await analytics.save();
+      analytics.avisarSiNoGuardo(`perfil (${resultado ? "completado" : "fallido"})`);
+    } catch (error) {
+      console.error("No se pudo registrar analytics de /api/perfil:", error);
+    }
+  });
+}
+
+/**
  * POST /api/perfil
  *
  * Proxy del API de perfiles "Quién es quién". Existe porque el token no puede
  * viajar al navegador: cada llamada cuesta ~$0.20 y quien lo viera en devtools
  * podría gastar la cuenta a voluntad.
  *
- * Reenvía el stream SSE del upstream tal cual.
+ * Reenvía el stream SSE del upstream tal cual, y de paso guarda una copia leída
+ * en paralelo para analytics (ver `registrarAnalyticsDesdeStream`).
  */
 export async function POST(request: NextRequest) {
   const token = process.env.PERFILBOT_TOKEN;
@@ -71,7 +134,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { negado, organizationId } = await verificarAccesoQuienEsQuien();
+  const { negado, organizationId, userId } = await verificarAccesoQuienEsQuien();
   if (negado) return sseError(negado.mensaje, negado.status);
 
   /**
@@ -148,7 +211,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return new Response(upstream.body, {
+  const [paraElCliente, paraAnalytics] = upstream.body.tee();
+
+  registrarAnalyticsDesdeStream(paraAnalytics, { userId, organizationId, nombre });
+
+  return new Response(paraElCliente, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",

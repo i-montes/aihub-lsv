@@ -9,6 +9,7 @@ import { DebugLogger } from "@/lib/logger";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { MINI_MODELS } from "@/lib/utils";
 import { AnalyticsGeneradorResumenService } from "@/lib/analytics";
+import { calcularCosto } from "@/lib/costos";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
 function normalizeText(text: string): string {
@@ -932,6 +933,19 @@ export async function POST(request: NextRequest) {
       input_tokens: result.usage?.inputTokens || null,
       output_tokens: result.usage?.outputTokens || null,
       total_tokens: result.usage?.totalTokens || null,
+      reasoning_tokens: result.usage?.outputTokenDetails?.reasoningTokens ?? null,
+      cached_input_tokens: result.usage?.inputTokenDetails?.cacheReadTokens ?? null,
+      cache_write_tokens: result.usage?.inputTokenDetails?.cacheWriteTokens ?? null,
+      costo: calcularCosto(
+        requestData.selectedModel.provider,
+        requestData.selectedModel.model,
+        {
+          inputTokens: result.usage?.inputTokens,
+          outputTokens: result.usage?.outputTokens,
+          cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
+        }
+      ),
       tiempo_procesamiento: debugLogger.getDuration(),
       tiempo_respuesta_api: null, // Se podría medir específicamente el tiempo de la API
       created_at: new Date(),
@@ -940,6 +954,7 @@ export async function POST(request: NextRequest) {
     
     const analytics = new AnalyticsGeneradorResumenService(metrics);
     await analytics.save();
+    analytics.avisarSiNoGuardo("resumen completado");
     const analytics_id = analytics.schema.id;
 
     await debugLogger.finalize("completed", {

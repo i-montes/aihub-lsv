@@ -8,13 +8,15 @@ export interface AccesoNegado {
 }
 
 /**
- * Resultado de la comprobación: o el motivo del rechazo, o la organización a
- * la que pertenece quien llama. `/api/perfil` necesita ese id para firmar el
- * token que identifica a la organización ante el upstream.
+ * Resultado de la comprobación: o el motivo del rechazo, o la identidad de
+ * quien llama. `/api/perfil` necesita `organizationId` para firmar el token
+ * que lo identifica ante el upstream; `userId` lo usan `/api/nombre` y
+ * `/api/perfil` para guardar analytics — la función ya consulta el usuario de
+ * todas formas, así que exponerlo no cuesta una segunda query.
  */
 export type ResultadoAcceso =
-  | { negado: AccesoNegado; organizationId?: undefined }
-  | { negado: null; organizationId: string }
+  | { negado: AccesoNegado; organizationId?: undefined; userId?: undefined }
+  | { negado: null; organizationId: string; userId: string }
 
 /**
  * Comprueba que quien llama sea usuario de una organización habilitada.
@@ -64,5 +66,5 @@ export async function verificarAccesoQuienEsQuien(): Promise<ResultadoAcceso> {
     };
   }
 
-  return { negado: null, organizationId: profile.organizationId };
+  return { negado: null, organizationId: profile.organizationId, userId: user.id };
 }
