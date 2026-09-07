@@ -87,6 +87,25 @@ export interface NombreResultado {
     notas?: number;
     proyectos_de_ley?: number;
   };
+  /**
+   * El costo real de esta llamada, verificado contra una respuesta real del
+   * upstream — no está en la UI, pero `/api/nombre` lo usa para analytics en
+   * vez del estimado fijo.
+   */
+  metricas?: {
+    segundos?: number;
+    modelo?: string;
+    tokens?: {
+      input_sin_cache?: number;
+      cache_lectura?: number;
+      cache_escritura?: number;
+      output_total?: number;
+      total?: number;
+    };
+    costo_usd?: {
+      total?: number;
+    };
+  };
 }
 
 /** Un paso nuevo del agente */
