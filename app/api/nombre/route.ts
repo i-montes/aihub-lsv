@@ -3,6 +3,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
 import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 import { AnalyticsQuienEsQuienService } from "@/lib/analytics";
+import { comoNumero } from "@/lib/quien-es-quien/numeros";
 
 /** El upstream tarda entre 3 y 10 segundos: con el default de Vercel sobra. */
 export const maxDuration = 30;
@@ -40,7 +41,9 @@ function registrarAnalytics(datos: {
   after(async () => {
     try {
       const hayError = !!datos.errorMensaje;
-      const costoReal = typeof datos.costoReal === "number" ? datos.costoReal : null;
+      // No basta `typeof === "number"`: eso deja pasar NaN/Infinity, que
+      // Postgres tampoco acepta en una columna numeric.
+      const costoReal = comoNumero(datos.costoReal);
 
       const analytics = new AnalyticsQuienEsQuienService({
         user_id: datos.userId,
