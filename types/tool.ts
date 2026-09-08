@@ -19,6 +19,10 @@ export interface Tool {
   models?: {
     provider: string
     model: string
+    /** Esfuerzo de razonamiento para este modelo (independiente de los demás) */
+    reasoningEffort?: string
+    /** Verbosidad para este modelo (solo OpenAI) */
+    verbosity?: string
   }[]
 }
 

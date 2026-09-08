@@ -47,7 +47,7 @@ export function EditToolDialog({
   const [toolTemperature, setToolTemperature] = useState<number | null>(0.7);
   const [toolTopP, setToolTopP] = useState<number>(1);
   const [toolModels, setToolModels] = useState<
-    { provider: string; model: string }[] | []
+    { provider: string; model: string; reasoningEffort?: string; verbosity?: string }[]
   >([]);
   const [toolReasoningEffort, setToolReasoningEffort] = useState<string>(
     DEFAULT_REASONING_EFFORT

@@ -22,6 +22,13 @@ import {
   VERBOSITY_LEVELS,
 } from "@/types/tool";
 
+interface ModelEntry {
+  provider: string;
+  model: string;
+  reasoningEffort?: string;
+  verbosity?: string;
+}
+
 interface ToolConfigProps {
   schema?: any;
   onSchemaChange?: (schema: any) => void;
@@ -29,10 +36,12 @@ interface ToolConfigProps {
   onTemperatureChange?: (temperature: number) => void;
   topP?: number;
   onTopPChange?: (topP: number) => void;
-  models?: { provider: string; model: string }[];
-  onModelsChange?: (models: { provider: string; model: string }[]) => void;
+  models?: ModelEntry[];
+  onModelsChange?: (models: ModelEntry[]) => void;
+  /** @deprecated El esfuerzo ahora se configura por modelo. Se mantiene como fallback. */
   reasoningEffort?: string;
   onReasoningEffortChange?: (reasoningEffort: string) => void;
+  /** @deprecated La verbosidad ahora se configura por modelo. Se mantiene como fallback. */
   verbosity?: string;
   onVerbosityChange?: (verbosity: string) => void;
 }
@@ -59,7 +68,7 @@ export function ToolConfig({
   );
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [selectedModels, setSelectedModels] = useState<ModelEntry[]>([]);
   const [showModelError, setShowModelError] = useState<boolean>(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<{
     isLoading: boolean;
@@ -177,42 +186,61 @@ export function ToolConfig({
     }
   };
 
-  // Initialize selected models from props
+  // Initialize selected models from props (preserva reasoningEffort/verbosity si ya los tiene)
   useEffect(() => {
     if (models && models.length > 0) {
-      const modelNames = models.map(m => m.model);
-      setSelectedModels(modelNames);
+      setSelectedModels(
+        models.map((m) => ({
+          provider: m.provider,
+          model: m.model,
+          reasoningEffort: m.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
+          verbosity: m.verbosity ?? DEFAULT_VERBOSITY,
+        }))
+      );
     }
   }, [models]);
 
-  const handleModelChange = (model: string, checked: boolean) => {
-    // Prevent unchecking the last selected model
-    if (!checked && selectedModels.length === 1 && selectedModels.includes(model)) {
+  const handleModelChange = (modelName: string, checked: boolean) => {
+    if (!checked && selectedModels.length === 1 && selectedModels.some((m) => m.model === modelName)) {
       setShowModelError(true);
-      // Hide error message after 3 seconds
       setTimeout(() => setShowModelError(false), 3000);
       return;
     }
 
-    let newSelectedModels: string[];
-    
+    let next: ModelEntry[];
     if (checked) {
-      newSelectedModels = [...selectedModels, model];
-      setShowModelError(false); // Clear any previous error
+      next = [
+        ...selectedModels,
+        {
+          model: modelName,
+          provider: modelProviderMap[modelName] || "",
+          reasoningEffort: DEFAULT_REASONING_EFFORT,
+          verbosity: DEFAULT_VERBOSITY,
+        },
+      ];
+      setShowModelError(false);
     } else {
-      newSelectedModels = selectedModels.filter(m => m !== model);
+      next = selectedModels.filter((m) => m.model !== modelName);
     }
-    
-    setSelectedModels(newSelectedModels);
-    
-    // Update parent component with proper format
-    if (onModelsChange) {
-      const modelsWithProvider = newSelectedModels.map(modelName => ({
-        model: modelName,
-        provider: modelProviderMap[modelName] || ""
-      }));
-      onModelsChange(modelsWithProvider);
-    }
+
+    setSelectedModels(next);
+    onModelsChange?.(next);
+  };
+
+  const handleModelEffortChange = (modelName: string, effort: string) => {
+    const next = selectedModels.map((m) =>
+      m.model === modelName ? { ...m, reasoningEffort: effort } : m
+    );
+    setSelectedModels(next);
+    onModelsChange?.(next);
+  };
+
+  const handleModelVerbosityChange = (modelName: string, verb: string) => {
+    const next = selectedModels.map((m) =>
+      m.model === modelName ? { ...m, verbosity: verb } : m
+    );
+    setSelectedModels(next);
+    onModelsChange?.(next);
   };
 
   // Cargar los modelos disponibles al montar el componente
@@ -220,10 +248,9 @@ export function ToolConfig({
     checkApiKeyExists();
   }, []);
 
-  // Anthropic no acepta el nivel "xhigh", así que se avisa si está en juego
-  const usesAnthropic = selectedModels.some(
-    (model) => modelProviderMap[model]?.toLowerCase() === "anthropic"
-  );
+  // Ayuda a mostrar la advertencia de xhigh en el modelo que corresponda
+  const providerOf = (modelName: string) =>
+    (modelProviderMap[modelName] || selectedModels.find((m) => m.model === modelName)?.provider || "").toLowerCase();
 
   return (
     <div className="space-y-6">
@@ -244,25 +271,89 @@ export function ToolConfig({
             </p>
           </div>
         )}
-        <div className={`space-y-2 max-h-40 overflow-y-auto ${selectedModels.length === 0 ? 'border border-red-300 rounded-md p-2' : ''}`}>
+        <div className={`space-y-3 max-h-96 overflow-y-auto ${selectedModels.length === 0 ? "border border-red-300 rounded-md p-2" : ""}`}>
           {availableModels.length > 0 ? (
-            availableModels.map((model) => (
-              <div key={model} className="flex items-center space-x-2">
-                <Checkbox
-                  id={model}
-                  checked={selectedModels.includes(model)}
-                  onCheckedChange={(checked) => 
-                    handleModelChange(model, checked as boolean)
-                  }
-                />
-                <label
-                  htmlFor={model}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {model} ({getProviderDisplayName(modelProviderMap[model])})
-                </label>
-              </div>
-            ))
+            availableModels.map((modelName) => {
+              const isSelected = selectedModels.some((m) => m.model === modelName);
+              const entry = selectedModels.find((m) => m.model === modelName);
+              const provider = providerOf(modelName);
+              const isAnthropic = provider === "anthropic";
+              const isOpenAI = provider === "openai";
+              const effortOptions = isAnthropic
+                ? REASONING_EFFORTS.filter((e) => e !== "xhigh")
+                : REASONING_EFFORTS;
+
+              return (
+                <div key={modelName} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={modelName}
+                      checked={isSelected}
+                      onCheckedChange={(checked) =>
+                        handleModelChange(modelName, checked as boolean)
+                      }
+                    />
+                    <label
+                      htmlFor={modelName}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {modelName} ({getProviderDisplayName(modelProviderMap[modelName])})
+                    </label>
+                  </div>
+
+                  {isSelected && entry && (isAnthropic || isOpenAI) && (
+                    <div className="ml-6 pl-3 border-l border-gray-200 space-y-2">
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">
+                          Esfuerzo de razonamiento
+                        </Label>
+                        <Select
+                          value={entry.reasoningEffort ?? DEFAULT_REASONING_EFFORT}
+                          onValueChange={(v) => handleModelEffortChange(modelName, v)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {effortOptions.map((level) => (
+                              <SelectItem key={level} value={level}>
+                                {level}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {isOpenAI && (
+                        <div>
+                          <Label className="text-xs text-gray-600 mb-1 block">
+                            Verbosidad
+                          </Label>
+                          <Select
+                            value={entry.verbosity ?? DEFAULT_VERBOSITY}
+                            onValueChange={(v) => handleModelVerbosityChange(modelName, v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {VERBOSITY_LEVELS.map((level) => (
+                                <SelectItem key={level} value={level}>
+                                  {level}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Longitud y detalle de la respuesta (solo OpenAI).
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
           ) : (
             <p className="text-sm text-gray-500">No hay modelos disponibles</p>
           )}
@@ -272,71 +363,6 @@ export function ToolConfig({
             Seleccione al menos un modelo para continuar
           </p>
         )}
-      </div>
-
-      <div>
-        <Label
-          htmlFor="reasoning-effort"
-          className="text-sm font-medium text-gray-700 mb-1 block"
-        >
-          Esfuerzo de razonamiento
-        </Label>
-        <Select
-          value={reasoningEffort}
-          onValueChange={(value) =>
-            onReasoningEffortChange && onReasoningEffortChange(value)
-          }
-        >
-          <SelectTrigger id="reasoning-effort">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {REASONING_EFFORTS.map((level) => (
-              <SelectItem key={level} value={level}>
-                {level}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-gray-500 mt-1">
-          Cuánto razona el modelo antes de responder.
-          {reasoningEffort === "xhigh" && usesAnthropic && (
-            <span className="text-amber-600">
-              {" "}
-              Anthropic no admite «xhigh»; con esos modelos se usará «high».
-            </span>
-          )}
-        </p>
-      </div>
-
-      <div>
-        <Label
-          htmlFor="verbosity"
-          className="text-sm font-medium text-gray-700 mb-1 block"
-        >
-          Verbosidad
-        </Label>
-        <Select
-          value={verbosity}
-          onValueChange={(value) =>
-            onVerbosityChange && onVerbosityChange(value)
-          }
-        >
-          <SelectTrigger id="verbosity">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VERBOSITY_LEVELS.map((level) => (
-              <SelectItem key={level} value={level}>
-                {level}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-gray-500 mt-1">
-          Longitud y detalle de la respuesta. Sólo la aplican los modelos de
-          OpenAI.
-        </p>
       </div>
 
       {/* <div>

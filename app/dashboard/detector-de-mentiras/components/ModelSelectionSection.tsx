@@ -76,40 +76,70 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
   };
 
   /**
-   * Carga los modelos disponibles desde las API keys activas
+   * Carga los modelos disponibles cruzando las API keys activas con los modelos
+   * que el admin habilitó en la configuración del prompt del detector.
+   *
+   * Si no hay configuración de herramienta para esta organización, se muestran
+   * todos los modelos de las API keys (comportamiento anterior).
    */
   const loadAvailableModels = async () => {
     try {
       setIsLoading(true);
       const supabase = getSupabaseClient();
 
-      const { data: apiKeys, error } = await supabase
-        .from("api_key_table")
-        .select("models, provider")
-        .eq("organizationId", profile?.organizationId)
-        .eq("status", "ACTIVE");
+      const [apiKeysResult, toolResult] = await Promise.all([
+        supabase
+          .from("api_key_table")
+          .select("models, provider")
+          .eq("organizationId", profile?.organizationId)
+          .eq("status", "ACTIVE"),
+        supabase
+          .from("tools")
+          .select("models")
+          .eq("organization_id", profile?.organizationId)
+          .eq("identity", "detector")
+          .maybeSingle(),
+      ]);
 
-      if (error) {
-        console.error("Error al cargar modelos:", error);
+      if (apiKeysResult.error) {
+        console.error("Error al cargar modelos:", apiKeysResult.error);
         toast.error("Error al cargar modelos disponibles");
         return;
       }
 
-      const models: ModelInfo[] = [];
-      apiKeys?.forEach((apiKey: any) => {
+      // Todos los modelos con API key activa
+      const allModels: ModelInfo[] = [];
+      apiKeysResult.data?.forEach((apiKey: any) => {
         if (apiKey.models && Array.isArray(apiKey.models)) {
           apiKey.models.forEach((model: string) => {
-            models.push({
+            allModels.push({
               provider: apiKey.provider.toLowerCase(),
-              model: model,
+              model,
             });
           });
         }
       });
 
+      // Modelos activos según la configuración del prompt del detector
+      const toolModels: { provider: string; model: string }[] | null =
+        Array.isArray(toolResult.data?.models) &&
+        toolResult.data.models.length > 0
+          ? (toolResult.data.models as { provider: string; model: string }[])
+          : null;
+
+      const models =
+        toolModels
+          ? allModels.filter((m) =>
+              toolModels.some(
+                (tm) =>
+                  tm.model === m.model &&
+                  tm.provider.toLowerCase() === m.provider.toLowerCase()
+              )
+            )
+          : allModels;
+
       setAvailableModels(models);
 
-      // Always set first model as selected by default
       if (models.length > 0) {
         setValue("selectedModel", models[0]);
       }

@@ -40,10 +40,12 @@ interface ToolConfig {
   temperature: number;
   top_p: number;
   schema?: any;
-  /** OpenAI `reasoningEffort` / Anthropic `effort` */
+  /** Fallback global cuando el modelo no tiene esfuerzo propio */
   reasoning_effort?: string;
-  /** OpenAI `textVerbosity` */
+  /** Fallback global de verbosidad cuando el modelo no tiene la suya */
   verbosity?: string;
+  /** Lista de modelos activos con su configuración individual */
+  models?: { provider: string; model: string; reasoningEffort?: string; verbosity?: string }[];
 }
 
 const DEFAULT_REASONING_EFFORT = "medium";
@@ -465,10 +467,19 @@ async function generateAnalysis(
   const temperature = toolConfig.temperature;
   const top_p = toolConfig.top_p;
 
-  // Los hiperparámetros se configuran por herramienta, no por generación
+  // Los hiperparámetros son independientes por modelo; el valor global actúa
+  // como fallback para modelos que no tienen configuración propia.
+  const modelEntry = toolConfig.models?.find(
+    (m) =>
+      m.model === modelConfig.model &&
+      m.provider.toLowerCase() === modelConfig.provider.toLowerCase()
+  );
   const reasoningEffort =
-    toolConfig.reasoning_effort || DEFAULT_REASONING_EFFORT;
-  const verbosity = toolConfig.verbosity || DEFAULT_VERBOSITY;
+    modelEntry?.reasoningEffort ||
+    toolConfig.reasoning_effort ||
+    DEFAULT_REASONING_EFFORT;
+  const verbosity =
+    modelEntry?.verbosity || toolConfig.verbosity || DEFAULT_VERBOSITY;
 
   const content = buildUserContent(userPrompt, validatedData);
   const messages: ModelMessage[] = [{ role: "user", content }];
