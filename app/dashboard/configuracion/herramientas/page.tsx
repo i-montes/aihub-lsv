@@ -193,16 +193,45 @@ export default function ToolsSettingsPage() {
       })
 
 
-      processedTools.sort((a, b) => {
-        // Sort by last used date, then by usage count
+      // Newsletter está deprecada: no aparece en Ajustes aunque siga en la DB.
+      const toolsFiltradas = processedTools.filter(
+        (t) => t.identity !== "newsletter"
+      )
+
+      // Quién es quién es una herramienta activa pero no vive en default_tools.
+      // Si la organización todavía no tiene una entrada propia, la mostramos con
+      // los valores predeterminados para que pueda configurar el prompt.
+      const tieneQuienEsQuien = toolsFiltradas.some(
+        (t) => t.identity === "quien-es-quien"
+      )
+      if (!tieneQuienEsQuien) {
+        toolsFiltradas.push({
+          id: "quien-es-quien-default",
+          title: "Quién es quién",
+          description: "Genera un perfil detallado de figuras públicas a partir de su nombre.",
+          tags: ["Investigación", "Perfiles"],
+          favorite: false,
+          usageCount: 0,
+          lastUsed: "Nunca",
+          isDefault: true,
+          identity: "quien-es-quien",
+          schema: {},
+          prompts: [{ title: "Principal", content: "" }],
+          temperature: 0.7,
+          topP: 1,
+          models: [],
+        })
+      }
+
+      toolsFiltradas.sort((a, b) => {
         const lastUsedA = a.lastUsed === "Nunca" ? new Date(0) : new Date(a.lastUsed)
         const lastUsedB = b.lastUsed === "Nunca" ? new Date(0) : new Date(b.lastUsed)
         if (lastUsedA < lastUsedB) return 1
         if (lastUsedA > lastUsedB) return -1
-        return b.usageCount - a.usageCount // Sort by usage count if last used
+        return b.usageCount - a.usageCount
       })
 
-      setTools(processedTools)
+      setTools(toolsFiltradas)
     } catch (err) {
       console.error("Error fetching tools:", err)
       setError(err instanceof Error ? err.message : "Error desconocido al cargar herramientas")

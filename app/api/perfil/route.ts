@@ -2,6 +2,7 @@ import { after, NextRequest } from "next/server";
 
 import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
 import { createOrgToken } from "@/lib/services/org-token";
+import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 import type { PerfilResultado } from "@/app/dashboard/quien-es-quien/constants";
 import { leerEventosSse } from "@/app/dashboard/quien-es-quien/utils";
@@ -178,6 +179,46 @@ export async function POST(request: NextRequest) {
     typeof body?.descripcion === "string" ? body.descripcion : undefined;
   const confirmado = body?.confirmado === true;
 
+  /**
+   * Prompt personalizado de la organización para Quién es quién.
+   *
+   * Se lee de la tabla `tools` donde `identity = 'quien-es-quien'`. Si la org
+   * no lo ha configurado todavía, no se envía nada: el upstream usa su
+   * instrucción base.
+   */
+  let promptOrg: string | undefined;
+  try {
+    const supabase = await getSupabaseRouteHandler();
+    const { data: toolRow } = await supabase
+      .from("tools")
+      .select("prompts")
+      .eq("organization_id", organizationId)
+      .eq("identity", "quien-es-quien")
+      .maybeSingle();
+
+    if (toolRow?.prompts) {
+      const prompts = toolRow.prompts;
+      // prompts puede ser un array [{ title, content }] o una cadena directa
+      if (Array.isArray(prompts) && prompts.length > 0) {
+        const first = prompts[0] as { content?: string } | string;
+        promptOrg =
+          typeof first === "string"
+            ? first
+            : typeof first?.content === "string"
+              ? first.content
+              : undefined;
+      } else if (typeof prompts === "string") {
+        promptOrg = prompts;
+      }
+      // Prompt vacío equivale a no configurado
+      if (promptOrg !== undefined && promptOrg.trim() === "") {
+        promptOrg = undefined;
+      }
+    }
+  } catch {
+    // Si falla la lectura del prompt no bloqueamos la generación
+  }
+
   let upstream: Response;
 
   try {
@@ -188,7 +229,7 @@ export async function POST(request: NextRequest) {
         "LSV-TOKEN": lsvToken,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ nombre, descripcion, confirmado }),
+      body: JSON.stringify({ nombre, descripcion, confirmado, prompt: promptOrg }),
       // El usuario cancela desde la UI: hay que cortar también el upstream.
       signal: request.signal,
     });
