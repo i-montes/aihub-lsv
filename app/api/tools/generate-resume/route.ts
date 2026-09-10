@@ -390,12 +390,17 @@ const selectImportantNews = async (
       responseLength: result.object.selected.length,
     });
 
-    return result.object.selected.map(
-      (link: { link: string; title: string; reason?: string }) => ({
-        link: link.link,
-        title: link.title,
-      })
-    );
+    return {
+      selected: result.object.selected.map(
+        (link: { link: string; title: string; reason?: string }) => ({
+          link: link.link,
+          title: link.title,
+        })
+      ),
+      // Llamada real al modelo mini, facturada aparte — sin esto el costo
+      // guardado quedaba por debajo del que de verdad cobra el proveedor.
+      usage: result.usage,
+    };
   } catch (error) {
     console.log("Error al seleccionar noticias importantes:", error);
     debugLogger.error("Error al seleccionar noticias importantes:", error);
@@ -541,6 +546,9 @@ export async function POST(request: NextRequest) {
     // 6. Verificar si hay suficientes noticias para procesamiento de relevancia
     const content = filteredContent;
     let selectedNews;
+    // Uso de cada llamada real a selectImportantNews (modelo mini), para
+    // sumar su costo al de la generación final — ver selectImportantNews.
+    const seleccionUsos: any[] = [];
 
     if (content.length <= 5) {
       // Si hay 5 o menos noticias, usar todas directamente sin procesamiento de relevancia
@@ -569,7 +577,7 @@ export async function POST(request: NextRequest) {
       debugLogger.info(`Procesando ${content.length} noticias con estrategia inteligente`);
       
       let importantNewsLinks: any[] = [];
-      
+
       if (content.length < 10) {
         // Estrategia 1: Pocas noticias - procesar todo junto
         debugLogger.info("Estrategia: Procesamiento único (menos de 10 noticias)");
@@ -595,7 +603,7 @@ export async function POST(request: NextRequest) {
           .join("\n\n ----------- \n\n");
 
         const selectedCount = Math.min(content.length, 5);
-        const selectedNews = await selectImportantNews(
+        const { selected: selectedNews, usage: usoSeleccion } = await selectImportantNews(
           allContent,
           selectionPrompt,
           debugLogger,
@@ -604,9 +612,8 @@ export async function POST(request: NextRequest) {
           1, // mínimo 1
           selectedCount // máximo basado en contenido disponible
         );
-        
+        seleccionUsos.push(usoSeleccion);
 
-        
         importantNewsLinks = selectedNews;
         
       } else {
@@ -658,7 +665,7 @@ export async function POST(request: NextRequest) {
           contentBatches.map(
             async (batchContent, index) => {
               debugLogger.info(`Procesando batch ${index + 1}/${contentBatches.length}`);
-              const batchResult = await selectImportantNews(
+              const { selected, usage } = await selectImportantNews(
                 batchContent,
                 selectionPrompt,
                 debugLogger,
@@ -667,11 +674,12 @@ export async function POST(request: NextRequest) {
                 1, // mínimo 1 por batch
                 newsPerBatch // máximo por batch
               );
-              return batchResult;
+              seleccionUsos.push(usage);
+              return selected;
             }
           )
         );
-        
+
         importantNewsLinks = importantNews.flat();
         
         // Lógica de respaldo: si no tenemos suficientes noticias, procesar más contenido
@@ -710,7 +718,7 @@ export async function POST(request: NextRequest) {
               const neededNews = 5 - importantNewsLinks.length;
               debugLogger.info(`Procesando contenido adicional para obtener ${neededNews} noticias más`);
               
-              const additionalNews = await selectImportantNews(
+              const { selected: additionalNews, usage: usoAdicional } = await selectImportantNews(
                 additionalContent,
                 selectionPrompt,
                 debugLogger,
@@ -719,9 +727,8 @@ export async function POST(request: NextRequest) {
                 1,
                 Math.max(neededNews, 3) // Seleccionar al menos las que necesitamos
               );
-              
+              seleccionUsos.push(usoAdicional);
 
-              
               importantNewsLinks = [...importantNewsLinks, ...additionalNews];
               debugLogger.info(`Total de noticias después del procesamiento adicional: ${importantNewsLinks.length}`);
             }
@@ -766,7 +773,7 @@ export async function POST(request: NextRequest) {
             const neededNews = 5 - importantNewsLinks.length;
             debugLogger.info(`Selección de emergencia: necesitamos ${neededNews} noticias más`);
             
-            const emergencyNews = await selectImportantNews(
+            const { selected: emergencyNews, usage: usoEmergencia } = await selectImportantNews(
               emergencyContent,
               selectionPrompt,
               debugLogger,
@@ -775,9 +782,8 @@ export async function POST(request: NextRequest) {
               1,
               neededNews + 2 // Seleccionar un poco más por seguridad
             );
-            
+            seleccionUsos.push(usoEmergencia);
 
-            
             importantNewsLinks = [...importantNewsLinks, ...emergencyNews];
             debugLogger.info(`Total final después de procesamiento de emergencia: ${importantNewsLinks.length}`);
           }
@@ -840,7 +846,7 @@ export async function POST(request: NextRequest) {
         
 
         
-        const finalSelected = await selectImportantNews(
+        const { selected: finalSelected, usage: usoFinal } = await selectImportantNews(
           finalSelectionContent,
           selectionPrompt,
           debugLogger,
@@ -849,8 +855,9 @@ export async function POST(request: NextRequest) {
           minRequired, // Garantizar mínimo 5 si hay suficientes
           5  // máximo 5
         );
-        
-        
+        seleccionUsos.push(usoFinal);
+
+
         // Validación crítica: verificar que se cumplió el mínimo requerido
         if (importantNewsLinks.length >= 5 && finalSelected.length < 5) {
           debugLogger.error(`Selección final insuficiente: ${finalSelected.length}/5 noticias`);
@@ -910,6 +917,45 @@ export async function POST(request: NextRequest) {
       debugLogger
     );
 
+    // Costo/tokens de las llamadas al modelo mini que seleccionaron noticias
+    // (selectImportantNews) — se suman a los de la generación final para que
+    // `costo` refleje el gasto real completo, no sólo el de la última llamada.
+    const miniModelo =
+      MINI_MODELS[
+        requestData.selectedModel.provider.toUpperCase() as keyof typeof MINI_MODELS
+      ];
+    const costosSeleccion = seleccionUsos.map((uso) =>
+      calcularCosto(requestData.selectedModel.provider, miniModelo, {
+        inputTokens: uso?.inputTokens,
+        outputTokens: uso?.outputTokens,
+        cachedInputTokens: uso?.inputTokenDetails?.cacheReadTokens,
+        cacheWriteTokens: uso?.inputTokenDetails?.cacheWriteTokens,
+      })
+    );
+    // Si algún tramo no tiene tarifa conocida, el total queda en NULL en vez
+    // de un número que subestima el gasto real — mismo criterio que ya se usa
+    // en el resto de calcularCosto.
+    const costoSeleccionNoticias = costosSeleccion.some((c) => c === null)
+      ? null
+      : costosSeleccion.reduce((total: number, c) => total + (c ?? 0), 0);
+    const inputTokensSeleccion = seleccionUsos.reduce((total, uso) => total + (uso?.inputTokens ?? 0), 0);
+    const outputTokensSeleccion = seleccionUsos.reduce((total, uso) => total + (uso?.outputTokens ?? 0), 0);
+
+    const costoGeneracionFinal = calcularCosto(
+      requestData.selectedModel.provider,
+      requestData.selectedModel.model,
+      {
+        inputTokens: result.usage?.inputTokens,
+        outputTokens: result.usage?.outputTokens,
+        cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
+        cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
+      }
+    );
+    const costoTotal =
+      costoGeneracionFinal === null || costoSeleccionNoticias === null
+        ? null
+        : costoGeneracionFinal + costoSeleccionNoticias;
+
     // Crear y guardar métricas de analytics
     const metrics = {
       session_id: debugLogger.getSessionId() as any,
@@ -930,22 +976,17 @@ export async function POST(request: NextRequest) {
       uso_copiar_resumen: false, // Por defecto false, se actualizaría desde el frontend
       feedback_like: null, // Se actualizaría posteriormente desde el frontend
       feedback_rank_like: null, // Se actualizaría posteriormente desde el frontend
-      input_tokens: result.usage?.inputTokens || null,
-      output_tokens: result.usage?.outputTokens || null,
-      total_tokens: result.usage?.totalTokens || null,
+      // Incluyen los tokens de las llamadas de selección de noticias (modelo
+      // mini) además de los de la generación final — para que input/output/
+      // total_tokens cuadren con `costo`, que también suma ambas partes.
+      input_tokens: (result.usage?.inputTokens ?? 0) + inputTokensSeleccion || null,
+      output_tokens: (result.usage?.outputTokens ?? 0) + outputTokensSeleccion || null,
+      total_tokens:
+        (result.usage?.totalTokens ?? 0) + inputTokensSeleccion + outputTokensSeleccion || null,
       reasoning_tokens: result.usage?.outputTokenDetails?.reasoningTokens ?? null,
       cached_input_tokens: result.usage?.inputTokenDetails?.cacheReadTokens ?? null,
       cache_write_tokens: result.usage?.inputTokenDetails?.cacheWriteTokens ?? null,
-      costo: calcularCosto(
-        requestData.selectedModel.provider,
-        requestData.selectedModel.model,
-        {
-          inputTokens: result.usage?.inputTokens,
-          outputTokens: result.usage?.outputTokens,
-          cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
-          cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
-        }
-      ),
+      costo: costoTotal,
       tiempo_procesamiento: debugLogger.getDuration(),
       tiempo_respuesta_api: null, // Se podría medir específicamente el tiempo de la API
       created_at: new Date(),

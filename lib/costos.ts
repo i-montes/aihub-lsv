@@ -75,14 +75,21 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
  */
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {
-    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts
-    "gpt-5.6-terra": tarifaFija({
-      input: usd(2.0),
-      cacheRead: usd(0.2),
-      // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
-      cacheWrite: null,
-      output: usd(12.0),
-    }),
+    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts.
+    // Tarifa escalonada: por encima de 272,000 tokens de input el prompt
+    // COMPLETO se cobra a 2x input / 1.5x output — a diferencia de Gemini
+    // (que dobla input y output por igual), acá el multiplicador es distinto
+    // para cada lado.
+    "gpt-5.6-terra": (inputTokensTotal) => {
+      const promptLargo = inputTokensTotal > 272_000;
+      return {
+        input: usd(promptLargo ? 4.0 : 2.0),
+        cacheRead: usd(promptLargo ? 0.4 : 0.2),
+        // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
+        cacheWrite: null,
+        output: usd(promptLargo ? 18.0 : 12.0),
+      };
+    },
     // gpt-4o-mini-2024-07-18: MINI_MODELS.OPENAI, usado en pasos baratos
     "gpt-4o-mini-2024-07-18": tarifaFija({
       input: usd(0.15),
