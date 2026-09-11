@@ -67,12 +67,21 @@ function validarSoloLectura(sql: string): string {
     );
   }
 
+  // Nombres que el propio modelo define con WITH nombre AS (...): también son
+  // "permitidos" para esta consulta puntual — son un alias a lo que ya haya
+  // en el SELECT interno, no una tabla nueva de verdad. Sin esto, cualquier
+  // SQL con su propia CTE (algo normal al comparar dos periodos) se rechazaba
+  // igual que si hubiera intentado leer otra tabla.
+  const nombresCte = [...sinPuntoYComaFinal.matchAll(/\b(\w+)\s+as\s*\(/gi)].map((m) =>
+    m[1].toLowerCase()
+  );
+
   const tablasReferenciadas = [
     ...sinPuntoYComaFinal.matchAll(/\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gi),
   ].map((m) => m[1].replace(/^public\./i, "").toLowerCase());
 
   const tablaNoPermitida = tablasReferenciadas.find(
-    (t) => !TABLAS_PERMITIDAS.includes(t)
+    (t) => !TABLAS_PERMITIDAS.includes(t) && !nombresCte.includes(t)
   );
   if (tablaNoPermitida) {
     throw new SqlNoPermitidoError(
@@ -81,6 +90,29 @@ function validarSoloLectura(sql: string): string {
   }
 
   return sinPuntoYComaFinal;
+}
+
+/**
+ * Las filas con `debug_mode = true` son pruebas internas del equipo, no
+ * preguntas reales de lectores — el prompt del agente ya le pide excluirlas,
+ * pero un prompt es una sugerencia, no una garantía. Esto lo fuerza a nivel
+ * de SQL: antepone una CTE que redefine `chats_new` como la versión ya
+ * filtrada, así que toda referencia a `chats_new` en el SQL del modelo
+ * (tenga o no su propio alias) queda sin filas de debug sin importar si el
+ * modelo se acordó de filtrarlas.
+ *
+ * Una CTE y no una vista en la base del chatbot a propósito: es la base de
+ * otro sistema, no de esta app, y esto lo resuelve por completo sin tocarla.
+ */
+function forzarFiltroDebug(sql: string): string {
+  const cte = "chats_new as (select * from public.chats_new where debug_mode is not true)";
+
+  // Si el modelo ya empieza con WITH, la propia se suma como una CTE más en
+  // vez de anteponer un segundo WITH (inválido en SQL).
+  if (/^with\s+/i.test(sql)) {
+    return sql.replace(/^with\s+/i, `with ${cte}, `);
+  }
+  return `with ${cte}\n${sql}`;
 }
 
 export interface ResultadoConsulta {
@@ -100,7 +132,7 @@ export interface ResultadoConsulta {
 export async function ejecutarSqlSoloLectura(
   sql: string
 ): Promise<ResultadoConsulta> {
-  const sqlValidado = validarSoloLectura(sql);
+  const sqlValidado = forzarFiltroDebug(validarSoloLectura(sql));
 
   const connectionString = process.env.CHATBOT_DATABASE_URL;
   if (!connectionString) {

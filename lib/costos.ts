@@ -108,6 +108,14 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       cacheWrite: usd(6.25),
       output: usd(25.0),
     }),
+    // claude-sonnet-5: usado por el agente de lib/preguntas-chatbot
+    "claude-sonnet-5": tarifaFija({
+      input: usd(2.0),
+      cacheRead: usd(0.2),
+      // Cache write (TTL de 5 min): 1.25x el input, mismo patrón que Opus 4.8.
+      cacheWrite: usd(2.5),
+      output: usd(10.0),
+    }),
     // claude-haiku-4-5-20251001: MINI_MODELS.ANTHROPIC
     "claude-haiku-4-5-20251001": tarifaFija({
       input: usd(1.0),

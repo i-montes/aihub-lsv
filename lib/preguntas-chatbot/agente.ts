@@ -1,15 +1,19 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ToolLoopAgent, stepCountIs } from "ai";
 
-import { DEFAULT_MODELS } from "@/lib/utils";
 import {
   crearHerramientaConsulta,
   herramientaReportarResultado,
   type RegistrarConsulta,
 } from "@/lib/preguntas-chatbot/tools";
 
-/** Modelo usado por este agente. Sin selector en la UI todavía —ver README del PR. */
-export const MODELO_PREGUNTAS_CHATBOT = DEFAULT_MODELS.ANTHROPIC;
+/**
+ * Modelo usado por este agente. A propósito NO es DEFAULT_MODELS.ANTHROPIC
+ * (Opus 4.8, el de las otras herramientas): para escribir SQL y resumir
+ * datos tabulares Sonnet 5 alcanza sobrado y sale más barato. Sin selector en
+ * la UI todavía —ver README del PR.
+ */
+export const MODELO_PREGUNTAS_CHATBOT = "claude-sonnet-5";
 export const PROVEEDOR_PREGUNTAS_CHATBOT = "anthropic";
 
 const INSTRUCCIONES = `Eres un analista de datos para La Silla Vacía. Respondes, en español y a partir
@@ -22,14 +26,14 @@ contra la tabla chats_new de PostgreSQL. Su esquema:
   pregunta     text            -- lo que escribió el lector
   respuesta    text            -- JSON como string: {"respuesta","fuentes","tipo_respuesta"}
   created_at   timestamptz     -- cuándo se hizo la pregunta
-  debug_mode   boolean         -- true en pruebas internas del equipo, no lectores reales
   history      jsonb           -- turnos previos de esa misma conversación
   origin       text            -- ej. "Web"
   user_name    text            -- id anónimo del lector (guest_<uuid>), no un nombre real
 
+Las pruebas internas del equipo (debug_mode = true) ya están excluidas de lo que ves en
+chats_new: no hace falta que las filtres, y no es posible incluirlas aunque te las pidan.
+
 Reglas para las consultas:
-- Por defecto excluye "debug_mode is true" (son pruebas del equipo, no lectores reales),
-  salvo que te pidan explícitamente incluirlas.
 - Los conteos y fechas los agrega Postgres (COUNT, date_trunc, GROUP BY): no traigas miles
   de filas crudas para contarlas tú. Cuando agrupes por día, usa
   "date_trunc('day', created_at at time zone 'America/Bogota')" — el medio es colombiano y
