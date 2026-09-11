@@ -8,6 +8,7 @@ import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownView } from "@/components/shared/markdown-view";
 import { ResultadoAgente } from "./components/ResultadoAgente";
 import { PasoConsulta } from "./components/PasoConsulta";
 import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
@@ -96,10 +97,16 @@ export default function PreguntasChatbotPage() {
             >
               {message.parts.map((part: any, i: number) => {
                 if (part.type === "text") {
-                  return (
+                  if (!part.text) return null;
+                  // El usuario escribe texto plano — MarkdownView está pensado
+                  // para las respuestas del agente (fondo claro, texto oscuro),
+                  // se vería mal sobre el globo azul.
+                  return message.role === "user" ? (
                     <p key={i} className="whitespace-pre-wrap text-sm">
                       {part.text}
                     </p>
+                  ) : (
+                    <MarkdownView key={i} content={part.text} />
                   );
                 }
 
@@ -119,7 +126,7 @@ export default function PreguntasChatbotPage() {
                   return (
                     <div key={i}>
                       {resultado.comentario && (
-                        <p className="text-sm">{resultado.comentario}</p>
+                        <MarkdownView content={resultado.comentario} />
                       )}
                       <ResultadoAgente resultado={resultado} />
                     </div>
