@@ -27,6 +27,7 @@ import {
   Edit,
   Search,
   UserSearch,
+  Bot,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -243,6 +244,40 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           )}
+
+          {/* Preguntas al chatbot */}
+          {profile?.role == "OWNER" &&
+            puedeVerHerramienta(organization?.name, "preguntas-chatbot") && (
+              <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                        <Bot className="h-6 w-6 text-primary-600" />
+                      </div>
+                      <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                        Nuevo
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Preguntas al chatbot</h3>
+                    <p className="text-gray-500 mb-4 flex-grow">
+                      Pregúntale a un agente qué le han preguntado los lectores al
+                      chatbot, por tema, por fecha o comparando varios a la vez.
+                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                      <Link href="/dashboard/preguntas-chatbot">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-1"
+                        >
+                          Usar <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </div>
       </section>
 
