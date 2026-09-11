@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 
+import { Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ResultadoAgente } from "./components/ResultadoAgente";
@@ -21,10 +23,10 @@ import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
  * trabajo futuro si hace falta.
  */
 export default function PreguntasChatbotPage() {
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, setMessages, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/preguntas-chatbot",
       body: () => ({ sessionId }),
@@ -39,14 +41,39 @@ export default function PreguntasChatbotPage() {
     }
   };
 
+  /**
+   * Un sessionId nuevo, no sólo vaciar `messages`: así el agente no arrastra
+   * contexto de la conversación anterior, y las filas de analytics del
+   * próximo turno quedan agrupadas aparte en session_id.
+   */
+  const limpiarHistorial = () => {
+    setMessages([]);
+    setSessionId(crypto.randomUUID());
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="border-b pb-4 mb-4">
-        <h1 className="text-2xl font-bold">Preguntas al chatbot</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot —
-          por tema, por fecha, o comparando varios a la vez.
-        </p>
+      <div className="border-b pb-4 mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Preguntas al chatbot</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot —
+            por tema, por fecha, o comparando varios a la vez.
+          </p>
+        </div>
+        {messages.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={limpiarHistorial}
+            disabled={status !== "ready"}
+            className="flex items-center gap-1 shrink-0"
+          >
+            <Trash2 className="h-4 w-4" />
+            Limpiar historial
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">

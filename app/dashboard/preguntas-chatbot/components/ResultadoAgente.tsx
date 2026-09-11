@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { GraficaResumen } from "./GraficaResumen";
+import { BotonCopiarTabla } from "./BotonCopiarTabla";
 import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
 
 export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePreguntas }) {
@@ -19,6 +20,12 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
       {resumen.length > 0 && (
         <>
           <GraficaResumen resumen={resumen} />
+          <div className="flex justify-end">
+            <BotonCopiarTabla
+              encabezados={["Fecha", "Tema", "Cantidad"]}
+              filas={resumen.map((f) => [f.fecha, f.tema, f.cantidad])}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -44,13 +51,21 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
 
       {detalle.length > 0 && (
         <div>
-          <button
-            type="button"
-            onClick={() => setMostrarDetalle((v) => !v)}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            {mostrarDetalle ? "Ocultar" : "Ver"} preguntas individuales ({detalle.length})
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setMostrarDetalle((v) => !v)}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {mostrarDetalle ? "Ocultar" : "Ver"} preguntas individuales ({detalle.length})
+            </button>
+            {mostrarDetalle && (
+              <BotonCopiarTabla
+                encabezados={["Fecha", "Pregunta"]}
+                filas={detalle.map((f) => [f.fecha, f.pregunta])}
+              />
+            )}
+          </div>
           {mostrarDetalle && (
             <div className="mt-2 max-h-64 overflow-y-auto overflow-x-auto">
               <table className="w-full text-sm">
