@@ -17,6 +17,7 @@ export type Herramienta =
   | "resumenes"
   | "detector-de-mentiras"
   | "quien-es-quien"
+  | "preguntas-chatbot"
   | "analiticas";
 
 /** Lo que ve una organización que no aparece en la tabla de abajo */
@@ -38,6 +39,7 @@ const HERRAMIENTAS_POR_ORGANIZACION: Record<string, Herramienta[]> = {
     ...HERRAMIENTAS_ABIERTAS,
     "detector-de-mentiras",
     "quien-es-quien",
+    "preguntas-chatbot",
   ],
   Orza: ["quien-es-quien"],
 };
@@ -65,6 +67,7 @@ export const RUTA_HERRAMIENTA: Record<Herramienta, string> = {
   resumenes: "/dashboard/generador-resumen",
   "detector-de-mentiras": "/dashboard/detector-de-mentiras",
   "quien-es-quien": "/dashboard/quien-es-quien",
+  "preguntas-chatbot": "/dashboard/preguntas-chatbot",
   analiticas: "/dashboard/analiticas",
 };
 
