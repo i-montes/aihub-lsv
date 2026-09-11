@@ -75,14 +75,21 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
  */
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {
-    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts
-    "gpt-5.6-terra": tarifaFija({
-      input: usd(2.0),
-      cacheRead: usd(0.2),
-      // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
-      cacheWrite: null,
-      output: usd(12.0),
-    }),
+    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts.
+    // Tarifa escalonada: por encima de 272,000 tokens de input el prompt
+    // COMPLETO se cobra a 2x input / 1.5x output — a diferencia de Gemini
+    // (que dobla input y output por igual), acá el multiplicador es distinto
+    // para cada lado.
+    "gpt-5.6-terra": (inputTokensTotal) => {
+      const promptLargo = inputTokensTotal > 272_000;
+      return {
+        input: usd(promptLargo ? 4.0 : 2.0),
+        cacheRead: usd(promptLargo ? 0.4 : 0.2),
+        // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
+        cacheWrite: null,
+        output: usd(promptLargo ? 18.0 : 12.0),
+      };
+    },
     // gpt-4o-mini-2024-07-18: MINI_MODELS.OPENAI, usado en pasos baratos
     "gpt-4o-mini-2024-07-18": tarifaFija({
       input: usd(0.15),
@@ -100,6 +107,14 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       // Cache write (TTL de 5 min, el único que usa esta app): 1.25x el input.
       cacheWrite: usd(6.25),
       output: usd(25.0),
+    }),
+    // claude-sonnet-5: usado por el agente de lib/preguntas-chatbot
+    "claude-sonnet-5": tarifaFija({
+      input: usd(2.0),
+      cacheRead: usd(0.2),
+      // Cache write (TTL de 5 min): 1.25x el input, mismo patrón que Opus 4.8.
+      cacheWrite: usd(2.5),
+      output: usd(10.0),
     }),
     // claude-haiku-4-5-20251001: MINI_MODELS.ANTHROPIC
     "claude-haiku-4-5-20251001": tarifaFija({

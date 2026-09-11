@@ -7,6 +7,7 @@ import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 import type { PerfilResultado } from "@/app/dashboard/quien-es-quien/constants";
 import { leerEventosSse } from "@/app/dashboard/quien-es-quien/utils";
 import { AnalyticsQuienEsQuienService } from "@/lib/analytics";
+import { comoEntero, comoNumero } from "@/lib/quien-es-quien/numeros";
 
 /**
  * El agente de perfiles tarda entre 80 y 160 segundos y tiene un tope duro de
@@ -92,17 +93,20 @@ function registrarAnalyticsDesdeStream(
         estado: resultado ? "completado" : "fallido",
         modelo: resultado?.modelo ?? null,
         effort: resultado?.effort ?? null,
-        segundos: metricas?.segundos ?? null,
-        pasos: metricas?.pasos ?? null,
-        busquedas: metricas?.busquedas ?? null,
-        consultas_leyes: metricas?.consultas_leyes ?? null,
-        leyes_encontradas: metricas?.leyes_encontradas ?? null,
-        caracteres: metricas?.caracteres ?? null,
+        // Coercionado, no reenviado tal cual: `segundos` llegó una vez como
+        // decimal a una columna integer y tumbó el guardado completo — ver
+        // lib/quien-es-quien/numeros.ts.
+        segundos: comoNumero(metricas?.segundos),
+        pasos: comoEntero(metricas?.pasos),
+        busquedas: comoEntero(metricas?.busquedas),
+        consultas_leyes: comoEntero(metricas?.consultas_leyes),
+        leyes_encontradas: comoEntero(metricas?.leyes_encontradas),
+        caracteres: comoEntero(metricas?.caracteres),
         stop_reason: metricas?.stop_reason ?? null,
-        citas_totales: metricas?.citas?.totales ?? null,
-        citas_links_unicos: metricas?.citas?.links_unicos ?? null,
+        citas_totales: comoEntero(metricas?.citas?.totales),
+        citas_links_unicos: comoEntero(metricas?.citas?.links_unicos),
         // Costo real: viene tal cual del upstream, no se calcula acá.
-        costo_usd: metricas?.costo_usd?.total ?? null,
+        costo_usd: comoNumero(metricas?.costo_usd?.total),
         costo_estimado: false,
         error_mensaje: mensajeError,
         created_at: new Date(),
