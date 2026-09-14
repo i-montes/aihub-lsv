@@ -14,6 +14,7 @@ import {
   Shield,
   Search,
   UserSearch,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -144,6 +145,17 @@ export function Sidebar() {
                 isExpanded={isExpanded}
               />
             )}
+
+            {profile?.role == "OWNER" &&
+              puedeVerHerramienta(organization?.name, "preguntas-chatbot") && (
+                <NavItem
+                  icon={<MessageSquare className="size-5" />}
+                  label="Preguntas al chatbot"
+                  href="/dashboard/preguntas-chatbot"
+                  isActive={pathname === "/dashboard/preguntas-chatbot"}
+                  isExpanded={isExpanded}
+                />
+              )}
 
             {/* <NavItem
               icon={<BarChart className="size-5" />}

@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "3.0.23",
     "@ai-sdk/google": "3.0.13",
     "@ai-sdk/openai": "3.0.18",
+    "@ai-sdk/react": "^4.0.100",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -68,6 +69,7 @@
     "next-themes": "latest",
     "pdf2pic": "^3.2.0",
     "pdfjs-dist": "^5.3.93",
+    "pg": "^8.23.0",
     "react": "^19",
     "react-day-picker": "latest",
     "react-dom": "^19",
@@ -85,6 +87,7 @@
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.9.19",

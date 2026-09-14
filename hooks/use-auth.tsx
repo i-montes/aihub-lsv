@@ -125,6 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(result.profile || null)
       setSession(result.session)
 
+      // `signIn` no trae la organización (sólo profile) y el login navega al
+      // dashboard con router.push, que no remonta AuthProvider —el useEffect
+      // de `initializeAuth` que sí la carga sólo corre al montar—, así que sin
+      // esto `organization` se queda en null hasta un refresh manual, y con
+      // ella todas las herramientas restringidas por organización (detector,
+      // quién es quién, etc.) desaparecen del dashboard después de loguearse.
+      try {
+        const { organization } = await AuthService.getProfile()
+        setOrganization(organization)
+      } catch (profileError) {
+        console.error("No se pudo cargar la organización tras el login:", profileError)
+      }
+
       toast.success("Inicio de sesión exitoso")
 
       // Importante: Agregamos una pequeña pausa para asegurar que las cookies sean establecidas

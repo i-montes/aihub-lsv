@@ -226,6 +226,50 @@ export type AnalyticsQuienEsQuien = {
   updated_at?: Date | null;
 };
 
+/**
+ * Analytics de "Preguntas al chatbot": un agente que consulta (sólo lectura)
+ * la base de datos del chatbot de La Silla Vacía para responder, en lenguaje
+ * natural y a varios turnos, qué le han preguntado los lectores.
+ *
+ * Una fila por turno, no por conversación completa — `session_id` agrupa los
+ * turnos de una misma conversación (a diferencia del resto de analytics,
+ * donde `session_id` identifica una sola generación).
+ */
+export type AnalyticsPreguntasChatbot = {
+  id?: number | string;
+  session_id?: string;
+  user_id?: string | null;
+  organization_id?: string | null;
+
+  turno?: number | null;
+  pregunta_usuario?: string | null;
+  comentario_agente?: string | null;
+
+  /** SQL de sólo lectura que el modelo redactó y se ejecutó este turno */
+  sql_ejecutado?: string[] | null;
+  filas_devueltas?: number | null;
+  /** La tabla resumen (fecha/tema/cantidad) que arma el modelo */
+  resumen?: { fecha: string; tema: string; cantidad: number }[] | null;
+  pasos_agente?: number | null;
+
+  modelo_utilizado?: string | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  /** Más caro que el input normal en Anthropic: crea la entrada de caché */
+  cache_write_tokens?: number | null;
+  /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
+  costo?: number | null;
+  tiempo_procesamiento?: number | null;
+
+  error_mensaje?: string | null;
+
+  created_at?: Date | null;
+  updated_at?: Date | null;
+};
+
 // Clase madre Analytics
 abstract class Analytics<T extends { id?: any } = any> {
   protected supabasePromise = getSupabaseRouteHandler();
@@ -569,4 +613,10 @@ class AnalyticsQuienEsQuienService extends Analytics<AnalyticsQuienEsQuien> {
   }
 }
 
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService };
+class AnalyticsPreguntasChatbotService extends Analytics<AnalyticsPreguntasChatbot> {
+  constructor(schema: AnalyticsPreguntasChatbot = {} as AnalyticsPreguntasChatbot, existingId?: string | number) {
+    super('preguntas_chatbot', schema, existingId);
+  }
+}
+
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService };

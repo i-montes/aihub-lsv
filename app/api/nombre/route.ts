@@ -3,6 +3,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { verificarAccesoQuienEsQuien } from "@/lib/quien-es-quien/acceso";
 import { MAX_NOMBRE_LENGTH } from "@/app/dashboard/quien-es-quien/constants";
 import { AnalyticsQuienEsQuienService } from "@/lib/analytics";
+import { comoNumero } from "@/lib/quien-es-quien/numeros";
 
 /** El upstream tarda entre 3 y 10 segundos: con el default de Vercel sobra. */
 export const maxDuration = 30;
@@ -11,12 +12,14 @@ export const dynamic = "force-dynamic";
 const NOMBRE_API_URL = "https://quienai.vercel.app/api/nombre";
 
 /**
- * Costo estimado de una llamada a `/api/nombre`. El upstream no reporta el
- * costo real en esta respuesta (a diferencia de `/api/perfil`, que sí trae
- * `metricas.costo_usd` en el evento `fin`) — este número es el que ya estaba
- * documentado en el comentario original de esta ruta, no una medición.
+ * Costo de respaldo cuando el upstream no trae `metricas.costo_usd` (por
+ * ejemplo, si la respuesta viene de una versión vieja del bot, o falló antes
+ * de calcularlo). El comentario original de esta ruta decía que el upstream
+ * "no reporta el costo real en esta respuesta" — sí lo reporta: una llamada
+ * real devolvió `metricas.costo_usd.total = 0.003566`. Este número sólo entra
+ * cuando ese campo no vino.
  */
-const COSTO_ESTIMADO_NOMBRE = 0.003;
+const COSTO_RESPALDO_NOMBRE = 0.003;
 
 function jsonError(mensaje: string, status: number) {
   return NextResponse.json({ error: mensaje }, { status });
@@ -31,18 +34,25 @@ function registrarAnalytics(datos: {
   organizationId: string;
   nombre: string;
   estado?: string | null;
+  /** `metricas.costo_usd.total` de la respuesta del upstream, si vino */
+  costoReal?: number | null;
   errorMensaje?: string | null;
 }) {
   after(async () => {
     try {
+      const hayError = !!datos.errorMensaje;
+      // No basta `typeof === "number"`: eso deja pasar NaN/Infinity, que
+      // Postgres tampoco acepta en una columna numeric.
+      const costoReal = comoNumero(datos.costoReal);
+
       const analytics = new AnalyticsQuienEsQuienService({
         user_id: datos.userId,
         organization_id: datos.organizationId,
         tipo: "nombre",
         nombre_consultado: datos.nombre,
         estado: datos.estado ?? null,
-        costo_usd: datos.errorMensaje ? null : COSTO_ESTIMADO_NOMBRE,
-        costo_estimado: true,
+        costo_usd: hayError ? null : costoReal ?? COSTO_RESPALDO_NOMBRE,
+        costo_estimado: hayError ? true : costoReal === null,
         error_mensaje: datos.errorMensaje ?? null,
         created_at: new Date(),
       });
@@ -135,7 +145,13 @@ export async function POST(request: NextRequest) {
     return jsonError("El buscador de nombres respondió algo ilegible", 502);
   }
 
-  registrarAnalytics({ userId, organizationId, nombre, estado: datos.estado ?? null });
+  registrarAnalytics({
+    userId,
+    organizationId,
+    nombre,
+    estado: datos.estado ?? null,
+    costoReal: datos.metricas?.costo_usd?.total ?? null,
+  });
 
   return NextResponse.json(datos);
 }
