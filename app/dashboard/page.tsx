@@ -34,7 +34,10 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import UsefulLinksModal from "@/components/useful-links-modal";
 import { useAuth } from "@/hooks/use-auth";
-import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
+import {
+  puedeVerHerramienta,
+  seMuestraEnNavegacion,
+} from "@/lib/organizaciones/herramientas";
 
 interface UsefulLink {
   id: number;
@@ -247,7 +250,7 @@ export default function Dashboard() {
 
           {/* Preguntas al chatbot */}
           {profile?.role == "OWNER" &&
-            puedeVerHerramienta(organization?.name, "preguntas-chatbot") && (
+            seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
               <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex flex-col h-full">

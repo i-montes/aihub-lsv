@@ -45,6 +45,17 @@ const HERRAMIENTAS_POR_ORGANIZACION: Record<string, Herramienta[]> = {
 };
 
 /**
+ * Herramientas que no aparecen en el sidebar ni en las tarjetas del inicio,
+ * aunque la organización las tenga habilitadas. La página y sus rutas de API
+ * siguen funcionando por URL directa; sólo se quita el acceso visible.
+ *
+ * Preguntas al chatbot se ocultó en septiembre de 2026 a pedido de la
+ * dirección, sin retirar su código. Para volver a mostrarla basta sacarla de
+ * esta lista.
+ */
+const HERRAMIENTAS_OCULTAS_EN_NAVEGACION: Herramienta[] = ["preguntas-chatbot"];
+
+/**
  * Verdadero si esa organización puede usar la herramienta.
  *
  * Sin organización devuelve falso para todo lo restringido: mientras la sesión
@@ -58,6 +69,22 @@ export function puedeVerHerramienta(
     ? HERRAMIENTAS_POR_ORGANIZACION[organizacion]
     : undefined;
   return (lista ?? HERRAMIENTAS_ABIERTAS).includes(herramienta);
+}
+
+/**
+ * Verdadero si la herramienta debe aparecer en el sidebar y en el inicio:
+ * la organización la tiene habilitada y no está oculta de la navegación.
+ * Las comprobaciones de acceso (`acceso.ts` de cada herramienta) siguen usando
+ * `puedeVerHerramienta`, así que ocultar no equivale a deshabilitar.
+ */
+export function seMuestraEnNavegacion(
+  organizacion: string | null | undefined,
+  herramienta: Herramienta
+): boolean {
+  return (
+    puedeVerHerramienta(organizacion, herramienta) &&
+    !HERRAMIENTAS_OCULTAS_EN_NAVEGACION.includes(herramienta)
+  );
 }
 
 /** La ruta de cada herramienta, para el sidebar y el inicio */

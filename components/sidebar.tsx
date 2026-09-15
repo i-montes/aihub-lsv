@@ -20,7 +20,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { isSuperAdminEmail } from "@/lib/admin/super-admins";
-import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas";
+import {
+  puedeVerHerramienta,
+  seMuestraEnNavegacion,
+} from "@/lib/organizaciones/herramientas";
 
 // Componente para el icono de X/Twitter
 function XIcon({ className }: { className?: string }) {
@@ -147,7 +150,7 @@ export function Sidebar() {
             )}
 
             {profile?.role == "OWNER" &&
-              puedeVerHerramienta(organization?.name, "preguntas-chatbot") && (
+              seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
                 <NavItem
                   icon={<MessageSquare className="size-5" />}
                   label="Preguntas al chatbot"
