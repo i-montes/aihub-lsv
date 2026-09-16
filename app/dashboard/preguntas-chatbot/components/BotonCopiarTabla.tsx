@@ -39,9 +39,9 @@ export function BotonCopiarTabla({
     <button
       type="button"
       onClick={copiar}
-      className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
+      className="inline-flex items-center gap-1.5 text-base text-gray-500 hover:text-gray-800"
     >
-      {copiado ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       {copiado ? "Copiado" : "Copiar tabla"}
     </button>
   );

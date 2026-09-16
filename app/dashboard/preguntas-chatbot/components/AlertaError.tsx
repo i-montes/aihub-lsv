@@ -59,12 +59,12 @@ export function AlertaError({
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-900"
+      className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-base text-red-900"
     >
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+      <AlertCircle className="mt-1 h-5 w-5 shrink-0 text-red-600" />
       <div className="min-w-0 flex-1">
         <p className="font-medium leading-tight">{titulo}</p>
-        <p className="mt-0.5 break-words text-[13px] leading-snug text-red-800/90">{detalle}</p>
+        <p className="mt-1 break-words text-base leading-snug text-red-800/90">{detalle}</p>
         {onReintentar && (
           <Button
             type="button"
@@ -72,9 +72,9 @@ export function AlertaError({
             variant="outline"
             onClick={onReintentar}
             disabled={reintentando}
-            className="mt-2 h-7 gap-1.5 border-red-200 bg-white px-2.5 text-xs text-red-800 hover:bg-red-100 hover:text-red-900"
+            className="mt-2.5 h-9 gap-1.5 border-red-200 bg-white px-3 text-base text-red-800 hover:bg-red-100 hover:text-red-900"
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw className="h-4 w-4" />
             Reintentar
           </Button>
         )}
@@ -86,7 +86,7 @@ export function AlertaError({
           aria-label="Cerrar aviso"
           className="-mr-1 -mt-1 rounded p-1 text-red-400 hover:bg-red-100 hover:text-red-700"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       )}
     </div>

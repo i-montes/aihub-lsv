@@ -28,8 +28,8 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
             <GraficaResumen resumen={resumen} />
           </div>
           <div className="overflow-hidden rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between border-b border-gray-100 px-2.5 py-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+              <span className="text-base font-medium uppercase tracking-wide text-gray-500">
                 Resumen
               </span>
               <BotonCopiarTabla
@@ -37,21 +37,21 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
                 filas={resumen.map((f) => [f.fecha, f.tema, f.cantidad])}
               />
             </div>
-            <div className="max-h-56 overflow-auto">
-              <table className="w-full text-[13px]">
+            <div className="max-h-[420px] overflow-auto">
+              <table className="w-full text-base">
                 <thead className="sticky top-0 bg-gray-50 text-left text-gray-500">
                   <tr>
-                    <th className="px-2.5 py-1.5 font-medium">Fecha</th>
-                    <th className="px-2.5 py-1.5 font-medium">Tema</th>
-                    <th className="px-2.5 py-1.5 text-right font-medium">Cantidad</th>
+                    <th className="px-3 py-2 font-medium">Fecha</th>
+                    <th className="px-3 py-2 font-medium">Tema</th>
+                    <th className="px-3 py-2 text-right font-medium">Cantidad</th>
                   </tr>
                 </thead>
                 <tbody>
                   {resumen.map((fila, i) => (
                     <tr key={i} className="border-t border-gray-100">
-                      <td className="whitespace-nowrap px-2.5 py-1.5 text-gray-600">{fila.fecha}</td>
-                      <td className="px-2.5 py-1.5 text-gray-800">{fila.tema}</td>
-                      <td className="px-2.5 py-1.5 text-right font-medium tabular-nums text-gray-900">
+                      <td className="whitespace-nowrap px-3 py-2 text-gray-600">{fila.fecha}</td>
+                      <td className="px-3 py-2 text-gray-800">{fila.tema}</td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums text-gray-900">
                         {fila.cantidad}
                       </td>
                     </tr>
@@ -65,20 +65,20 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
 
       {detalle.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between px-2.5 py-1.5">
+          <div className="flex items-center justify-between px-3 py-2">
             <button
               type="button"
               onClick={() => setMostrarDetalle((v) => !v)}
               aria-expanded={mostrarDetalle}
-              className="flex items-center gap-1 text-[13px] font-medium text-primary-700 hover:underline"
+              className="flex items-center gap-1.5 text-base font-medium text-primary-700 hover:underline"
             >
               {mostrarDetalle ? (
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-4 w-4" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
+                <ChevronRight className="h-4 w-4" />
               )}
               Preguntas individuales
-              <span className="ml-1 rounded-full bg-primary-50 px-1.5 py-0.5 text-[11px] text-primary-700">
+              <span className="ml-1 rounded-full bg-primary-50 px-2 py-0.5 text-base text-primary-700">
                 {detalle.length}
               </span>
             </button>
@@ -90,21 +90,21 @@ export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePregu
             )}
           </div>
           {mostrarDetalle && (
-            <div className="max-h-64 overflow-auto border-t border-gray-100">
-              <table className="w-full text-[13px]">
+            <div className="max-h-[420px] overflow-auto border-t border-gray-100">
+              <table className="w-full text-base">
                 <thead className="sticky top-0 bg-gray-50 text-left text-gray-500">
                   <tr>
-                    <th className="px-2.5 py-1.5 font-medium">Fecha</th>
-                    <th className="px-2.5 py-1.5 font-medium">Pregunta</th>
+                    <th className="px-3 py-2 font-medium">Fecha</th>
+                    <th className="px-3 py-2 font-medium">Pregunta</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detalle.map((fila, i) => (
                     <tr key={i} className="border-t border-gray-100">
-                      <td className="whitespace-nowrap px-2.5 py-1.5 align-top text-gray-600">
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-gray-600">
                         {fila.fecha}
                       </td>
-                      <td className="px-2.5 py-1.5 leading-snug text-gray-800">{fila.pregunta}</td>
+                      <td className="px-3 py-2 leading-snug text-gray-800">{fila.pregunta}</td>
                     </tr>
                   ))}
                 </tbody>

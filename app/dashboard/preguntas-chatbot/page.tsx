@@ -108,8 +108,8 @@ export default function PreguntasChatbotPage() {
       {/* Cabecera */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-tight">Preguntas al chatbot</h1>
-          <p className="mt-0.5 text-[13px] text-gray-500">
+          <h1 className="text-2xl font-bold">Preguntas al chatbot</h1>
+          <p className="text-gray-500">
             Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot.
           </p>
         </div>
@@ -122,9 +122,9 @@ export default function PreguntasChatbotPage() {
               size="sm"
               onClick={limpiarHistorial}
               disabled={ocupado}
-              className="h-8 gap-1.5 rounded-full px-3 text-xs text-gray-600"
+              className="h-10 gap-2 rounded-full px-4 text-base text-gray-600"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
               Nueva conversación
             </Button>
           )}
@@ -155,7 +155,7 @@ export default function PreguntasChatbotPage() {
                     // El usuario escribe texto plano; el markdown compacto es
                     // para las respuestas del agente sobre fondo claro.
                     return esUsuario ? (
-                      <p key={i} className="whitespace-pre-wrap leading-[1.55]">
+                      <p key={i} className="whitespace-pre-wrap leading-relaxed">
                         {part.text}
                       </p>
                     ) : (
@@ -240,11 +240,11 @@ function PantallaVacia({
 }) {
   return (
     <div className="flex flex-col items-center px-4 py-10 text-center">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
-        <MessageSquare className="h-5 w-5" />
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+        <MessageSquare className="h-6 w-6" />
       </div>
-      <p className="text-sm font-medium text-gray-800">¿Qué quieres saber?</p>
-      <p className="mt-1 max-w-md text-[13px] text-gray-500">
+      <p className="text-lg font-semibold text-gray-800">¿Qué quieres saber?</p>
+      <p className="mt-1 max-w-md text-base text-gray-500">
         Puedes preguntar por tema, por fecha o comparar varios a la vez. Algunos ejemplos:
       </p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -254,7 +254,7 @@ function PantallaVacia({
             type="button"
             disabled={deshabilitado}
             onClick={() => onElegir(ejemplo)}
-            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-left text-[13px] text-gray-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-left text-base text-gray-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {ejemplo}
           </button>

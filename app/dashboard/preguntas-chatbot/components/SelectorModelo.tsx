@@ -123,10 +123,10 @@ export function SelectorModelo({
       disabled={disabled || cargando || sinOpciones}
     >
       <SelectTrigger
-        className="h-8 w-auto min-w-[200px] gap-2 rounded-full border-gray-200 bg-white px-3 text-xs shadow-none focus:ring-1"
+        className="h-10 w-auto min-w-[230px] gap-2 rounded-full border-gray-300 bg-white px-3.5 text-base shadow-none focus:ring-1"
         aria-label="Modelo de IA"
       >
-        <Cpu className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+        <Cpu className="h-4 w-4 shrink-0 text-gray-500" />
         <SelectValue
           placeholder={
             cargando
@@ -139,9 +139,9 @@ export function SelectorModelo({
       </SelectTrigger>
       <SelectContent align="end">
         {opciones.map((o) => (
-          <SelectItem key={clave(o)} value={clave(o)} className="text-sm">
+          <SelectItem key={clave(o)} value={clave(o)} className="text-base">
             <span className="flex items-center gap-2">
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+              <span className="rounded bg-gray-100 px-2 py-0.5 text-base font-medium text-gray-600">
                 {NOMBRE_PROVEEDOR[o.proveedor] ?? o.proveedor}
               </span>
               <span>{nombreModelo(o.modelo)}</span>

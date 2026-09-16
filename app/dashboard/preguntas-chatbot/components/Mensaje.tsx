@@ -30,7 +30,7 @@ export function Mensaje({
   if (autor === "usuario") {
     return (
       <div className="flex flex-col items-end gap-1 pl-10">
-        <div className="min-w-0 max-w-full rounded-2xl rounded-br-md bg-primary-600 px-3.5 py-2 text-sm text-white shadow-sm">
+        <div className="min-w-0 max-w-full rounded-2xl rounded-br-md bg-primary-600 px-4 py-2.5 text-base text-white shadow-sm">
           {children}
         </div>
         {hora && <Hora valor={hora} className="pr-1" />}
@@ -40,7 +40,7 @@ export function Mensaje({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
-      <div className="min-w-0 text-sm text-gray-800">{children}</div>
+      <div className="min-w-0 text-base text-gray-800">{children}</div>
       {hora && <Hora valor={hora} />}
     </div>
   );
@@ -48,7 +48,7 @@ export function Mensaje({
 
 function Hora({ valor, className }: { valor: Date; className?: string }) {
   return (
-    <span className={cn("text-[11px] text-gray-400", className)}>
+    <span className={cn("text-base text-gray-400", className)}>
       {formatoHora.format(valor)}
     </span>
   );
