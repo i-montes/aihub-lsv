@@ -49,11 +49,11 @@ const HERRAMIENTAS_POR_ORGANIZACION: Record<string, Herramienta[]> = {
  * aunque la organización las tenga habilitadas. La página y sus rutas de API
  * siguen funcionando por URL directa; sólo se quita el acceso visible.
  *
- * Preguntas al chatbot se ocultó en septiembre de 2026 a pedido de la
- * dirección, sin retirar su código. Para volver a mostrarla basta sacarla de
- * esta lista.
+ * Hoy está vacía. Preguntas al chatbot estuvo aquí un día (septiembre de
+ * 2026) mientras se rediseñaba; se dejó el mecanismo para la próxima vez que
+ * haya que esconder algo sin borrarlo.
  */
-const HERRAMIENTAS_OCULTAS_EN_NAVEGACION: Herramienta[] = ["preguntas-chatbot"];
+const HERRAMIENTAS_OCULTAS_EN_NAVEGACION: Herramienta[] = [];
 
 /**
  * Verdadero si esa organización puede usar la herramienta.

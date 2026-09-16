@@ -4,8 +4,10 @@ import { createAgentUIStreamResponse } from "ai";
 import { verificarAccesoPreguntasChatbot } from "@/lib/preguntas-chatbot/acceso";
 import {
   crearAgentePreguntasChatbot,
+  esProveedorSoportado,
   MODELO_PREGUNTAS_CHATBOT,
   PROVEEDOR_PREGUNTAS_CHATBOT,
+  type ProveedorSoportado,
 } from "@/lib/preguntas-chatbot/agente";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
@@ -22,19 +24,46 @@ function jsonError(mensaje: string, status: number): Response {
   });
 }
 
-async function obtenerApiKeyAnthropic(organizationId: string): Promise<string | null> {
+/**
+ * Clave activa de ese proveedor para la organización, y la lista de modelos
+ * que el admin le habilitó en Ajustes. Los modelos sirven para rechazar un
+ * modelo que no esté configurado: el selector de la UI sale de esa misma
+ * lista, así que un modelo ajeno sólo llega por una petición armada a mano.
+ */
+async function obtenerApiKey(
+  organizationId: string,
+  proveedor: ProveedorSoportado
+): Promise<{ key: string; modelos: string[] } | null> {
   const supabase = await getSupabaseRouteHandler();
   const { data } = await supabase
     .from("api_key_table")
-    .select("key")
+    .select("key, models")
     .eq("organizationId", organizationId)
-    .eq("provider", "ANTHROPIC")
+    .eq("provider", COLUMNA_PROVEEDOR[proveedor])
     .eq("status", "ACTIVE")
-    .single();
+    .maybeSingle();
 
   const key = data?.key?.trim();
-  return key ? key : null;
+  if (!key) return null;
+  const modelos = Array.isArray(data?.models)
+    ? (data.models as unknown[]).filter((m): m is string => typeof m === "string")
+    : [];
+  return { key, modelos };
 }
+
+/** Nombre legible del proveedor para los mensajes de error */
+const NOMBRE_PROVEEDOR: Record<ProveedorSoportado, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+};
+
+/** Cómo se guarda el proveedor en api_key_table.provider */
+const COLUMNA_PROVEEDOR = {
+  anthropic: "ANTHROPIC",
+  openai: "OPENAI",
+  google: "GOOGLE",
+} as const satisfies Record<ProveedorSoportado, string>;
 
 function textoDeMensaje(mensaje: any): string {
   if (!Array.isArray(mensaje?.parts)) return "";
@@ -48,15 +77,32 @@ export async function POST(request: NextRequest) {
   const { negado, organizationId, userId } = await verificarAccesoPreguntasChatbot();
   if (negado) return jsonError(negado.mensaje, negado.status);
 
-  const apiKey = await obtenerApiKeyAnthropic(organizationId);
-  if (!apiKey) {
+  const body = await request.json().catch(() => null);
+
+  // Sin selección explícita se usa el modelo de siempre, para que un cliente
+  // viejo (o una pestaña abierta antes del despliegue) siga funcionando.
+  const proveedor: ProveedorSoportado = esProveedorSoportado(body?.proveedor)
+    ? (body.proveedor.toLowerCase() as ProveedorSoportado)
+    : PROVEEDOR_PREGUNTAS_CHATBOT;
+  const modelo: string =
+    typeof body?.modelo === "string" && body.modelo.trim()
+      ? body.modelo.trim()
+      : MODELO_PREGUNTAS_CHATBOT;
+
+  const credencial = await obtenerApiKey(organizationId, proveedor);
+  if (!credencial) {
     return jsonError(
-      "Falta configurar la clave de Anthropic de la organización",
-      500
+      `La organización no tiene una clave activa de ${NOMBRE_PROVEEDOR[proveedor]}. Configúrala en Ajustes.`,
+      400
     );
   }
-
-  const body = await request.json().catch(() => null);
+  if (credencial.modelos.length > 0 && !credencial.modelos.includes(modelo)) {
+    return jsonError(
+      `El modelo ${modelo} no está habilitado para ${NOMBRE_PROVEEDOR[proveedor]} en Ajustes.`,
+      400
+    );
+  }
+  const apiKey = credencial.key;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
   const sessionId =
     typeof body?.sessionId === "string" && body.sessionId
@@ -76,6 +122,8 @@ export async function POST(request: NextRequest) {
 
   const agent = crearAgentePreguntasChatbot({
     apiKey,
+    proveedor,
+    modelo,
     registrarConsulta: (info) => consultas.push(info),
   });
 
@@ -95,7 +143,7 @@ export async function POST(request: NextRequest) {
   after(async () => {
     try {
       const costosPorPaso = usos.map((uso) =>
-        calcularCosto(PROVEEDOR_PREGUNTAS_CHATBOT, MODELO_PREGUNTAS_CHATBOT, {
+        calcularCosto(proveedor, modelo, {
           inputTokens: uso?.inputTokens,
           outputTokens: uso?.outputTokens,
           cachedInputTokens: uso?.inputTokenDetails?.cacheReadTokens,
@@ -120,7 +168,7 @@ export async function POST(request: NextRequest) {
         filas_devueltas: consultas.reduce((total, c) => total + c.filas, 0),
         resumen: (resultadoFinal?.resumen as any) ?? null,
         pasos_agente: pasos,
-        modelo_utilizado: MODELO_PREGUNTAS_CHATBOT,
+        modelo_utilizado: modelo,
         input_tokens: sumar((u) => u?.inputTokens),
         output_tokens: sumar((u) => u?.outputTokens),
         total_tokens: sumar((u) => u?.totalTokens),

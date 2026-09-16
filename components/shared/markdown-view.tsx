@@ -18,6 +18,12 @@ import { renderToString } from "react-dom/server";
 interface MarkdownViewProps {
   content: string;
   className?: string;
+  /**
+   * Densidad de chat: tipografía a 14px, separaciones cortas y títulos
+   * pequeños. Pensada para burbujas de conversación; el resto de herramientas
+   * muestra documentos largos y usa la densidad normal.
+   */
+  compacto?: boolean;
 }
 
 const componentesPantalla = {
@@ -95,12 +101,73 @@ const componentesPantalla = {
   ),
 };
 
+const componentesCompactos = {
+  ...componentesPantalla,
+  h1: ({ children }: any) => (
+    <h1 className="text-base font-semibold text-gray-900 mt-3 mb-1.5 first:mt-0">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }: any) => (
+    <h2 className="text-[15px] font-semibold text-gray-900 mt-3 mb-1.5 first:mt-0">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3 className="text-sm font-semibold text-gray-800 mt-2.5 mb-1 first:mt-0">
+      {children}
+    </h3>
+  ),
+  p: ({ children }: any) => (
+    <p className="text-sm text-gray-800 mb-2 last:mb-0 leading-[1.55]">{children}</p>
+  ),
+  ul: ({ children }: any) => (
+    <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-0.5">{children}</ul>
+  ),
+  ol: ({ children }: any) => (
+    <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-0.5">{children}</ol>
+  ),
+  li: ({ children }: any) => (
+    <li className="text-sm text-gray-800 leading-[1.55] [&>p]:mb-0">{children}</li>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-2 border-primary-300 pl-3 py-0.5 mb-2 text-gray-600 [&>p]:mb-0">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-3 border-gray-200" />,
+  table: ({ children }: any) => (
+    <div className="overflow-x-auto mb-2 last:mb-0 rounded-md border border-gray-200">
+      <table className="w-full text-[13px] border-collapse">{children}</table>
+    </div>
+  ),
+  th: ({ children }: any) => (
+    <th className="border-b border-gray-200 bg-gray-50 px-2.5 py-1.5 text-left font-semibold text-gray-700">
+      {children}
+    </th>
+  ),
+  td: ({ children }: any) => (
+    <td className="border-b border-gray-100 px-2.5 py-1.5 align-top text-gray-700 [tr:last-child>&]:border-b-0">
+      {children}
+    </td>
+  ),
+  pre: ({ children }: any) => (
+    <pre className="bg-gray-100 p-2.5 rounded-md overflow-x-auto mb-2 last:mb-0 text-xs">
+      {children}
+    </pre>
+  ),
+};
+
 export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
   className,
+  compacto = false,
 }) => (
   <div className={className}>
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={componentesPantalla}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={compacto ? componentesCompactos : componentesPantalla}
+    >
       {content}
     </ReactMarkdown>
   </div>

@@ -1,17 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-
-import { Trash2 } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { MarkdownView } from "@/components/shared/markdown-view";
-import { ResultadoAgente } from "./components/ResultadoAgente";
-import { PasoConsulta } from "./components/PasoConsulta";
 import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
+
+import { AlertaError } from "./components/AlertaError";
+import { Mensaje } from "./components/Mensaje";
+import { CajaEntrada } from "./components/CajaEntrada";
+import { IndicadorEscribiendo } from "./components/IndicadorEscribiendo";
+import { PasoConsulta } from "./components/PasoConsulta";
+import { ResultadoAgente } from "./components/ResultadoAgente";
+import { SelectorModelo, type SeleccionModelo } from "./components/SelectorModelo";
+
+const EJEMPLOS = [
+  "¿Cuántas preguntas sobre la reforma pensional hubo esta semana?",
+  "Compara preguntas sobre Petro vs. De la Espriella por día en el último mes",
+  "¿Cuáles fueron los diez temas más preguntados ayer?",
+];
 
 /**
  * "Preguntas al chatbot": un agente conversacional que consulta (sólo
@@ -19,28 +29,65 @@ import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
  * lectores al chatbot de La Silla Vacía, y resume la respuesta en una tabla
  * y una gráfica.
  *
- * No hay selector de modelo ni de proveedor: usa siempre el Anthropic de la
- * organización (ver lib/preguntas-chatbot/agente.ts) — agregar selector es
- * trabajo futuro si hace falta.
+ * El proveedor y el modelo se eligen en la cabecera entre las claves activas
+ * de la organización (ver SelectorModelo); el cambio aplica desde el
+ * siguiente mensaje. Ver lib/preguntas-chatbot/agente.ts para el servidor.
  */
 export default function PreguntasChatbotPage() {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
+  const [seleccion, setSeleccion] = useState<SeleccionModelo | null>(null);
+  const [errorOculto, setErrorOculto] = useState(false);
 
-  const { messages, sendMessage, setMessages, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/preguntas-chatbot",
-      body: () => ({ sessionId }),
-    }),
-  });
+  // Hora de cada mensaje: useChat no la trae, se anota al verlos por primera vez.
+  const horas = useRef(new Map<string, Date>());
+  const finDelHilo = useRef<HTMLDivElement>(null);
 
-  const enviar = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim() && status === "ready") {
-      sendMessage({ text: input });
-      setInput("");
+  // Refs para que el transporte lea siempre la sesión y el modelo vigentes
+  // sin tener que recrearse (recrearlo reiniciaría useChat).
+  const seleccionRef = useRef<SeleccionModelo | null>(null);
+  seleccionRef.current = seleccion;
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+
+  const [transport] = useState(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/preguntas-chatbot",
+        body: () => ({
+          sessionId: sessionIdRef.current,
+          proveedor: seleccionRef.current?.proveedor,
+          modelo: seleccionRef.current?.modelo,
+        }),
+      })
+  );
+
+  const { messages, sendMessage, setMessages, status, error, stop, regenerate, clearError } =
+    useChat({ transport });
+
+  const ocupado = status === "submitted" || status === "streaming";
+
+  useEffect(() => {
+    for (const m of messages) {
+      if (!horas.current.has(m.id)) horas.current.set(m.id, new Date());
     }
-  };
+  }, [messages]);
+
+  // Auto-scroll al final cuando llegan mensajes o tokens nuevos.
+  useEffect(() => {
+    finDelHilo.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, status, error]);
+
+  useEffect(() => {
+    if (error) setErrorOculto(false);
+  }, [error]);
+
+  const enviar = useCallback(() => {
+    const texto = input.trim();
+    if (!texto || ocupado) return;
+    sendMessage({ text: texto });
+    setInput("");
+  }, [input, ocupado, sendMessage]);
 
   /**
    * Un sessionId nuevo, no sólo vaciar `messages`: así el agente no arrastra
@@ -49,125 +96,170 @@ export default function PreguntasChatbotPage() {
    */
   const limpiarHistorial = () => {
     setMessages([]);
+    horas.current.clear();
+    clearError();
     setSessionId(crypto.randomUUID());
   };
 
+  const ultimoEsDelAgente = messages[messages.length - 1]?.role === "assistant";
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b pb-4 mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Preguntas al chatbot</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot —
-            por tema, por fecha, o comparando varios a la vez.
+    <div className="flex h-full flex-col">
+      {/* Cabecera */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold leading-tight">Preguntas al chatbot</h1>
+          <p className="mt-0.5 text-[13px] text-gray-500">
+            Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot.
           </p>
         </div>
-        {messages.length > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={limpiarHistorial}
-            disabled={status !== "ready"}
-            className="flex items-center gap-1 shrink-0"
-          >
-            <Trash2 className="h-4 w-4" />
-            Limpiar historial
-          </Button>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.length === 0 && (
-          <p className="text-gray-400 text-sm">
-            Por ejemplo: "¿cuántas preguntas sobre la reforma pensional hubo esta
-            semana?" o "compara preguntas sobre Petro vs. de la Espriella por día
-            en el último mes".
-          </p>
-        )}
-
-        {messages.map((message) => (
-          <div key={message.id} className={message.role === "user" ? "text-right" : ""}>
-            <div
-              className={
-                message.role === "user"
-                  ? "inline-block max-w-[80%] rounded-lg bg-blue-600 text-white px-4 py-2 text-sm text-left"
-                  : "max-w-[90%]"
-              }
+        <div className="flex items-center gap-2">
+          <SelectorModelo valor={seleccion} onChange={setSeleccion} disabled={ocupado} />
+          {messages.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={limpiarHistorial}
+              disabled={ocupado}
+              className="h-8 gap-1.5 rounded-full px-3 text-xs text-gray-600"
             >
-              {message.parts.map((part: any, i: number) => {
-                if (part.type === "text") {
-                  if (!part.text) return null;
-                  // El usuario escribe texto plano — MarkdownView está pensado
-                  // para las respuestas del agente (fondo claro, texto oscuro),
-                  // se vería mal sobre el globo azul.
-                  return message.role === "user" ? (
-                    <p key={i} className="whitespace-pre-wrap text-sm">
-                      {part.text}
-                    </p>
-                  ) : (
-                    <MarkdownView key={i} content={part.text} />
-                  );
-                }
-
-                if (part.type === "tool-consultarPreguntasChatbot") {
-                  return (
-                    <PasoConsulta
-                      key={i}
-                      input={part.input}
-                      state={part.state}
-                      output={part.output}
-                    />
-                  );
-                }
-
-                if (part.type === "tool-reportarResultado" && part.input) {
-                  const resultado = part.input as ResultadoAgentePreguntas;
-                  return (
-                    <div key={i}>
-                      {resultado.comentario && (
-                        <MarkdownView content={resultado.comentario} />
-                      )}
-                      <ResultadoAgente resultado={resultado} />
-                    </div>
-                  );
-                }
-
-                return null;
-              })}
-            </div>
-          </div>
-        ))}
-
-        {(status === "submitted" || status === "streaming") && (
-          <p className="text-sm text-gray-400">Pensando…</p>
-        )}
-
-        {error && (
-          <p className="text-sm text-red-600">
-            Algo falló: {error.message || "intenta de nuevo en un momento"}
-          </p>
-        )}
+              <Trash2 className="h-3.5 w-3.5" />
+              Nueva conversación
+            </Button>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={enviar} className="flex gap-2 border-t pt-4">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe tu pregunta…"
-          disabled={status !== "ready"}
-          className="min-h-[44px] max-h-32 resize-none"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              enviar(e as any);
-            }
-          }}
+      {/* Hilo */}
+      <div className="flex-1 overflow-y-auto px-1 pb-3">
+        <div className="mx-auto flex max-w-3xl flex-col gap-5">
+          {messages.length === 0 && (
+            <PantallaVacia
+              onElegir={(texto) => setInput(texto)}
+              deshabilitado={!seleccion}
+            />
+          )}
+
+          {messages.map((message) => {
+            const esUsuario = message.role === "user";
+            return (
+              <Mensaje
+                key={message.id}
+                autor={esUsuario ? "usuario" : "agente"}
+                hora={horas.current.get(message.id)}
+              >
+                {message.parts.map((part: any, i: number) => {
+                  if (part.type === "text") {
+                    if (!part.text) return null;
+                    // El usuario escribe texto plano; el markdown compacto es
+                    // para las respuestas del agente sobre fondo claro.
+                    return esUsuario ? (
+                      <p key={i} className="whitespace-pre-wrap leading-[1.55]">
+                        {part.text}
+                      </p>
+                    ) : (
+                      <MarkdownView key={i} content={part.text} compacto />
+                    );
+                  }
+
+                  if (part.type === "tool-consultarPreguntasChatbot") {
+                    return (
+                      <PasoConsulta
+                        key={i}
+                        input={part.input}
+                        state={part.state}
+                        output={part.output}
+                      />
+                    );
+                  }
+
+                  if (part.type === "tool-reportarResultado" && part.input) {
+                    const resultado = part.input as ResultadoAgentePreguntas;
+                    return (
+                      <div key={i}>
+                        {resultado.comentario && (
+                          <MarkdownView content={resultado.comentario} compacto />
+                        )}
+                        <ResultadoAgente resultado={resultado} />
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })}
+              </Mensaje>
+            );
+          })}
+
+          {/* Mientras el agente no ha empezado a escribir, se muestra el indicador */}
+          {ocupado && !ultimoEsDelAgente && (
+            <IndicadorEscribiendo texto={status === "submitted" ? "Pensando…" : undefined} />
+          )}
+
+          {error && !errorOculto && (
+            <AlertaError
+              error={error}
+              reintentando={ocupado}
+              onReintentar={() => {
+                setErrorOculto(true);
+                regenerate();
+              }}
+              onCerrar={() => setErrorOculto(true)}
+            />
+          )}
+
+          <div ref={finDelHilo} />
+        </div>
+      </div>
+
+      {/* Entrada */}
+      <div className="mx-auto w-full max-w-3xl">
+        <CajaEntrada
+          valor={input}
+          onChange={setInput}
+          onEnviar={enviar}
+          onDetener={stop}
+          ocupado={ocupado}
+          deshabilitado={!seleccion}
+          placeholder={
+            seleccion ? "Escribe tu pregunta…" : "Elige un modelo para empezar"
+          }
         />
-        <Button type="submit" disabled={status !== "ready" || !input.trim()}>
-          Enviar
-        </Button>
-      </form>
+      </div>
+    </div>
+  );
+}
+
+function PantallaVacia({
+  onElegir,
+  deshabilitado,
+}: {
+  onElegir: (texto: string) => void;
+  deshabilitado?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center px-4 py-10 text-center">
+      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+        <MessageSquare className="h-5 w-5" />
+      </div>
+      <p className="text-sm font-medium text-gray-800">¿Qué quieres saber?</p>
+      <p className="mt-1 max-w-md text-[13px] text-gray-500">
+        Puedes preguntar por tema, por fecha o comparar varios a la vez. Algunos ejemplos:
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {EJEMPLOS.map((ejemplo) => (
+          <button
+            key={ejemplo}
+            type="button"
+            disabled={deshabilitado}
+            onClick={() => onElegir(ejemplo)}
+            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-left text-[13px] text-gray-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {ejemplo}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

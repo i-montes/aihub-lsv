@@ -1,5 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { ToolLoopAgent, stepCountIs } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { ToolLoopAgent, stepCountIs, type LanguageModel } from "ai";
 
 import {
   crearHerramientaConsulta,
@@ -8,13 +10,25 @@ import {
 } from "@/lib/preguntas-chatbot/tools";
 
 /**
- * Modelo usado por este agente. A propósito NO es DEFAULT_MODELS.ANTHROPIC
- * (Opus 4.8, el de las otras herramientas): para escribir SQL y resumir
- * datos tabulares Sonnet 5 alcanza sobrado y sale más barato. Sin selector en
- * la UI todavía —ver README del PR.
+ * Modelo con el que arranca la herramienta si el usuario no elige otro. A
+ * propósito NO es DEFAULT_MODELS.ANTHROPIC (Opus 4.8, el de las otras
+ * herramientas): para escribir SQL y resumir datos tabulares Sonnet 5 alcanza
+ * sobrado y sale más barato. El selector de la UI permite cambiarlo por
+ * cualquier modelo de las claves activas de la organización.
  */
 export const MODELO_PREGUNTAS_CHATBOT = "claude-sonnet-5";
 export const PROVEEDOR_PREGUNTAS_CHATBOT = "anthropic";
+
+/** Proveedores que sabemos instanciar. Coincide con los de api_key_table. */
+export const PROVEEDORES_SOPORTADOS = ["anthropic", "openai", "google"] as const;
+export type ProveedorSoportado = (typeof PROVEEDORES_SOPORTADOS)[number];
+
+export function esProveedorSoportado(valor: unknown): valor is ProveedorSoportado {
+  return (
+    typeof valor === "string" &&
+    (PROVEEDORES_SOPORTADOS as readonly string[]).includes(valor.toLowerCase())
+  );
+}
 
 const INSTRUCCIONES = `Eres un analista de datos para La Silla Vacía. Respondes, en español y a partir
 de datos reales, qué le han preguntado los lectores al chatbot del medio.
@@ -52,14 +66,29 @@ Reglas para las consultas:
 Cuando tengas la respuesta (o si de plano no se puede responder con estos datos), llama
 SIEMPRE a "reportarResultado" para cerrar el turno — es la única forma de terminar.`;
 
+/**
+ * Instancia el modelo del proveedor elegido con la clave de la organización.
+ * Mismo reparto que hace el Detector en app/api/detector/route.ts.
+ */
+function crearModelo(proveedor: ProveedorSoportado, modelo: string, apiKey: string): LanguageModel {
+  switch (proveedor) {
+    case "openai":
+      return createOpenAI({ apiKey })(modelo);
+    case "google":
+      return createGoogleGenerativeAI({ apiKey })(modelo);
+    case "anthropic":
+      return createAnthropic({ apiKey })(modelo);
+  }
+}
+
 export function crearAgentePreguntasChatbot(opts: {
   apiKey: string;
+  proveedor: ProveedorSoportado;
+  modelo: string;
   registrarConsulta: RegistrarConsulta;
 }) {
-  const anthropic = createAnthropic({ apiKey: opts.apiKey });
-
   return new ToolLoopAgent({
-    model: anthropic(MODELO_PREGUNTAS_CHATBOT),
+    model: crearModelo(opts.proveedor, opts.modelo, opts.apiKey),
     instructions: INSTRUCCIONES,
     tools: {
       consultarPreguntasChatbot: crearHerramientaConsulta(opts.registrarConsulta),

@@ -33,6 +33,23 @@ function aFormatoAncho(resumen: FilaResumenPreguntas[]) {
   return { temas, filas: Array.from(porFecha.values()) };
 }
 
+const MES_CORTO = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+/**
+ * "2026-09-09" se vuelve "9 sep": las etiquetas ISO completas no caben en el
+ * eje X en pantallas angostas y la última queda cortada. Cualquier otro
+ * formato (una semana, un mes, un rótulo libre) se deja como viene.
+ */
+function etiquetaFecha(valor: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+  if (!m) return valor;
+  const mes = MES_CORTO[Number(m[2]) - 1];
+  return mes ? `${Number(m[3])} ${mes}` : valor;
+}
+
 export function GraficaResumen({ resumen }: { resumen: FilaResumenPreguntas[] }) {
   if (resumen.length === 0) return null;
 
@@ -42,11 +59,16 @@ export function GraficaResumen({ resumen }: { resumen: FilaResumenPreguntas[] })
   );
 
   return (
-    <ChartContainer config={config} className="h-[280px] w-full">
+    <ChartContainer config={config} className="h-[240px] w-full min-w-0 sm:h-[280px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={filas} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+        <BarChart data={filas} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+          <XAxis
+            dataKey="fecha"
+            tick={{ fontSize: 11 }}
+            tickFormatter={etiquetaFecha}
+            minTickGap={8}
+          />
           <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
           <ChartTooltip content={<ChartTooltipContent />} />
           {temas.length > 1 && <Legend />}
