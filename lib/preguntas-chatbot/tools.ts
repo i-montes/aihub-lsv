@@ -47,10 +47,19 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
 
 /**
  * Tool "de respuesta": el modelo la llama para entregar el resultado final
- * del turno. No tiene `execute` a propósito — según la documentación de la
- * AI SDK (ToolLoopAgent), una tool sin `execute` termina el loop del agente
- * ahí mismo, así que esto funciona como la señal de "ya terminé" sin
- * necesitar una condición de parada aparte.
+ * del turno.
+ *
+ * Tiene un `execute` que no hace nada más que acusar recibo, y eso es
+ * deliberado. Antes no lo tenía —una tool sin `execute` corta el loop— pero
+ * eso dejaba en el historial una llamada a tool sin su resultado, y tanto
+ * Anthropic como OpenAI rechazan con 400 un turno donde un `tool_use` no va
+ * seguido de su `tool_result`. Resultado: la primera pregunta funcionaba y la
+ * segunda siempre reventaba, porque `useChat` reenvía todo el hilo.
+ *
+ * Ahora el loop lo corta `hasToolCall("reportarResultado")` en agente.ts, y
+ * el par llamada/resultado queda completo. La respuesta se deja mínima a
+ * propósito: se reenvía en el historial de cada turno siguiente, y lo que le
+ * importa al modelo (y a la UI) es el `input`, no esto.
  */
 export const herramientaReportarResultado = tool({
   description:
@@ -96,4 +105,5 @@ export const herramientaReportarResultado = tool({
           "las más relevantes (no hace falta listar cientos si el resumen ya las agrega)."
       ),
   }),
+  execute: async () => ({ entregado: true }),
 });

@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { ToolLoopAgent, stepCountIs, type LanguageModel } from "ai";
+import { ToolLoopAgent, hasToolCall, stepCountIs, type LanguageModel } from "ai";
 
 import {
   crearHerramientaConsulta,
@@ -95,6 +95,11 @@ export function crearAgentePreguntasChatbot(opts: {
       reportarResultado: herramientaReportarResultado,
     },
     toolChoice: "required",
-    stopWhen: stepCountIs(8),
+    // El turno termina cuando el modelo llama "reportarResultado". Se corta
+    // por condición de parada y no por dejar esa tool sin `execute`, porque
+    // una tool sin resultado deja el historial inválido para el proveedor y
+    // hacía fallar la segunda pregunta de cada conversación (ver tools.ts).
+    // stepCountIs(8) queda como tope duro por si el modelo nunca la llama.
+    stopWhen: [hasToolCall("reportarResultado"), stepCountIs(8)],
   });
 }
