@@ -12,6 +12,7 @@ import { ExamplesLista } from "./examples/lista";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsGeneradorHilosService} from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
+import { usoDeGeneracionFallida } from "@/lib/uso-acumulado";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -34,6 +35,11 @@ export async function threadsGenerator(
     toolIdentity: "thread-generator",
     source: "generate-threads-action"
   });
+
+  // Fuera del try para que el catch pueda guardar la fila de una generación
+  // que falló después de que el modelo ya respondió: el proveedor la cobra.
+  let usuarioId: string | null = null;
+  let organizacionId: string | null = null;
 
   try {
     debugLogger.info("Iniciando generación de hilos", {
@@ -95,6 +101,9 @@ export async function threadsGenerator(
     
     // Update logger context
     debugLogger.updateContext({ userId: user.id, organizationId });
+
+    usuarioId = user.id;
+    organizacionId = organizationId ?? null;
 
     // 2. Obtener la API key para el proveedor seleccionado
     await debugLogger.logApiKey("Fetching API key", "fetching", { provider: selectedModel.provider as any, status: "fetching", hasValue: false });
@@ -326,6 +335,7 @@ INSTRUCCIONES ADICIONALES:
       longitud_promedio_por_tweet: mergedThreads.length ? Math.round((mergedThreads.join("").length || 0) / mergedThreads.length) : 0,
       modelo_utilizado: `${selectedModel.provider}:${selectedModel.model}`,
       formato_salida: format,
+      estado: "completado" as const,
       timestamp: new Date(),
       tweets_copiados_individualmente: 0, // No se puede obtener aquí
       uso_copiar_todo: false, // No se puede obtener aquí
@@ -342,6 +352,7 @@ INSTRUCCIONES ADICIONALES:
       cache_write_tokens: result?.usage?.inputTokenDetails?.cacheWriteTokens ?? null,
       costo: calcularCosto(selectedModel.provider, selectedModel.model, {
         inputTokens: result?.usage?.inputTokens,
+        inputNoCacheTokens: result?.usage?.inputTokenDetails?.noCacheTokens,
         outputTokens: result?.usage?.outputTokens,
         cachedInputTokens: result?.usage?.inputTokenDetails?.cacheReadTokens,
         cacheWriteTokens: result?.usage?.inputTokenDetails?.cacheWriteTokens,
@@ -363,6 +374,45 @@ INSTRUCCIONES ADICIONALES:
   } catch (error: any) {
     const errorMsg = error?.message || error?.toString() || "Error desconocido";
     debugLogger.error("[THREADS_GENERATOR] Error en el procesamiento del texto:", { message: errorMsg, error });
+
+    // Mismo caso que en el corrector: si el modelo alcanzó a responder y lo que
+    // devolvió no encajó en el schema, esa llamada se factura igual. Sin esta
+    // fila, el gasto no aparece por ningún lado. Los errores que no llegaron al
+    // modelo devuelven null y no se guardan.
+    const fallo = usoDeGeneracionFallida(error);
+    if (fallo) {
+      const analiticaFallida = new AnalyticsGeneradorHilosService({
+        session_id: debugLogger.getSessionId(),
+        user_id: usuarioId,
+        organization_id: organizacionId as any,
+        contenido_original: text,
+        modelo_utilizado: `${selectedModel.provider}:${selectedModel.model}`,
+        formato_salida: format,
+        estado: "fallido",
+        error_mensaje: (
+          errorMsg +
+          (fallo.finishReason ? ` (finishReason: ${fallo.finishReason})` : "")
+        ).slice(0, 1000),
+        input_tokens: fallo.usage.inputTokens ?? null,
+        output_tokens: fallo.usage.outputTokens ?? null,
+        total_tokens: fallo.usage.totalTokens ?? null,
+        reasoning_tokens: fallo.usage.outputTokenDetails?.reasoningTokens ?? null,
+        cached_input_tokens: fallo.usage.inputTokenDetails?.cacheReadTokens ?? null,
+        cache_write_tokens: fallo.usage.inputTokenDetails?.cacheWriteTokens ?? null,
+        costo: calcularCosto(selectedModel.provider, selectedModel.model, {
+          inputTokens: fallo.usage.inputTokens,
+          inputNoCacheTokens: fallo.usage.inputTokenDetails?.noCacheTokens,
+          outputTokens: fallo.usage.outputTokens,
+          cachedInputTokens: fallo.usage.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: fallo.usage.inputTokenDetails?.cacheWriteTokens,
+        }),
+        tiempo_generacion: debugLogger.getDuration(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      await analiticaFallida.save();
+      analiticaFallida.avisarSiNoGuardo("hilos fallido");
+    }
     return {
       success: false,
       error: `Error en el procesamiento del texto: ${errorMsg}`,

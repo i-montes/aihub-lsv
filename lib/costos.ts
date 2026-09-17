@@ -9,10 +9,19 @@
  * puntual. La única manera de tener un costo exacto por fila es
  * tokens × precio, con una tabla mantenida a mano.
  *
- * Precios verificados el 2026-09-07 contra:
+ * Precios verificados el 2026-09-17 contra:
  *   - OpenAI:    https://developers.openai.com/api/docs/pricing
  *   - Anthropic: https://claude.com/pricing
  *   - Google:    https://ai.google.dev/gemini-api/docs/pricing
+ *
+ * Lo que esta tabla NO cubre, y por lo tanto queda por fuera de lo que se
+ * guarda en las tablas `analytics_*`:
+ *   - Tarifas que no son la estándar (batch, flex, priority) y el recargo del
+ *     10% de los endpoints regionales de OpenAI: esta app llama siempre al
+ *     endpoint estándar, así que no aplican mientras eso no cambie.
+ *   - El almacenamiento por hora del caché explícito de Gemini ($4.50 por
+ *     millón de tokens/hora en 3.1 Pro): se cobra por tiempo, no por llamada,
+ *     y no hay dónde imputarlo por generación. La app no usa caché explícito.
  *
  * Cuando un proveedor cambie tarifas, esta es la única función que hay que
  * tocar — el resto del código sólo llama a `calcularCosto`.
@@ -20,6 +29,18 @@
 
 export interface UsoParaCosto {
   inputTokens?: number | null;
+  /**
+   * Tokens de input que NO vinieron de caché (`inputTokenDetails.noCacheTokens`
+   * del AI SDK), cuando el proveedor los reporta aparte.
+   *
+   * Vale la pena preferirlo a restarlos de `inputTokens` porque los dos
+   * proveedores no cuentan igual: en OpenAI `inputTokens` ya incluye los
+   * tokens leídos de caché, mientras que Anthropic los reporta como cifras
+   * separadas. Con el dato explícito da lo mismo cuál de las dos convenciones
+   * use el proveedor; sin él hay que asumir una, y asumir la equivocada
+   * subestima el costo justo en las llamadas que más cachean.
+   */
+  inputNoCacheTokens?: number | null;
   /** Tokens de input leídos de caché (más baratos que el input normal) */
   cachedInputTokens?: number | null;
   /**
@@ -75,14 +96,22 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
  */
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {
-    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts
-    "gpt-5.6-terra": tarifaFija({
-      input: usd(2.0),
-      cacheRead: usd(0.2),
-      // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
-      cacheWrite: null,
-      output: usd(12.0),
-    }),
+    // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts.
+    // Tarifa escalonada, igual que Gemini 3.1 Pro pero con otro umbral:
+    // "Prompts with >272K input tokens are priced at 2x input and 1.5x output
+    // for the full request" (developers.openai.com/api/docs/models/gpt-5.6-terra).
+    // El recargo aplica a TODO el request, no sólo a los tokens que pasan del
+    // umbral, y el input cacheado sube igual (de $0.20 a $0.40).
+    "gpt-5.6-terra": (inputTokensTotal) => {
+      const promptLargo = inputTokensTotal > 272_000;
+      return {
+        input: usd(promptLargo ? 4.0 : 2.0),
+        cacheRead: usd(promptLargo ? 0.4 : 0.2),
+        // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
+        cacheWrite: null,
+        output: usd(promptLargo ? 18.0 : 12.0),
+      };
+    },
     // gpt-4o-mini-2024-07-18: MINI_MODELS.OPENAI, usado en pasos baratos
     "gpt-4o-mini-2024-07-18": tarifaFija({
       input: usd(0.15),
@@ -152,14 +181,20 @@ export function calcularCosto(
   const tarifaModelo = TARIFAS[proveedor.toLowerCase()]?.[modelo];
   if (!tarifaModelo) return null;
 
-  const inputTotal = uso.inputTokens ?? 0;
-  const tarifa = tarifaModelo(inputTotal);
-
   const cacheRead = uso.cachedInputTokens ?? 0;
   const cacheWrite = uso.cacheWriteTokens ?? 0;
-  // Los tokens de input "normales" son el total menos los que ya se cobraron
-  // aparte como lectura o escritura de caché — sin esto se pagarían dos veces.
-  const inputNormal = Math.max(0, inputTotal - cacheRead - cacheWrite);
+
+  // Los tokens de input "normales": el dato explícito si el proveedor lo
+  // manda, y si no el total menos lo que ya se cobra aparte como lectura o
+  // escritura de caché (sin esa resta se pagarían dos veces).
+  const inputNormal =
+    typeof uso.inputNoCacheTokens === "number"
+      ? uso.inputNoCacheTokens
+      : Math.max(0, (uso.inputTokens ?? 0) - cacheRead - cacheWrite);
+
+  // El umbral de las tarifas escalonadas lo fija el tamaño del prompt, que son
+  // todos los tokens de input: los normales y los que salieron de caché.
+  const tarifa = tarifaModelo(inputNormal + cacheRead + cacheWrite);
   const output = uso.outputTokens ?? 0;
 
   const costoCacheWrite =

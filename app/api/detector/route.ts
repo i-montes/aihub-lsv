@@ -569,6 +569,7 @@ async function medirAnalisis(
     uso: uso
       ? {
           inputTokens: uso.inputTokens ?? null,
+          inputNoCacheTokens: uso.inputTokenDetails?.noCacheTokens ?? null,
           outputTokens: uso.outputTokens ?? null,
           totalTokens: uso.totalTokens ?? null,
           reasoningTokens: uso.outputTokenDetails?.reasoningTokens ?? null,
