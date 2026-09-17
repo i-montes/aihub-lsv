@@ -119,6 +119,21 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       cacheWrite: null,
       output: usd(0.6),
     }),
+
+    // Retirados: ya no se configuran, pero hay filas históricas con estos
+    // modelos y sin ellos su costo no se puede reconstruir.
+    "gpt-4.1-2025-04-14": tarifaFija({
+      input: usd(2.0),
+      cacheRead: usd(0.5),
+      cacheWrite: null,
+      output: usd(8.0),
+    }),
+    "gpt-5.1-2025-11-13": tarifaFija({
+      input: usd(1.25),
+      cacheRead: usd(0.125),
+      cacheWrite: null,
+      output: usd(10.0),
+    }),
   },
 
   anthropic: {
@@ -136,6 +151,15 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       cacheRead: usd(0.1),
       cacheWrite: usd(1.25),
       output: usd(5.0),
+    }),
+
+    // Retirado (la API lo apagó el 2026-06-15), pero quedan filas históricas.
+    // Costaba el triple que Opus 4.8, que es lo que lo reemplazó.
+    "claude-opus-4-20250514": tarifaFija({
+      input: usd(15.0),
+      cacheRead: usd(1.5),
+      cacheWrite: usd(18.75),
+      output: usd(75.0),
     }),
   },
 
@@ -160,6 +184,17 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       cacheWrite: null,
       output: usd(3.0),
     }),
+
+    // Retirado del hub, con filas históricas. Mismo escalón de 200k.
+    "gemini-2.5-pro": (inputTokensTotal) => {
+      const promptLargo = inputTokensTotal > 200_000;
+      return {
+        input: usd(promptLargo ? 2.5 : 1.25),
+        cacheRead: usd(promptLargo ? 0.25 : 0.125),
+        cacheWrite: null,
+        output: usd(promptLargo ? 15.0 : 10.0),
+      };
+    },
   },
 };
 
