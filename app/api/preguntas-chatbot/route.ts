@@ -10,12 +10,18 @@ import {
   type ProveedorSoportado,
 } from "@/lib/preguntas-chatbot/agente";
 import { sanearHistorial } from "@/lib/preguntas-chatbot/mensajes";
+import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 
-/** El agente puede llamar la tool de SQL varias veces antes de responder. */
-export const maxDuration = 60;
+/**
+ * El agente puede llamar la tool de SQL varias veces antes de responder, y
+ * los modelos de razonamiento (los gpt-5 de OpenAI, sobre todo) se demoran
+ * bastante en cada paso. Con 60s la función se moría justo cuando el agente
+ * estaba escribiendo la respuesta final. Mismo tope que /api/perfil.
+ */
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 function jsonError(mensaje: string, status: number): Response {
@@ -65,6 +71,33 @@ const COLUMNA_PROVEEDOR = {
   openai: "OPENAI",
   google: "GOOGLE",
 } as const satisfies Record<ProveedorSoportado, string>;
+
+/**
+ * Traduce el error que corta el stream a algo que el periodista pueda leer y,
+ * sobre todo, reportar. Los dos que de verdad aparecen son el turno que se
+ * queda sin tokens a medio JSON y el que el modelo entrega con tipos que no
+ * calzan; el resto se devuelve tal cual, recortado.
+ */
+function describirFallaDelTurno(error: unknown): string {
+  const mensaje = error instanceof Error ? error.message : String(error ?? "");
+
+  if (/invalid.*tool input|type validation|could not parse/i.test(mensaje)) {
+    return (
+      "El modelo entregó la respuesta final en un formato que no se pudo leer. " +
+      "Vuelve a intentar; si se repite, prueba con otro modelo."
+    );
+  }
+  if (/length|max.*tokens|truncat/i.test(mensaje)) {
+    return (
+      "La respuesta quedó cortada porque era demasiado larga. Pide un periodo " +
+      "más corto o menos preguntas de detalle."
+    );
+  }
+  if (/timeout|timed out|aborted/i.test(mensaje)) {
+    return "El modelo se demoró más de lo permitido. Vuelve a intentar con una pregunta más acotada.";
+  }
+  return mensaje.slice(0, 500) || "El turno falló sin un mensaje de error.";
+}
 
 function textoDeMensaje(mensaje: any): string {
   if (!Array.isArray(mensaje?.parts)) return "";
@@ -123,8 +156,8 @@ export async function POST(request: NextRequest) {
   const consultas: { sql: string; filas: number; error: string | null }[] = [];
   const usos: any[] = [];
   let pasos = 0;
-  let resultadoFinal: { comentario?: string; resumen?: unknown; detalle?: unknown } | null =
-    null;
+  let resultadoFinal: ReturnType<typeof normalizarResultado> | null = null;
+  let fallaDelStream: string | null = null;
 
   const agent = crearAgentePreguntasChatbot({
     apiKey,
@@ -141,8 +174,23 @@ export async function POST(request: NextRequest) {
       usos.push(step.usage);
       const llamadaFinal = step.toolCalls.find((c) => c.toolName === "reportarResultado");
       if (llamadaFinal) {
-        resultadoFinal = llamadaFinal.input as typeof resultadoFinal;
+        resultadoFinal = normalizarResultado(llamadaFinal.input);
       }
+    },
+    // Sin esto el AI SDK le manda al navegador un "An error occurred." pelado
+    // y el periodista ve "Algo falló" sin una sola pista, justo en el caso en
+    // que más falta hace: el turno que se rompe al final. Aquí queda el
+    // motivo real en los logs del servidor y un texto accionable en pantalla.
+    onError: (error) => {
+      fallaDelStream = error instanceof Error ? error.message : String(error ?? "");
+      console.error("preguntas-chatbot: el turno falló", {
+        proveedor,
+        modelo,
+        sessionId,
+        turno,
+        error,
+      });
+      return describirFallaDelTurno(error);
     },
   });
 
@@ -169,7 +217,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId,
         turno,
         pregunta_usuario: preguntaUsuario || null,
-        comentario_agente: resultadoFinal?.comentario ?? null,
+        comentario_agente: resultadoFinal?.comentario || null,
         sql_ejecutado: consultas.map((c) => c.sql),
         filas_devueltas: consultas.reduce((total, c) => total + c.filas, 0),
         resumen: (resultadoFinal?.resumen as any) ?? null,
@@ -184,6 +232,7 @@ export async function POST(request: NextRequest) {
         costo,
         tiempo_procesamiento: (Date.now() - inicio) / 1000,
         error_mensaje:
+          fallaDelStream ??
           consultas.find((c) => c.error)?.error ??
           (resultadoFinal ? null : "El agente no llegó a reportarResultado"),
         created_at: new Date(),

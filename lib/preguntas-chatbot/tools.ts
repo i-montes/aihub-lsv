@@ -46,6 +46,23 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
 }
 
 /**
+ * Número o string: el esquema de la tool final es a propósito tolerante.
+ *
+ * El AI SDK valida el `input` de una tool contra este esquema cuando la
+ * llamada termina de llegar, y si no calza corta el turno con
+ * `InvalidToolInputError`. Anthropic respeta los tipos; los modelos de OpenAI
+ * mandan con frecuencia `"cantidad": "42"` o `"fecha": 2026`, y el turno se
+ * rompía justo al final: el usuario veía la tabla armarse en pantalla y, al
+ * terminar, todo se reemplazaba por "Algo falló".
+ *
+ * Aceptarlo aquí y normalizarlo después (ver `normalizarResultado` en
+ * tipos.ts) es preferible a perder una respuesta que ya está completa por una
+ * comilla de más.
+ */
+const numeroTolerante = z.union([z.number(), z.string()]);
+const textoTolerante = z.union([z.string(), z.number()]);
+
+/**
  * Tool "de respuesta": el modelo la llama para entregar el resultado final
  * del turno.
  *
@@ -64,7 +81,7 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
 export const herramientaReportarResultado = tool({
   description:
     "Entrega la respuesta final de este turno: un comentario breve en lenguaje " +
-    "natural, la tabla resumen (para graficar) y la tabla desagregada de preguntas. " +
+    "natural, la tabla desagregada de preguntas y la tabla resumen (para graficar). " +
     "Se debe llamar siempre al final, incluso si la respuesta es que no se encontró " +
     "nada o que la pregunta no se puede responder con estos datos (en ese caso, " +
     "resumen y detalle van vacíos y el comentario lo explica).",
@@ -75,34 +92,38 @@ export const herramientaReportarResultado = tool({
         "Respuesta breve en lenguaje natural para mostrar en el chat, con el " +
           "hallazgo principal (ej. 'Las preguntas sobre pensiones subieron 40% esta semana')."
       ),
-    resumen: z
-      .array(
-        z.object({
-          fecha: z
-            .string()
-            .describe("Fecha o periodo agregado, ej. '2026-09-10' o 'Semana del 8 al 14'"),
-          tema: z
-            .string()
-            .describe(
-              "Tema o serie a la que corresponde esta fila (útil para comparar varios " +
-                "temas o periodos a la vez; si sólo hay un tema, repetirlo en todas las filas)."
-            ),
-          cantidad: z.number().describe("Cantidad de preguntas de ese tema en esa fecha"),
-        })
-      )
-      .describe(
-        "Tabla resumen para graficar: una fila por combinación de fecha y tema/serie."
-      ),
     detalle: z
       .array(
         z.object({
-          fecha: z.string().describe("Fecha y hora de la pregunta (created_at)"),
-          pregunta: z.string(),
+          fecha: textoTolerante.describe("Fecha y hora de la pregunta (created_at)"),
+          pregunta: textoTolerante,
         })
       )
+      .optional()
       .describe(
-        "Preguntas individuales desagregadas que sustentan el resumen, como máximo " +
-          "las más relevantes (no hace falta listar cientos si el resumen ya las agrega)."
+        "Preguntas individuales desagregadas que sustentan el resumen: las más " +
+          "relevantes, nunca más de 50 filas (si el resumen ya las agrega, no hace " +
+          "falta listar cientos). Es lo primero que lee el periodista después del " +
+          "comentario, así que van las que mejor ilustran el hallazgo."
+      ),
+    resumen: z
+      .array(
+        z.object({
+          fecha: textoTolerante.describe(
+            "Fecha o periodo agregado, ej. '2026-09-10' o 'Semana del 8 al 14'"
+          ),
+          tema: textoTolerante.describe(
+            "Tema o serie a la que corresponde esta fila (útil para comparar varios " +
+              "temas o periodos a la vez; si sólo hay un tema, repetirlo en todas las filas)."
+          ),
+          cantidad: numeroTolerante.describe(
+            "Cantidad de preguntas de ese tema en esa fecha, como número"
+          ),
+        })
+      )
+      .optional()
+      .describe(
+        "Tabla resumen para graficar: una fila por combinación de fecha y tema/serie."
       ),
   }),
   execute: async () => ({ entregado: true }),

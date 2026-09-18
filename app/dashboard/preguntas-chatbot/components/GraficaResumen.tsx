@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -14,6 +13,19 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import type { FilaResumenPreguntas } from "@/lib/preguntas-chatbot/tipos";
 
 const COLORES = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+
+/**
+ * Color fijo por tema, calculado sobre la lista completa de temas.
+ *
+ * Se calcula arriba y se pasa hacia abajo a propósito: si la gráfica se
+ * asignara los colores por su cuenta, apagar un tema en los chips le
+ * cambiaría el color a todos los demás.
+ */
+export function coloresPorTema(temas: string[]): Record<string, string> {
+  return Object.fromEntries(
+    temas.map((tema, i) => [tema, COLORES[i % COLORES.length]])
+  );
+}
 
 /**
  * `resumen` viene en formato largo (una fila por fecha+tema). Recharts
@@ -50,12 +62,27 @@ function etiquetaFecha(valor: string): string {
   return mes ? `${Number(m[3])} ${mes}` : valor;
 }
 
-export function GraficaResumen({ resumen }: { resumen: FilaResumenPreguntas[] }) {
+/**
+ * La leyenda de Recharts no se dibuja: los temas se prenden y apagan con los
+ * chips de ResultadoAgente, que hacen de leyenda y de filtro a la vez para
+ * las dos vistas (gráfica y tabla).
+ */
+export function GraficaResumen({
+  resumen,
+  colores,
+}: {
+  resumen: FilaResumenPreguntas[];
+  colores?: Record<string, string>;
+}) {
   if (resumen.length === 0) return null;
 
   const { temas, filas } = aFormatoAncho(resumen);
+  const paleta = colores ?? coloresPorTema(temas);
+  const colorDe = (tema: string, i: number) =>
+    paleta[tema] ?? COLORES[i % COLORES.length];
+
   const config: ChartConfig = Object.fromEntries(
-    temas.map((tema, i) => [tema, { label: tema, color: COLORES[i % COLORES.length] }])
+    temas.map((tema, i) => [tema, { label: tema, color: colorDe(tema, i) }])
   );
 
   return (
@@ -71,9 +98,8 @@ export function GraficaResumen({ resumen }: { resumen: FilaResumenPreguntas[] })
           />
           <YAxis tick={{ fontSize: 16 }} allowDecimals={false} width={44} />
           <ChartTooltip content={<ChartTooltipContent />} />
-          {temas.length > 1 && <Legend />}
           {temas.map((tema, i) => (
-            <Bar key={tema} dataKey={tema} fill={COLORES[i % COLORES.length]} radius={4} />
+            <Bar key={tema} dataKey={tema} fill={colorDe(tema, i)} radius={4} />
           ))}
         </BarChart>
       </ResponsiveContainer>

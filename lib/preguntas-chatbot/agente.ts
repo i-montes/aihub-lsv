@@ -64,7 +64,22 @@ Reglas para las consultas:
   pueda graficar como series comparadas.
 
 Cuando tengas la respuesta (o si de plano no se puede responder con estos datos), llama
-SIEMPRE a "reportarResultado" para cerrar el turno — es la única forma de terminar.`;
+SIEMPRE a "reportarResultado" para cerrar el turno — es la única forma de terminar.
+
+Al llamarla:
+- "detalle" no lleva más de 50 preguntas. Son las que el periodista lee primero, así que
+  elige las que mejor ilustran el hallazgo, no las primeras que salgan. Un detalle enorme
+  además arriesga que la respuesta se corte a la mitad y se pierda el turno completo.
+- "cantidad" va como número (42), no como texto ("42").`;
+
+/**
+ * Tope de salida del turno. Sin él, el proveedor aplica su propio máximo (en
+ * OpenAI, bajo) y el JSON de "reportarResultado" se corta a la mitad: la
+ * respuesta se ve llegar en pantalla y al terminar revienta el turno entero.
+ * Es el mismo problema —y el mismo remedio— que MAX_OUTPUT_TOKENS en
+ * actions/analyze-text.ts.
+ */
+const MAX_OUTPUT_TOKENS = 16000;
 
 /**
  * Instancia el modelo del proveedor elegido con la clave de la organización.
@@ -90,6 +105,7 @@ export function crearAgentePreguntasChatbot(opts: {
   return new ToolLoopAgent({
     model: crearModelo(opts.proveedor, opts.modelo, opts.apiKey),
     instructions: INSTRUCCIONES,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     tools: {
       consultarPreguntasChatbot: crearHerramientaConsulta(opts.registrarConsulta),
       reportarResultado: herramientaReportarResultado,
