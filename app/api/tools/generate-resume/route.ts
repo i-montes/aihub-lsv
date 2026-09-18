@@ -9,7 +9,7 @@ import { DebugLogger } from "@/lib/logger";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { MINI_MODELS } from "@/lib/utils";
 import { AnalyticsGeneradorResumenService } from "@/lib/analytics";
-import { calcularCosto } from "@/lib/costos";
+import { AcumuladorDeUso } from "@/lib/uso-acumulado";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
 function normalizeText(text: string): string {
@@ -264,13 +264,21 @@ async function getToolConfig(
   return tool;
 }
 
-// Función para seleccionar noticias importantes
+/**
+ * Selecciona las noticias más relevantes de un lote, con el modelo mini.
+ *
+ * Se llama varias veces por resumen (una por lote, más las pasadas de refuerzo
+ * y la selección final), así que su consumo se acumula en `uso`: sin eso el
+ * costo guardado sería sólo el de la llamada final al modelo principal y nunca
+ * cuadraría con lo que factura el proveedor.
+ */
 const selectImportantNews = async (
   batch: string,
   selectionPrompt: string,
   debugLogger: DebugLogger,
   selectedModel: { model: string; provider: string },
   apiKey: string,
+  uso: AcumuladorDeUso,
   minRequired: number = 1,
   maxRequired: number = 5
 ) => {
@@ -385,9 +393,12 @@ const selectImportantNews = async (
         throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
     }
 
+    uso.agregar(selectedModel.provider, model, result.usage);
+
     debugLogger.info("Selección de noticias completada", {
       duration: Date.now() - startTime,
       responseLength: result.object.selected.length,
+      usage: result.usage,
     });
 
     return result.object.selected.map(
@@ -490,6 +501,12 @@ export async function POST(request: NextRequest) {
       startDate: requestData.startDate,
       endDate: requestData.endDate,
     });
+
+    // Un resumen son varias llamadas a modelo, no una: el modelo mini corre
+    // una vez por lote de noticias (y otra vez en cada pasada de refuerzo)
+    // antes de que el modelo principal escriba el resumen. Todas se acumulan
+    // aquí para que el costo guardado sea el de la generación completa.
+    const uso = new AcumuladorDeUso();
 
     // 1. Autenticar usuario
     const { organizationId, user,userData} = await authenticateUser(debugLogger);
@@ -601,6 +618,7 @@ export async function POST(request: NextRequest) {
           debugLogger,
           requestData.selectedModel,
           apiKey.key,
+          uso,
           1, // mínimo 1
           selectedCount // máximo basado en contenido disponible
         );
@@ -664,6 +682,7 @@ export async function POST(request: NextRequest) {
                 debugLogger,
                 requestData.selectedModel,
                 apiKey.key,
+                uso,
                 1, // mínimo 1 por batch
                 newsPerBatch // máximo por batch
               );
@@ -716,6 +735,7 @@ export async function POST(request: NextRequest) {
                 debugLogger,
                 requestData.selectedModel,
                 apiKey.key,
+                uso,
                 1,
                 Math.max(neededNews, 3) // Seleccionar al menos las que necesitamos
               );
@@ -772,6 +792,7 @@ export async function POST(request: NextRequest) {
               debugLogger,
               requestData.selectedModel,
               apiKey.key,
+              uso,
               1,
               neededNews + 2 // Seleccionar un poco más por seguridad
             );
@@ -846,6 +867,7 @@ export async function POST(request: NextRequest) {
           debugLogger,
           requestData.selectedModel,
           apiKey.key,
+          uso,
           minRequired, // Garantizar mínimo 5 si hay suficientes
           5  // máximo 5
         );
@@ -910,6 +932,19 @@ export async function POST(request: NextRequest) {
       debugLogger
     );
 
+    uso.agregar(
+      requestData.selectedModel.provider,
+      requestData.selectedModel.model,
+      result.usage
+    );
+    const totales = uso.totales;
+
+    debugLogger.info("Consumo total de la generación", {
+      llamadas: totales.llamadas,
+      totalTokens: totales.totalTokens,
+      costo: totales.costo,
+    });
+
     // Crear y guardar métricas de analytics
     const metrics = {
       session_id: debugLogger.getSessionId() as any,
@@ -930,22 +965,16 @@ export async function POST(request: NextRequest) {
       uso_copiar_resumen: false, // Por defecto false, se actualizaría desde el frontend
       feedback_like: null, // Se actualizaría posteriormente desde el frontend
       feedback_rank_like: null, // Se actualizaría posteriormente desde el frontend
-      input_tokens: result.usage?.inputTokens || null,
-      output_tokens: result.usage?.outputTokens || null,
-      total_tokens: result.usage?.totalTokens || null,
-      reasoning_tokens: result.usage?.outputTokenDetails?.reasoningTokens ?? null,
-      cached_input_tokens: result.usage?.inputTokenDetails?.cacheReadTokens ?? null,
-      cache_write_tokens: result.usage?.inputTokenDetails?.cacheWriteTokens ?? null,
-      costo: calcularCosto(
-        requestData.selectedModel.provider,
-        requestData.selectedModel.model,
-        {
-          inputTokens: result.usage?.inputTokens,
-          outputTokens: result.usage?.outputTokens,
-          cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
-          cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
-        }
-      ),
+      // Tokens y costo de TODAS las llamadas de la generación (las de
+      // selección con el modelo mini y la del resumen con el principal), no
+      // sólo de la última: es lo que el proveedor factura por este resumen.
+      input_tokens: totales.inputTokens,
+      output_tokens: totales.outputTokens,
+      total_tokens: totales.totalTokens,
+      reasoning_tokens: totales.reasoningTokens,
+      cached_input_tokens: totales.cachedInputTokens,
+      cache_write_tokens: totales.cacheWriteTokens,
+      costo: totales.costo,
       tiempo_procesamiento: debugLogger.getDuration(),
       tiempo_respuesta_api: null, // Se podría medir específicamente el tiempo de la API
       created_at: new Date(),
@@ -968,7 +997,9 @@ export async function POST(request: NextRequest) {
         inputLength: selectedNews.length,
         outputLength: result.text.length,
         processingTime: debugLogger.getDuration(),
-        tokensUsed: result.usage?.totalTokens,
+        // El total de la generación, igual que en la fila de analytics: si aquí
+        // fuera sólo la última llamada, las dos fuentes no cuadrarían entre sí.
+        tokensUsed: totales.totalTokens ?? undefined,
         itemsProcessed: selectedNews.length,
       },
       template: undefined,

@@ -9,6 +9,7 @@ import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsCorrectorDeTextosService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
+import { usoDeGeneracionFallida } from "@/lib/uso-acumulado";
 
 // Schema para la respuesta del modelo
 // Artículos largos truncaban el JSON a la mitad y el usuario recibía
@@ -37,6 +38,12 @@ export async function analyzeText(
     toolIdentity: "proofreader",
     source: "analyze-text-action",
   });
+
+  // Se declaran aquí, y no dentro del try, para que el catch pueda guardar la
+  // fila de un análisis que falló después de que el modelo ya respondió: esa
+  // llamada el proveedor la cobra igual (ver el catch, más abajo).
+  let usuarioId: string | null = null;
+  let organizacionId: string | null = null;
 
   try {
     debugLogger.info("Iniciando análisis de texto", {
@@ -126,6 +133,9 @@ export async function analyzeText(
       userId: user.id,
       organizationId: profile?.organizationId,
     });
+
+    usuarioId = user.id;
+    organizacionId = profile?.organizationId ?? null;
 
     debugLogger.info("Usuario autenticado correctamente", { userId: user.id });
 
@@ -519,6 +529,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         created_at: new Date(),
         updated_at: new Date(),
         modelo_utilizado: selectedModel.model,
+        estado: "completado" as const,
         uso_copiar_texto: false,
         total_tokens: result.usage?.totalTokens,
         input_tokens: result.usage?.inputTokens,
@@ -530,6 +541,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         cache_write_tokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
         costo: calcularCosto(selectedModel.provider, selectedModel.model, {
           inputTokens: result.usage?.inputTokens,
+          inputNoCacheTokens: result.usage?.inputTokenDetails?.noCacheTokens,
           outputTokens: result.usage?.outputTokens,
           cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens,
           cacheWriteTokens: result.usage?.inputTokenDetails?.cacheWriteTokens,
@@ -593,6 +605,49 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
       };
     }
   } catch (error) {
+    // Un análisis puede fallar DESPUÉS de que el modelo respondió: el AI SDK
+    // lanza NoObjectGeneratedError cuando la respuesta no encaja en el schema,
+    // y el proveedor cobra esa llamada completa. Si no se guarda nada, ese
+    // gasto queda invisible y la suma de la base de datos no cuadra con la
+    // factura — que es exactamente lo que pasó el 16 de septiembre de 2026,
+    // cuando 20 de 39 análisis con claude-opus-4-8 murieron así.
+    // `usoDeGeneracionFallida` devuelve null en los errores que no llegaron al
+    // modelo (429, 529, API key mala): esos no se facturan y no se guardan.
+    const fallo = usoDeGeneracionFallida(error);
+    if (fallo) {
+      const analiticaFallida = new AnalyticsCorrectorDeTextosService({
+        session_id: debugLogger.getSessionId(),
+        user_id: usuarioId,
+        organization_id: organizacionId as any,
+        texto_original: text,
+        longitud_caracteres: text.length,
+        modelo_utilizado: selectedModel.model,
+        tiempo_de_analisis: debugLogger.getDuration(),
+        estado: "fallido",
+        error_mensaje: (
+          (error instanceof Error ? error.message : String(error)) +
+          (fallo.finishReason ? ` (finishReason: ${fallo.finishReason})` : "")
+        ).slice(0, 1000),
+        input_tokens: fallo.usage.inputTokens ?? null,
+        output_tokens: fallo.usage.outputTokens ?? null,
+        total_tokens: fallo.usage.totalTokens ?? null,
+        reasoning_tokens: fallo.usage.outputTokenDetails?.reasoningTokens ?? null,
+        cached_input_tokens: fallo.usage.inputTokenDetails?.cacheReadTokens ?? null,
+        cache_write_tokens: fallo.usage.inputTokenDetails?.cacheWriteTokens ?? null,
+        costo: calcularCosto(selectedModel.provider, selectedModel.model, {
+          inputTokens: fallo.usage.inputTokens,
+          inputNoCacheTokens: fallo.usage.inputTokenDetails?.noCacheTokens,
+          outputTokens: fallo.usage.outputTokens,
+          cachedInputTokens: fallo.usage.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: fallo.usage.inputTokenDetails?.cacheWriteTokens,
+        }),
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      await analiticaFallida.save();
+      analiticaFallida.avisarSiNoGuardo("corrector fallido");
+    }
+
     await debugLogger.finalize("failed", {
       model: {
         provider: selectedModel.provider as any,
@@ -600,6 +655,13 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
         effort: "medium",
         verbosity: "medium",
       },
+      metrics: fallo
+        ? {
+            inputLength: text.length,
+            tokensUsed: fallo.usage.totalTokens ?? undefined,
+            processingTime: debugLogger.getDuration(),
+          }
+        : undefined,
       error: {
         message: "Error en el procesamiento del texto",
         code: "PROCESSING_ERROR",

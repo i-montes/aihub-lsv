@@ -26,6 +26,12 @@ export type AnalyticsCorrectorDeTextos = {
   cache_write_tokens?: number | null;
   /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
   costo?: number | null;
+  /**
+   * "completado" o "fallido". Una fila fallida trae tokens y costo cuando el
+   * modelo alcanzó a responder: el proveedor la factura igual.
+   */
+  estado?: "completado" | "fallido" | null;
+  error_mensaje?: string | null;
   created_at?: Date | null;
   updated_at?: Date | null;
 };
@@ -56,6 +62,12 @@ export type AnalyticsGeneradorHilos = {
   cache_write_tokens?: number | null;
   /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
   costo?: number | null;
+  /**
+   * "completado" o "fallido". Una fila fallida trae tokens y costo cuando el
+   * modelo alcanzó a responder: el proveedor la factura igual.
+   */
+  estado?: "completado" | "fallido" | null;
+  error_mensaje?: string | null;
   tiempo_generacion?: number | null;
   reintentos_necesarios?: number | null;
   tweets_exceden_limite?: number | null;
@@ -90,6 +102,12 @@ export type AnalyticsGeneradorResumen = {
   cache_write_tokens?: number | null;
   /** USD calculados con lib/costos.ts. NULL si el modelo no está ahí. */
   costo?: number | null;
+  /**
+   * "completado" o "fallido". Una fila fallida trae tokens y costo cuando el
+   * modelo alcanzó a responder: el proveedor la factura igual.
+   */
+  estado?: "completado" | "fallido" | null;
+  error_mensaje?: string | null;
   tiempo_procesamiento?: number | null;
   tiempo_respuesta_api?: number | null;
   created_at?: Date | null;

@@ -23,6 +23,8 @@ export interface SalidaModelo {
   tiempoMs: number;
   uso?: {
     inputTokens?: number | null;
+    /** Input que no salió de caché, cuando el proveedor lo reporta aparte */
+    inputNoCacheTokens?: number | null;
     outputTokens?: number | null;
     totalTokens?: number | null;
     reasoningTokens?: number | null;
