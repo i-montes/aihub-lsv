@@ -7,7 +7,7 @@ import { MessageSquare, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MarkdownView } from "@/components/shared/markdown-view";
-import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
+import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 
 import { AlertaError } from "./components/AlertaError";
 import { Mensaje } from "./components/Mensaje";
@@ -175,7 +175,11 @@ export default function PreguntasChatbotPage() {
                   }
 
                   if (part.type === "tool-reportarResultado" && part.input) {
-                    const resultado = part.input as ResultadoAgentePreguntas;
+                    // Mientras el modelo escribe, `input` es el JSON a medio
+                    // llegar; y el esquema de la tool acepta a propósito tipos
+                    // flojos para no reventar el turno al final. Por eso se
+                    // normaliza antes de pintarlo (ver tipos.ts).
+                    const resultado = normalizarResultado(part.input);
                     return (
                       <div key={i}>
                         {resultado.comentario && (
