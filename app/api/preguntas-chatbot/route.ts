@@ -9,6 +9,7 @@ import {
   PROVEEDOR_PREGUNTAS_CHATBOT,
   type ProveedorSoportado,
 } from "@/lib/preguntas-chatbot/agente";
+import { sanearHistorial } from "@/lib/preguntas-chatbot/mensajes";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
@@ -103,7 +104,12 @@ export async function POST(request: NextRequest) {
     );
   }
   const apiKey = credencial.key;
-  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  // Se sanea antes de usarlo: un turno que quedó a medias (el usuario detuvo
+  // al agente) deja una llamada a tool sin resultado, y el proveedor rechaza
+  // todo el hilo con un 400 a partir de ahí. Ver lib/preguntas-chatbot/mensajes.ts.
+  const messages = sanearHistorial(
+    Array.isArray(body?.messages) ? body.messages : []
+  );
   const sessionId =
     typeof body?.sessionId === "string" && body.sessionId
       ? body.sessionId
