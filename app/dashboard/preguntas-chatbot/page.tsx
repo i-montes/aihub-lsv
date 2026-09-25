@@ -15,7 +15,6 @@ import { CajaEntrada } from "./components/CajaEntrada";
 import { IndicadorEscribiendo } from "./components/IndicadorEscribiendo";
 import { PasoConsulta } from "./components/PasoConsulta";
 import { ResultadoAgente } from "./components/ResultadoAgente";
-import { SelectorModelo, type SeleccionModelo } from "./components/SelectorModelo";
 
 const EJEMPLOS = [
   "¿Cuántas preguntas sobre la reforma pensional hubo esta semana?",
@@ -29,24 +28,20 @@ const EJEMPLOS = [
  * lectores al chatbot de La Silla Vacía, y resume la respuesta en una tabla
  * y una gráfica.
  *
- * El proveedor y el modelo se eligen en la cabecera entre las claves activas
- * de la organización (ver SelectorModelo); el cambio aplica desde el
- * siguiente mensaje. Ver lib/preguntas-chatbot/agente.ts para el servidor.
+ * El proveedor y el modelo los fija el servidor (ver
+ * lib/preguntas-chatbot/agente.ts): la cabecera ya no trae selector.
  */
 export default function PreguntasChatbotPage() {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
-  const [seleccion, setSeleccion] = useState<SeleccionModelo | null>(null);
   const [errorOculto, setErrorOculto] = useState(false);
 
   // Hora de cada mensaje: useChat no la trae, se anota al verlos por primera vez.
   const horas = useRef(new Map<string, Date>());
   const finDelHilo = useRef<HTMLDivElement>(null);
 
-  // Refs para que el transporte lea siempre la sesión y el modelo vigentes
-  // sin tener que recrearse (recrearlo reiniciaría useChat).
-  const seleccionRef = useRef<SeleccionModelo | null>(null);
-  seleccionRef.current = seleccion;
+  // Ref para que el transporte lea siempre la sesión vigente sin tener que
+  // recrearse (recrearlo reiniciaría useChat).
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
 
@@ -54,11 +49,9 @@ export default function PreguntasChatbotPage() {
     () =>
       new DefaultChatTransport({
         api: "/api/preguntas-chatbot",
-        body: () => ({
-          sessionId: sessionIdRef.current,
-          proveedor: seleccionRef.current?.proveedor,
-          modelo: seleccionRef.current?.modelo,
-        }),
+        // Sin proveedor ni modelo: los pone el servidor. La herramienta corre
+        // con uno solo mientras el turno no sea estable en los tres.
+        body: () => ({ sessionId: sessionIdRef.current }),
       })
   );
 
@@ -114,7 +107,6 @@ export default function PreguntasChatbotPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SelectorModelo valor={seleccion} onChange={setSeleccion} disabled={ocupado} />
           {messages.length > 0 && (
             <Button
               type="button"
@@ -137,12 +129,19 @@ export default function PreguntasChatbotPage() {
           {messages.length === 0 && (
             <PantallaVacia
               onElegir={(texto) => setInput(texto)}
-              deshabilitado={!seleccion}
             />
           )}
 
           {messages.map((message) => {
             const esUsuario = message.role === "user";
+            // Las preguntas individuales salen de aquí y no de la respuesta del
+            // agente: ya venían en las filas, no hace falta que las reescriba.
+            const filasConsultadas = message.parts.flatMap((part: any) =>
+              part.type === "tool-consultarPreguntasChatbot" &&
+              Array.isArray(part.output?.filas)
+                ? (part.output.filas as Record<string, unknown>[])
+                : []
+            );
             return (
               <Mensaje
                 key={message.id}
@@ -181,7 +180,10 @@ export default function PreguntasChatbotPage() {
                         {resultado.comentario && (
                           <MarkdownView content={resultado.comentario} compacto />
                         )}
-                        <ResultadoAgente resultado={resultado} />
+                        <ResultadoAgente
+                          resultado={resultado}
+                          filasConsultadas={filasConsultadas}
+                        />
                       </div>
                     );
                   }
@@ -221,10 +223,7 @@ export default function PreguntasChatbotPage() {
           onEnviar={enviar}
           onDetener={stop}
           ocupado={ocupado}
-          deshabilitado={!seleccion}
-          placeholder={
-            seleccion ? "Escribe tu pregunta…" : "Elige un modelo para empezar"
-          }
+          placeholder="Escribe tu pregunta…"
         />
       </div>
     </div>

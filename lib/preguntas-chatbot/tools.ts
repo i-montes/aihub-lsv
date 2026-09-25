@@ -64,10 +64,11 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
 export const herramientaReportarResultado = tool({
   description:
     "Entrega la respuesta final de este turno: un comentario breve en lenguaje " +
-    "natural, la tabla resumen (para graficar) y la tabla desagregada de preguntas. " +
-    "Se debe llamar siempre al final, incluso si la respuesta es que no se encontró " +
-    "nada o que la pregunta no se puede responder con estos datos (en ese caso, " +
-    "resumen y detalle van vacíos y el comentario lo explica).",
+    "natural y la tabla resumen para graficar. NO transcribas las preguntas " +
+    "individuales: la interfaz las toma directamente de las filas que devolvió " +
+    "tu consulta SQL. Se debe llamar siempre al final, incluso si la respuesta es " +
+    "que no se encontró nada o que la pregunta no se puede responder con estos " +
+    "datos (en ese caso el resumen va vacío y el comentario lo explica).",
   inputSchema: z.object({
     comentario: z
       .string()
@@ -92,17 +93,6 @@ export const herramientaReportarResultado = tool({
       )
       .describe(
         "Tabla resumen para graficar: una fila por combinación de fecha y tema/serie."
-      ),
-    detalle: z
-      .array(
-        z.object({
-          fecha: z.string().describe("Fecha y hora de la pregunta (created_at)"),
-          pregunta: z.string(),
-        })
-      )
-      .describe(
-        "Preguntas individuales desagregadas que sustentan el resumen, como máximo " +
-          "las más relevantes (no hace falta listar cientos si el resumen ya las agrega)."
       ),
   }),
   execute: async () => ({ entregado: true }),
