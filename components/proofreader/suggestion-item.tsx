@@ -62,7 +62,14 @@ export function SuggestionItem({
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
-          <Badge className={`${typeColors[suggestion.type]} border px-2 py-1`} variant="outline">
+          {/* La regla del manual va en el tooltip y no en la tarjeta: citarla
+              entera al lado de cada sugerencia llenaba el panel de texto que
+              nadie lee. Queda a un hover para cuando haya que contrastar. */}
+          <Badge
+            className={`${typeColors[suggestion.type]} border px-2 py-1`}
+            variant="outline"
+            title={suggestion.regla ?? undefined}
+          >
             {TYPE_LABELS[suggestion.type] ?? "Estilo"}
           </Badge>
           {suggestion.unresolved && (
@@ -97,18 +104,6 @@ export function SuggestionItem({
       </div>
 
       <div className="text-xs text-gray-600 mb-3">{suggestion.explanation}</div>
-
-      {/* La regla, copiada literal del manual. La explicación la redacta el
-          modelo y puede sonar convincente estando mal; esto es lo que el
-          editor puede contrastar de verdad antes de aplicar. */}
-      {suggestion.regla && (
-        <div className="mb-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
-            Regla del manual{suggestion.categoria ? ` · ${suggestion.categoria}` : ""}
-          </div>
-          <div className="text-xs italic text-gray-700">&ldquo;{suggestion.regla}&rdquo;</div>
-        </div>
-      )}
 
       <div className="flex justify-end space-x-2 mt-2">
         <Button
