@@ -54,7 +54,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import {
-  ResponsiveContainer,
   LineChart as RechartsLineChart,
   Line,
   AreaChart,
@@ -707,31 +706,29 @@ export default function AnalyticsPage() {
                 }}
                 className="h-[300px] w-full"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.userActivity}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend content={<ChartLegendContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="activeUsers"
-                      stackId="1"
-                      stroke="#8884d8"
-                      fill="#8884d8"
-                      fillOpacity={0.6}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="sessions"
-                      stackId="1"
-                      stroke="#82ca9d"
-                      fill="#82ca9d"
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <AreaChart data={data.userActivity}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Legend content={<ChartLegendContent />} />
+                  <Area
+                    type="monotone"
+                    dataKey="activeUsers"
+                    stackId="1"
+                    stroke="#8884d8"
+                    fill="#8884d8"
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="sessions"
+                    stackId="1"
+                    stroke="#82ca9d"
+                    fill="#82ca9d"
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -873,62 +870,60 @@ export default function AnalyticsPage() {
                   }}
                   className="h-[400px]"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          {
-                            name: "Errores",
-                            value: data.errorRates.reduce(
-                              (sum, day) => sum + day.errors,
-                              0
-                            ),
-                            fill: "var(--color-errors)",
-                          },
-                          {
-                            name: "Generaciones exitosas",
-                            value: data.errorRates.reduce(
-                              (sum, day) => sum + (day.total - day.errors),
-                              0
-                            ),
-                            fill: "var(--color-successful)",
-                          },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(1)}%`
-                        }
-                        outerRadius={120}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {[
-                          {
-                            name: "Errores",
-                            value: data.errorRates.reduce(
-                              (sum, day) => sum + day.errors,
-                              0
-                            ),
-                            fill: "var(--color-errors)",
-                          },
-                          {
-                            name: "Generaciones exitosas",
-                            value: data.errorRates.reduce(
-                              (sum, day) => sum + (day.total - day.errors),
-                              0
-                            ),
-                            fill: "var(--color-successful)",
-                          },
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltipContent />} />
-                      <Legend content={<ChartLegendContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        {
+                          name: "Errores",
+                          value: data.errorRates.reduce(
+                            (sum, day) => sum + day.errors,
+                            0
+                          ),
+                          fill: "var(--color-errors)",
+                        },
+                        {
+                          name: "Generaciones exitosas",
+                          value: data.errorRates.reduce(
+                            (sum, day) => sum + (day.total - day.errors),
+                            0
+                          ),
+                          fill: "var(--color-successful)",
+                        },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${(percent * 100).toFixed(1)}%`
+                      }
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        {
+                          name: "Errores",
+                          value: data.errorRates.reduce(
+                            (sum, day) => sum + day.errors,
+                            0
+                          ),
+                          fill: "var(--color-errors)",
+                        },
+                        {
+                          name: "Generaciones exitosas",
+                          value: data.errorRates.reduce(
+                            (sum, day) => sum + (day.total - day.errors),
+                            0
+                          ),
+                          fill: "var(--color-successful)",
+                        },
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Legend content={<ChartLegendContent />} />
+                  </PieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
@@ -1002,42 +997,40 @@ export default function AnalyticsPage() {
                 }}
                 className="h-[400px]"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsBarChart data={data.providerUsage} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="provider" 
-                      tick={{ fontSize: 12 }}
-                      axisLine={{ stroke: '#e0e0e0' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12 }}
-                      axisLine={{ stroke: '#e0e0e0' }}
-                    />
-                    <Tooltip 
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-white p-3 border rounded-lg shadow-lg">
-                              <p className="font-semibold">{label}</p>
-                              <p className="text-sm text-gray-600">Uso: {data.count}</p>
-                              <p className="text-sm text-gray-600">Tokens: {data.tokens.toLocaleString()}</p>
-                              <p className="text-sm text-gray-600">Costo: ${data.cost.toFixed(4)}</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      fill="#10B981"
-                      radius={[4, 4, 0, 0]}
-                      name="Uso"
-                    />
-                  </RechartsBarChart>
-                </ResponsiveContainer>
+                <RechartsBarChart data={data.providerUsage} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="provider" 
+                    tick={{ fontSize: 12 }}
+                    axisLine={{ stroke: '#e0e0e0' }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    axisLine={{ stroke: '#e0e0e0' }}
+                  />
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border rounded-lg shadow-lg">
+                            <p className="font-semibold">{label}</p>
+                            <p className="text-sm text-gray-600">Uso: {data.count}</p>
+                            <p className="text-sm text-gray-600">Tokens: {data.tokens.toLocaleString()}</p>
+                            <p className="text-sm text-gray-600">Costo: ${data.cost.toFixed(4)}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="#10B981"
+                    radius={[4, 4, 0, 0]}
+                    name="Uso"
+                  />
+                </RechartsBarChart>
               </ChartContainer>
               
               {/* Tabla de detalles de proveedores */}
