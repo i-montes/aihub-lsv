@@ -5,7 +5,6 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  ResponsiveContainer,
   XAxis,
   YAxis,
 } from "recharts";
@@ -60,23 +59,21 @@ export function GraficaResumen({ resumen }: { resumen: FilaResumenPreguntas[] })
 
   return (
     <ChartContainer config={config} className="h-[260px] w-full min-w-0 sm:h-[300px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={filas} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="fecha"
-            tick={{ fontSize: 16 }}
-            tickFormatter={etiquetaFecha}
-            minTickGap={8}
-          />
-          <YAxis tick={{ fontSize: 16 }} allowDecimals={false} width={44} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          {temas.length > 1 && <Legend />}
-          {temas.map((tema, i) => (
-            <Bar key={tema} dataKey={tema} fill={COLORES[i % COLORES.length]} radius={4} />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChart data={filas} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis
+          dataKey="fecha"
+          tick={{ fontSize: 16 }}
+          tickFormatter={etiquetaFecha}
+          minTickGap={8}
+        />
+        <YAxis tick={{ fontSize: 16 }} allowDecimals={false} width={44} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        {temas.length > 1 && <Legend />}
+        {temas.map((tema, i) => (
+          <Bar key={tema} dataKey={tema} fill={COLORES[i % COLORES.length]} radius={4} />
+        ))}
+      </BarChart>
     </ChartContainer>
   );
 }
