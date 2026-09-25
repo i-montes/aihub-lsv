@@ -704,7 +704,7 @@ export default function AnalyticsPage() {
                     color: "#82ca9d",
                   },
                 }}
-                className="h-[300px] w-full"
+                className="aspect-auto h-[300px] w-full"
               >
                 <AreaChart data={data.userActivity}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -868,7 +868,7 @@ export default function AnalyticsPage() {
                       color: "hsl(var(--primary))",
                     },
                   }}
-                  className="h-[400px]"
+                  className="aspect-auto h-[400px]"
                 >
                   <PieChart>
                     <Pie
@@ -995,7 +995,7 @@ export default function AnalyticsPage() {
                   tokens: { label: "Tokens", color: "#3B82F6" },
                   cost: { label: "Costo ($)", color: "#F59E0B" },
                 }}
-                className="h-[400px]"
+                className="aspect-auto h-[400px]"
               >
                 <RechartsBarChart data={data.providerUsage} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
