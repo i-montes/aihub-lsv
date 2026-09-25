@@ -14,6 +14,18 @@ export type Suggestion = {
    * de descartarla en silencio.
    */
   unresolved?: boolean;
+  /**
+   * La regla del manual que motivó la corrección, copiada tal cual.
+   *
+   * El tamiz sabe exactamente qué regla señaló, así que se arrastra hasta la
+   * interfaz: ante una sugerencia dudosa, el editor puede contrastarla con el
+   * manual sin salir de la pantalla ni fiarse de la explicación del modelo.
+   */
+  regla?: string;
+  /** Sección del manual de la que sale la regla. */
+  categoria?: string;
+  /** Cuánto de seguro estaba el tamiz de que esta frase rompía algo, de 0 a 1. */
+  confianza?: number;
 };
 
 export type WordPressPost = {

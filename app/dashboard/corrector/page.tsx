@@ -16,6 +16,7 @@ import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dial
 import { ProofreaderHeader } from "@/components/proofreader/header";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { DebugModal } from "@/components/debug/debug-modal";
+import { ProcesoModal } from "@/components/proofreader/proceso-modal";
 import { analyzeText } from "@/actions/analyze-text";
 import { agregarCorreccionAnalytics, updateAnalytics } from "@/actions/update-analytics";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,13 @@ export default function ProofreaderPage() {
   });
   const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [debugLogs, setDebugLogs] = useState<any[]>([]);
+  // Traza del análisis por frase, para el modal "Ver proceso". El flujo viejo
+  // de una sola llamada no la produce, así que ahí el botón no aparece.
+  const [traza, setTraza] = useState<any[]>([]);
+  const [detalleProceso, setDetalleProceso] = useState<any>(null);
+  const [peticionJev, setPeticionJev] = useState<any>(null);
+  const [peticionesJev, setPeticionesJev] = useState<any[]>([]);
+  const [promptCorrector, setPromptCorrector] = useState<any>(null);
   const [models, setModels] = useState<
     {
       model: string;
@@ -429,6 +437,11 @@ export default function ProofreaderPage() {
   const handleAnalyzeText = async () => {
     setIsAnalyzing(true);
     setDebugLogs([]); // Limpiar logs anteriores
+    setTraza([]);
+    setDetalleProceso(null);
+    setPeticionJev(null);
+    setPeticionesJev([]);
+    setPromptCorrector(null);
 
     try {
       // El modelo trabaja siempre en texto plano. Este texto sale del mismo
@@ -462,6 +475,22 @@ export default function ProofreaderPage() {
       // Guardar los logs de debug si están disponibles
       if (result.debugLogs) {
         setDebugLogs(result.debugLogs);
+      }
+
+      if (result.traza?.length) {
+        setTraza(result.traza);
+        setDetalleProceso(result.detallePorFrase ?? null);
+        setPeticionJev(result.ejemploPeticion ?? null);
+        setPeticionesJev(result.peticionesTamiz ?? []);
+        setPromptCorrector(result.ejemploCorreccion ?? null);
+      } else if (result.success) {
+        // Sin traza, el análisis se fue por el camino viejo de una sola
+        // llamada. Antes eso pasaba en silencio y la única pista era que el
+        // botón "Ver proceso" no aparecía, que es imposible de notar.
+        toast.info("Se analizó con el flujo clásico", {
+          description:
+            "El tamiz por frase no se usó. Suele ser que falta TYPESAFE_API_KEY o que la petición falló; míralo en el debug.",
+        });
       }
 
       if (!result.success) {
@@ -547,6 +576,7 @@ export default function ProofreaderPage() {
     setActiveSuggestion(null);
     setAppliedSuggestions([]);
     setDebugLogs([]); // Limpiar logs al volver al editor
+    setTraza([]);
     setStats({
       readabilityScore: 0,
       grammarScore: 0,
@@ -792,6 +822,15 @@ export default function ProofreaderPage() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <ProofreaderHeader />
+            {isAnalyzed && traza.length > 0 && (
+              <ProcesoModal
+                traza={traza}
+                detalle={detalleProceso}
+                peticion={peticionJev}
+                peticiones={peticionesJev}
+                promptCorrector={promptCorrector}
+              />
+            )}
             {isAnalyzed && debugLogs.length > 0 && (
               <DebugModal logs={debugLogs} onClearLogs={clearDebugLogs} />
             )}
