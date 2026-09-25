@@ -29,6 +29,15 @@ const typeColors = {
   punctuation: "bg-purple-50 text-purple-700 border-purple-200",
 }
 
+/**
+ * Por debajo de esto, la sugerencia se marca como dudosa.
+ *
+ * En pruebas contra el modelo, las frases con un error real dieron entre 0,91
+ * y 0,98, y una frase limpia dio 0,19. Lo que cae en la zona de en medio es
+ * justo lo que conviene que el editor mire con lupa.
+ */
+const CONFIANZA_DUDOSA = 0.85
+
 export function SuggestionItem({ 
   suggestion, 
   isActive, 
@@ -64,6 +73,16 @@ export function SuggestionItem({
               No localizada
             </Badge>
           )}
+          {suggestion.confianza !== undefined &&
+            suggestion.confianza < CONFIANZA_DUDOSA && (
+              <Badge
+                className="bg-orange-50 text-orange-700 border-orange-200 border px-2 py-1"
+                variant="outline"
+                title={`El filtro le dio ${suggestion.confianza.toFixed(2)} de 1 a que esta frase rompiera algo`}
+              >
+                Poco seguro
+              </Badge>
+            )}
         </div>
       </div>
 
@@ -78,6 +97,18 @@ export function SuggestionItem({
       </div>
 
       <div className="text-xs text-gray-600 mb-3">{suggestion.explanation}</div>
+
+      {/* La regla, copiada literal del manual. La explicación la redacta el
+          modelo y puede sonar convincente estando mal; esto es lo que el
+          editor puede contrastar de verdad antes de aplicar. */}
+      {suggestion.regla && (
+        <div className="mb-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
+          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            Regla del manual{suggestion.categoria ? ` · ${suggestion.categoria}` : ""}
+          </div>
+          <div className="text-xs italic text-gray-700">&ldquo;{suggestion.regla}&rdquo;</div>
+        </div>
+      )}
 
       <div className="flex justify-end space-x-2 mt-2">
         <Button
