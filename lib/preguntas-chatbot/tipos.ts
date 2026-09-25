@@ -11,6 +11,10 @@ export interface FilaResumenPreguntas {
   cantidad: number;
 }
 
+/**
+ * Una pregunta individual. No la escribe el agente: sale de las filas que
+ * devolvió su consulta SQL, donde ya venía con su texto y su fecha.
+ */
 export interface FilaDetallePreguntas {
   fecha: string;
   pregunta: string;
@@ -19,5 +23,4 @@ export interface FilaDetallePreguntas {
 export interface ResultadoAgentePreguntas {
   comentario: string;
   resumen: FilaResumenPreguntas[];
-  detalle: FilaDetallePreguntas[];
 }

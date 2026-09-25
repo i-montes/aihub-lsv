@@ -5,7 +5,41 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { GraficaResumen } from "./GraficaResumen";
 import { BotonCopiarTabla } from "./BotonCopiarTabla";
-import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
+import type {
+  FilaDetallePreguntas,
+  ResultadoAgentePreguntas,
+} from "@/lib/preguntas-chatbot/tipos";
+
+/**
+ * Saca las preguntas individuales de las filas que devolvió el SQL.
+ *
+ * Antes las transcribía el agente en su respuesta, una por una. Era gastar
+ * tokens de salida —y tiempo— en copiar texto que ya había viajado: las filas
+ * vienen de `chats_new`, donde la pregunta ya está escrita. Ahora el agente
+ * sólo redacta el comentario y el resumen, y esto recoge el resto.
+ *
+ * Las columnas dependen del SELECT que haya escrito el modelo, así que se
+ * busca por nombre y se acepta lo que haya. Una fila sólo cuenta si trae texto
+ * de pregunta; las de conteos agregados se ignoran solas.
+ */
+function preguntasDeLasFilas(filas: Record<string, unknown>[]): FilaDetallePreguntas[] {
+  const vistas = new Set<string>();
+  const salida: FilaDetallePreguntas[] = [];
+
+  for (const fila of filas) {
+    const pregunta = typeof fila?.pregunta === "string" ? fila.pregunta.trim() : "";
+    if (!pregunta) continue;
+
+    // La misma pregunta puede venir en varias consultas del mismo turno.
+    if (vistas.has(pregunta)) continue;
+    vistas.add(pregunta);
+
+    const cruda = fila.created_at ?? fila.fecha ?? "";
+    salida.push({ fecha: typeof cruda === "string" ? cruda : String(cruda ?? ""), pregunta });
+  }
+
+  return salida;
+}
 
 /**
  * Tablas y gráfica del resultado final, dentro de la burbuja del agente.
@@ -16,10 +50,17 @@ import type { ResultadoAgentePreguntas } from "@/lib/preguntas-chatbot/tipos";
  * gente—, así que van primero; la gráfica y el resumen son el agregado y
  * quedan de contexto debajo.
  */
-export function ResultadoAgente({ resultado }: { resultado: ResultadoAgentePreguntas }) {
+export function ResultadoAgente({
+  resultado,
+  filasConsultadas = [],
+}: {
+  resultado: ResultadoAgentePreguntas;
+  /** Filas crudas de las consultas SQL de este mismo turno. */
+  filasConsultadas?: Record<string, unknown>[];
+}) {
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const resumen = resultado.resumen ?? [];
-  const detalle = resultado.detalle ?? [];
+  const detalle = preguntasDeLasFilas(filasConsultadas);
 
   if (resumen.length === 0 && detalle.length === 0) {
     return null;

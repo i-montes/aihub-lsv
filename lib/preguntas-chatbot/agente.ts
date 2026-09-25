@@ -70,6 +70,12 @@ Reglas para las consultas:
   tabla resumen debe tener una fila por cada combinación de fecha y tema/serie, para que se
   pueda graficar como series comparadas.
 
+- Las preguntas individuales NO se transcriben en la respuesta: la interfaz las muestra
+  tomándolas de las filas que devolvió tu consulta. Lo que sí tienes que hacer es
+  asegurarte de que alguna de tus consultas traiga la columna "pregunta" (y "created_at"
+  si quieres que salga la fecha) de las filas que sustentan tu respuesta. Escribirlas de
+  nuevo una por una sólo gasta tiempo y no agrega nada.
+
 Cuando tengas la respuesta (o si de plano no se puede responder con estos datos), llama
 SIEMPRE a "reportarResultado" para cerrar el turno — es la única forma de terminar.`;
 

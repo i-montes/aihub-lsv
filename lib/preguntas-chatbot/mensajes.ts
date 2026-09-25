@@ -63,8 +63,10 @@ function aligerarParte(part: any): any {
     };
   }
 
-  // Del resultado final se conservan el comentario y el resumen —que son
-  // pocos y dan continuidad— y se suelta el detalle, que es el que pesa.
+  // `detalle` ya no está en el esquema de reportarResultado: las preguntas
+  // individuales se toman de las filas del SQL. Esto se queda para los hilos
+  // que venían de antes — una pestaña abierta durante el despliegue reenvía su
+  // historial viejo, con su tabla transcrita a cuestas.
   if (part?.type === "tool-reportarResultado" && Array.isArray(part.input?.detalle)) {
     const n = part.input.detalle.length;
     if (n === 0) return part;

@@ -134,6 +134,14 @@ export default function PreguntasChatbotPage() {
 
           {messages.map((message) => {
             const esUsuario = message.role === "user";
+            // Las preguntas individuales salen de aquí y no de la respuesta del
+            // agente: ya venían en las filas, no hace falta que las reescriba.
+            const filasConsultadas = message.parts.flatMap((part: any) =>
+              part.type === "tool-consultarPreguntasChatbot" &&
+              Array.isArray(part.output?.filas)
+                ? (part.output.filas as Record<string, unknown>[])
+                : []
+            );
             return (
               <Mensaje
                 key={message.id}
@@ -172,7 +180,10 @@ export default function PreguntasChatbotPage() {
                         {resultado.comentario && (
                           <MarkdownView content={resultado.comentario} compacto />
                         )}
-                        <ResultadoAgente resultado={resultado} />
+                        <ResultadoAgente
+                          resultado={resultado}
+                          filasConsultadas={filasConsultadas}
+                        />
                       </div>
                     );
                   }
