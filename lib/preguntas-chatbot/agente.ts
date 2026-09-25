@@ -61,8 +61,9 @@ Reglas para las consultas:
   el "día" que importa es el de Bogotá, no el de UTC.
 - chats_new NO tiene una columna de "tema". Si te piden un tema (ej. "preguntas sobre
   pensiones"), fíltralo con ILIKE sobre "pregunta" sobre las palabras razonables del tema,
-  trae una muestra de las preguntas que calzan, y clasifícalas TÚ por tema/subtema leyendo
-  el texto — no inventes que SQL ya las agrupó semánticamente.
+  trae TODAS las preguntas que calzan (no una muestra: la tool corta en 500 filas y de
+  eso se encarga ella), y clasifícalas TÚ por tema/subtema leyendo el texto — no
+  inventes que SQL ya las agrupó semánticamente.
 - Si la primera consulta no da lo que esperabas (columna mal escrita, cero filas cuando no
   debería), ajusta el SQL y vuelve a intentar — puedes llamar la tool varias veces en un
   mismo turno.
@@ -73,8 +74,10 @@ Reglas para las consultas:
 - Las preguntas individuales NO se transcriben en la respuesta: la interfaz las muestra
   tomándolas de las filas que devolvió tu consulta. Lo que sí tienes que hacer es
   asegurarte de que alguna de tus consultas traiga la columna "pregunta" (y "created_at"
-  si quieres que salga la fecha) de las filas que sustentan tu respuesta. Escribirlas de
-  nuevo una por una sólo gasta tiempo y no agrega nada.
+  si quieres que salga la fecha) de TODAS las filas que sustentan tu respuesta, no de una
+  parte. Si tu resumen dice que hubo 60 preguntas de un tema, esa consulta tiene que
+  devolver las 60: el conteo y la lista salen de lo mismo y no pueden discrepar.
+  Escribirlas de nuevo una por una sólo gasta tiempo y no agrega nada.
 
 Cuando tengas la respuesta (o si de plano no se puede responder con estos datos), llama
 SIEMPRE a "reportarResultado" para cerrar el turno — es la única forma de terminar.`;
