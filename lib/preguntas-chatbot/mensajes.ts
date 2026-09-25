@@ -35,6 +35,53 @@ function aportaContenido(part: any): boolean {
 }
 
 /**
+ * Vacía los resultados voluminosos de turnos anteriores.
+ *
+ * `useChat` reenvía el hilo completo en cada pregunta, y aquí lo que viaja no
+ * son sólo los textos: cada consulta SQL deja hasta 500 filas en el historial
+ * y cada resultado final deja su tabla de preguntas desagregadas. Medido en
+ * una conversación real, el contexto pasaba de 43.000 tokens en el primer
+ * turno a 72.000 en el segundo, y el turno tardaba 58 segundos contra un tope
+ * de 60: el tercero se cortaba a la mitad del stream y el usuario se quedaba
+ * con el spinner girando.
+ *
+ * Las filas crudas no hacen falta para seguir la conversación: el agente ya
+ * destiló lo que importaba en su `reportarResultado`, y si necesita el detalle
+ * puede volver a consultar, que para eso tiene la tool. Se deja una nota en
+ * lugar de los datos para que sepa que existieron.
+ */
+function aligerarParte(part: any): any {
+  if (part?.type === "tool-consultarPreguntasChatbot") {
+    const filas = Array.isArray(part.output?.filas) ? part.output.filas.length : 0;
+    return {
+      ...part,
+      output: {
+        omitido: true,
+        filas_devueltas: filas,
+        nota: "Las filas de esta consulta se omitieron del historial para ahorrar contexto. Si las necesitas, vuelve a consultar.",
+      },
+    };
+  }
+
+  // Del resultado final se conservan el comentario y el resumen —que son
+  // pocos y dan continuidad— y se suelta el detalle, que es el que pesa.
+  if (part?.type === "tool-reportarResultado" && Array.isArray(part.input?.detalle)) {
+    const n = part.input.detalle.length;
+    if (n === 0) return part;
+    return {
+      ...part,
+      input: {
+        ...part.input,
+        detalle: [],
+        detalle_omitido: `Se omitieron ${n} preguntas individuales del historial.`,
+      },
+    };
+  }
+
+  return part;
+}
+
+/**
  * Quita de los mensajes del agente las llamadas a tool que nunca recibieron
  * resultado, y descarta los mensajes que se quedan sin nada que decir (si no,
  * el proveedor rechaza un mensaje de assistant con contenido vacío).
@@ -46,15 +93,21 @@ export function sanearHistorial<T extends { role: string; parts?: any[] }>(
 ): T[] {
   const saneados: T[] = [];
 
-  for (const mensaje of messages) {
+  // El último mensaje del agente se deja entero: es el que el usuario tiene
+  // delante y sobre el que suele preguntar ("de esas, ¿cuáles son de...?").
+  const ultimoDelAgente = messages.map((m) => m.role).lastIndexOf("assistant");
+
+  for (const [i, mensaje] of messages.entries()) {
     if (mensaje.role !== "assistant" || !Array.isArray(mensaje.parts)) {
       saneados.push(mensaje);
       continue;
     }
 
-    const parts = mensaje.parts.filter(
+    let parts = mensaje.parts.filter(
       (part) => !esToolPart(part) || ESTADOS_CON_RESULTADO.has(part.state)
     );
+
+    if (i !== ultimoDelAgente) parts = parts.map(aligerarParte);
 
     if (!parts.some(aportaContenido)) continue;
     saneados.push({ ...mensaje, parts });

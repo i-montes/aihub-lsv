@@ -14,8 +14,13 @@ import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 
-/** El agente puede llamar la tool de SQL varias veces antes de responder. */
-export const maxDuration = 60;
+/**
+ * El agente puede llamar la tool de SQL varias veces antes de responder, y un
+ * turno con varias consultas rondaba los 58 segundos contra un tope de 60: el
+ * siguiente se cortaba a mitad del stream. Vercel admite hasta 300 en todos
+ * los planes, así que el techo deja de ser el que manda.
+ */
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 function jsonError(mensaje: string, status: number): Response {
@@ -125,6 +130,7 @@ export async function POST(request: NextRequest) {
   let pasos = 0;
   let resultadoFinal: { comentario?: string; resumen?: unknown; detalle?: unknown } | null =
     null;
+  let errorDelTurno: string | null = null;
 
   const agent = crearAgentePreguntasChatbot({
     apiKey,
@@ -136,6 +142,26 @@ export async function POST(request: NextRequest) {
   const response = await createAgentUIStreamResponse({
     agent,
     uiMessages: messages,
+    // Sin esto el AI SDK enmascara cualquier fallo del proveedor con un "An
+    // error occurred", y el periodista ve una alerta que no dice nada y
+    // nosotros no vemos nada en el servidor. Cuando el turno se rompe, el
+    // mensaje del proveedor es justo lo que hace falta: nombra el ítem del
+    // historial que rechazó.
+    onError: (error) => {
+      const detalle =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error);
+
+      console.error(
+        `[preguntas-chatbot] ❌ turno roto (${proveedor}/${modelo}):`,
+        error,
+      );
+      errorDelTurno = detalle;
+      return detalle;
+    },
     onStepFinish: async (step) => {
       pasos += 1;
       usos.push(step.usage);
@@ -184,6 +210,7 @@ export async function POST(request: NextRequest) {
         costo,
         tiempo_procesamiento: (Date.now() - inicio) / 1000,
         error_mensaje:
+          errorDelTurno ??
           consultas.find((c) => c.error)?.error ??
           (resultadoFinal ? null : "El agente no llegó a reportarResultado"),
         created_at: new Date(),
