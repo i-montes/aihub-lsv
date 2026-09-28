@@ -10,6 +10,7 @@ import {
   type ProveedorSoportado,
 } from "@/lib/preguntas-chatbot/agente";
 import { sanearHistorial } from "@/lib/preguntas-chatbot/mensajes";
+import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
@@ -128,8 +129,7 @@ export async function POST(request: NextRequest) {
   const consultas: { sql: string; filas: number; error: string | null }[] = [];
   const usos: any[] = [];
   let pasos = 0;
-  let resultadoFinal: { comentario?: string; resumen?: unknown; detalle?: unknown } | null =
-    null;
+  let resultadoFinal: ReturnType<typeof normalizarResultado> | null = null;
   let errorDelTurno: string | null = null;
 
   const agent = crearAgentePreguntasChatbot({
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       usos.push(step.usage);
       const llamadaFinal = step.toolCalls.find((c) => c.toolName === "reportarResultado");
       if (llamadaFinal) {
-        resultadoFinal = llamadaFinal.input as typeof resultadoFinal;
+        resultadoFinal = normalizarResultado(llamadaFinal.input);
       }
     },
   });
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId,
         turno,
         pregunta_usuario: preguntaUsuario || null,
-        comentario_agente: resultadoFinal?.comentario ?? null,
+        comentario_agente: resultadoFinal?.comentario || null,
         sql_ejecutado: consultas.map((c) => c.sql),
         filas_devueltas: consultas.reduce((total, c) => total + c.filas, 0),
         resumen: (resultadoFinal?.resumen as any) ?? null,

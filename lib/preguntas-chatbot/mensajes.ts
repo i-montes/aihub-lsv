@@ -63,8 +63,22 @@ function aligerarParte(part: any): any {
     };
   }
 
-  // `detalle` ya no está en el esquema de reportarResultado: las preguntas
-  // individuales se toman de las filas del SQL. Esto se queda para los hilos
+  // Los ids de cada tema pueden ser cientos por turno y al agente no le sirven
+  // para seguir la conversación: si los necesita, vuelve a consultar.
+  if (part?.type === "tool-reportarResultado" && Array.isArray(part.input?.temas)) {
+    const conIds = part.input.temas.some((t: any) => Array.isArray(t?.ids) && t.ids.length);
+    if (conIds) {
+      return {
+        ...part,
+        input: {
+          ...part.input,
+          temas: part.input.temas.map(({ ids, ...tema }: any) => tema),
+        },
+      };
+    }
+  }
+
+  // `detalle` ya no está en el esquema de reportarResultado. Esto se queda para los hilos
   // que venían de antes — una pestaña abierta durante el despliegue reenvía su
   // historial viejo, con su tabla transcrita a cuestas.
   if (part?.type === "tool-reportarResultado" && Array.isArray(part.input?.detalle)) {
