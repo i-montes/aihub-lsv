@@ -46,6 +46,23 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
 }
 
 /**
+ * Número o string: el esquema de la tool final es a propósito tolerante.
+ *
+ * El AI SDK valida el `input` de una tool contra este esquema cuando la
+ * llamada termina de llegar, y si no calza corta el turno con
+ * `InvalidToolInputError`. Los modelos de OpenAI mandan con frecuencia
+ * `"veces": "42"` o `"fecha": 2026`, y el turno se rompía justo al final: el
+ * usuario veía la tabla armarse en pantalla y, al terminar, todo se
+ * reemplazaba por un error.
+ *
+ * Aceptarlo aquí y normalizarlo después (ver `normalizarResultado` en
+ * tipos.ts) es preferible a perder una respuesta que ya está completa por una
+ * comilla de más.
+ */
+const numeroTolerante = z.union([z.number(), z.string()]);
+const textoTolerante = z.union([z.string(), z.number()]);
+
+/**
  * Tool "de respuesta": el modelo la llama para entregar el resultado final
  * del turno.
  *
@@ -63,36 +80,71 @@ export function crearHerramientaConsulta(registrar: RegistrarConsulta) {
  */
 export const herramientaReportarResultado = tool({
   description:
-    "Entrega la respuesta final de este turno: un comentario breve en lenguaje " +
-    "natural y la tabla resumen para graficar. NO transcribas las preguntas " +
-    "individuales: la interfaz las toma directamente de las filas que devolvió " +
-    "tu consulta SQL. Se debe llamar siempre al final, incluso si la respuesta es " +
-    "que no se encontró nada o que la pregunta no se puede responder con estos " +
-    "datos (en ese caso el resumen va vacío y el comentario lo explica).",
+    "Entrega la respuesta final de este turno: el párrafo resumen, la tabla de " +
+    "temas y, según el caso, la lista de preguntas más recientes o la tabla para " +
+    "graficar una comparación. Se debe llamar siempre al final, incluso si no se " +
+    "encontró nada o la pregunta no se puede responder con estos datos (en ese " +
+    "caso las listas van vacías y el comentario lo explica).",
   inputSchema: z.object({
     comentario: z
       .string()
       .describe(
-        "Respuesta breve en lenguaje natural para mostrar en el chat, con el " +
-          "hallazgo principal (ej. 'Las preguntas sobre pensiones subieron 40% esta semana')."
+        "Párrafo resumen, máximo 80 palabras: volumen con el rango exacto de fechas, " +
+          "peso sobre el total, tendencia y las dudas que más se repiten."
+      ),
+    temas: z
+      .array(
+        z.object({
+          tema: textoTolerante.describe(
+            "Nombre corto y específico del grupo, como lo diría la redacción"
+          ),
+          fecha: textoTolerante.describe(
+            "Último día en que se preguntó algo del tema, en hora de Bogotá (ej. '18 sep')"
+          ),
+          variantes: z
+            .array(textoTolerante)
+            .describe(
+              "Preguntas reales tal como las escribieron, cortadas a 150 caracteres. " +
+                "Sin 'y X más': la interfaz lo calcula con veces."
+            ),
+          veces: numeroTolerante.describe("Cuántas preguntas del período caen en el tema"),
+          ids: z
+            .array(numeroTolerante)
+            .optional()
+            .describe("Los id de chats_new de todas las preguntas del tema"),
+        })
+      )
+      .optional()
+      .describe(
+        "La tabla de temas, de más a menos veces. La suma de veces es igual al " +
+          "número de preguntas del comentario."
+      ),
+    recientes: z
+      .array(
+        z.object({
+          pregunta: textoTolerante,
+          fecha: textoTolerante.describe("Día de la pregunta en hora de Bogotá"),
+        })
+      )
+      .optional()
+      .describe(
+        "Solo cuando piden las preguntas más recientes: sin agrupar, de la más " +
+          "reciente a la más antigua."
       ),
     resumen: z
       .array(
         z.object({
-          fecha: z
-            .string()
-            .describe("Fecha o periodo agregado, ej. '2026-09-10' o 'Semana del 8 al 14'"),
-          tema: z
-            .string()
-            .describe(
-              "Tema o serie a la que corresponde esta fila (útil para comparar varios " +
-                "temas o periodos a la vez; si sólo hay un tema, repetirlo en todas las filas)."
-            ),
-          cantidad: z.number().describe("Cantidad de preguntas de ese tema en esa fecha"),
+          fecha: textoTolerante.describe(
+            "Período, ej. '2026-09-10' o 'Semana del 8 al 14'"
+          ),
+          tema: textoTolerante.describe("Tema o serie de esta fila"),
+          cantidad: numeroTolerante.describe("Cantidad de preguntas, como número"),
         })
       )
+      .optional()
       .describe(
-        "Tabla resumen para graficar: una fila por combinación de fecha y tema/serie."
+        "Solo cuando piden comparar períodos o temas: una fila por combinación de " +
+          "período y tema, para graficarla como series comparadas."
       ),
   }),
   execute: async () => ({ entregado: true }),

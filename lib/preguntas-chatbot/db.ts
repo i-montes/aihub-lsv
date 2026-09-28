@@ -1,4 +1,4 @@
-import { Client } from "pg";
+import { Client, types } from "pg";
 
 /**
  * Acceso de sólo lectura a la base de datos del chatbot de La Silla Vacía
@@ -92,6 +92,69 @@ function validarSoloLectura(sql: string): string {
   return sinPuntoYComaFinal;
 }
 
+export interface ColumnaChatsNew {
+  nombre: string;
+  tipo: string;
+  descripcion: string;
+  /** Sólo en las calculadas: la expresión SQL sobre la tabla real */
+  expresion?: string;
+}
+
+/**
+ * Las columnas que el agente puede usar de `chats_new`. Única fuente de
+ * verdad: de aquí salen la CTE de abajo y la lista del prompt (agente.ts).
+ *
+ * Quedan fuera a propósito `debug_mode` (ya filtrado) y `debug_log` (interno
+ * del chatbot, no es de los lectores).
+ *
+ * Las calculadas existen porque las formas "obvias" revientan la consulta:
+ *
+ * - `tipo_respuesta` y `texto_respuesta`: `respuesta` casi siempre es JSON
+ *   como string, pero no siempre (algunas son texto plano, "Soy SillaIA…"),
+ *   y un solo `respuesta::jsonb` sobre una de esas tumba todo el SELECT con
+ *   "invalid input syntax for type json". Aquí se castea sólo si es válido.
+ * - `pregunta_sin_tildes`: la extensión `unaccent` no está instalada en esa
+ *   base (y no es nuestra para instalarla), así que se quitan con translate.
+ */
+export const COLUMNAS_CHATS_NEW: ColumnaChatsNew[] = [
+  { nombre: "id", tipo: "bigint", descripcion: "id de la pregunta" },
+  { nombre: "pregunta", tipo: "text", descripcion: "lo que escribió el lector, tal cual" },
+  {
+    nombre: "pregunta_sin_tildes",
+    tipo: "text",
+    descripcion: "la pregunta en minúsculas y sin tildes: úsala para filtrar por palabras",
+    expresion:
+      "translate(lower(pregunta), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun')",
+  },
+  {
+    nombre: "respuesta",
+    tipo: "text",
+    descripcion: "respuesta cruda de SillaIA; casi siempre JSON como string, no siempre",
+  },
+  {
+    nombre: "tipo_respuesta",
+    tipo: "text",
+    descripcion: "tipo de respuesta (ej. question, resumen, perfil, agresivo, just_greeting); null si no hay",
+    expresion:
+      "case when pg_input_is_valid(respuesta, 'jsonb') then respuesta::jsonb->>'tipo_respuesta' end",
+  },
+  {
+    nombre: "texto_respuesta",
+    tipo: "text",
+    descripcion: "el texto de la respuesta de SillaIA",
+    expresion:
+      "case when pg_input_is_valid(respuesta, 'jsonb') then respuesta::jsonb->>'respuesta' else respuesta end",
+  },
+  { nombre: "created_at", tipo: "timestamptz", descripcion: "cuándo se hizo la pregunta" },
+  { nombre: "history", tipo: "jsonb", descripcion: "turnos previos de esa misma conversación" },
+  { nombre: "origin", tipo: "text", descripcion: 'de dónde llegó, ej. "Web"' },
+  {
+    nombre: "user_name",
+    tipo: "text",
+    descripcion: "id anónimo del lector (guest_<uuid>), no un nombre real",
+  },
+];
+
 /**
  * Las filas con `debug_mode = true` son pruebas internas del equipo, no
  * preguntas reales de lectores — el prompt del agente ya le pide excluirlas,
@@ -103,9 +166,16 @@ function validarSoloLectura(sql: string): string {
  *
  * Una CTE y no una vista en la base del chatbot a propósito: es la base de
  * otro sistema, no de esta app, y esto lo resuelve por completo sin tocarla.
+ *
+ * La CTE expone SÓLO las columnas de `COLUMNAS_CHATS_NEW`, y el prompt del
+ * agente se arma con esa misma lista: lo que el modelo lee es exactamente lo
+ * que existe, ni más ni menos.
  */
 function forzarFiltroDebug(sql: string): string {
-  const cte = "chats_new as (select * from public.chats_new where debug_mode is not true)";
+  const columnas = COLUMNAS_CHATS_NEW.map((c) =>
+    c.expresion ? `${c.expresion} as ${c.nombre}` : c.nombre
+  ).join(",\n    ");
+  const cte = `chats_new as (\n  select\n    ${columnas}\n  from public.chats_new where debug_mode is not true)`;
 
   // Si el modelo ya empieza con WITH, la propia se suma como una CTE más en
   // vez de anteponer un segundo WITH (inválido en SQL).
@@ -113,6 +183,22 @@ function forzarFiltroDebug(sql: string): string {
     return sql.replace(/^with\s+/i, `with ${cte}, `);
   }
   return `with ${cte}\n${sql}`;
+}
+
+/** OID de `timestamp without time zone` en Postgres */
+const OID_TIMESTAMP_SIN_ZONA = 1114;
+
+/**
+ * `created_at at time zone 'America/Bogota'` devuelve un timestamp SIN zona
+ * que ya es la hora de Bogotá. Por defecto `pg` lo vuelve un Date asumiendo
+ * la zona del servidor (UTC), y al serializarlo para el modelo sale como
+ * "2026-09-27T21:30:00.000Z": una hora de Bogotá marcada como UTC, que el
+ * modelo tiende a "corregir" restándole 5 horas y así pasa las preguntas de
+ * la noche al día equivocado. Se devuelve tal cual lo escribe Postgres.
+ */
+function parserDeTipos(oid: number, formato?: any) {
+  if (oid === OID_TIMESTAMP_SIN_ZONA) return (valor: string) => valor;
+  return types.getTypeParser(oid, formato);
 }
 
 export interface ResultadoConsulta {
@@ -141,6 +227,7 @@ export async function ejecutarSqlSoloLectura(
 
   const client = new Client({
     connectionString: connectionString.replace("sslmode=require", "sslmode=no-verify"),
+    types: { getTypeParser: parserDeTipos },
   });
 
   try {
