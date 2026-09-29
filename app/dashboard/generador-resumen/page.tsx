@@ -13,6 +13,7 @@ import { SelectedContentModal } from "@/components/shared/selected-content-modal
 import { Button } from "@/components/ui/button";
 import { FileText, Edit3, Eye, Copy } from "lucide-react";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
 
 import {
   Dialog,
@@ -79,7 +80,12 @@ export default function GeneradorResumenes() {
   }>({ model: "", provider: "" });
 
   const { profile } = useAuth();
-  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("resume");
+  const {
+    proveedores,
+    cargando: cargandoProveedores,
+    error: errorProveedores,
+    recargar: recargarProveedores,
+  } = useProveedoresActivos("resume");
   const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
   const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
 
@@ -437,9 +443,13 @@ export default function GeneradorResumenes() {
 
   return (
     <div className="p-6">
+      {/* Un fallo de carga no es falta de proveedor: se avisa y se ofrece reintentar. */}
+      {errorProveedores && (
+        <AvisoErrorProveedores error={errorProveedores} onReintentar={recargarProveedores} className="mb-4" />
+      )}
       <ApiKeyRequiredModal
         isLoading={cargandoProveedores}
-        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isOpen={!cargandoProveedores && !errorProveedores && proveedores.length === 0}
         isAdmin={esAdmin}
         herramienta="Resúmenes"
       />

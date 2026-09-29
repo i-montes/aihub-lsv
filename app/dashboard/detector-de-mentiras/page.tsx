@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, Info, Loader2 } from "lucide-react";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
 
 // Importar módulos creados
 import { formSchema, type FormSchema, defaultFormValues } from "./constants";
@@ -56,7 +57,7 @@ export default function LieDetectorPage() {
 
   // Hooks personalizados para lógica de negocio
   const { profile } = useAuth();
-  const { proveedores, cargando } = useProveedoresActivos("detector");
+  const { proveedores, cargando, error: errorProveedores, recargar: recargarProveedores } = useProveedoresActivos("detector");
   const apiKeyStatus = {
     isLoading: cargando,
     hasApiKey: proveedores.length > 0,
@@ -82,6 +83,15 @@ export default function LieDetectorPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Un fallo de carga no es falta de proveedor: se avisa y se ofrece reintentar.
+  if (errorProveedores) {
+    return (
+      <div className="p-6">
+        <AvisoErrorProveedores error={errorProveedores} onReintentar={recargarProveedores} />
       </div>
     );
   }

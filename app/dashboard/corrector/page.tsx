@@ -14,6 +14,7 @@ import { SuggestionsPanel } from "@/components/proofreader/suggestions-panel";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { ProofreaderHeader } from "@/components/proofreader/header";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
 import { DebugModal } from "@/components/debug/debug-modal";
 import { ProcesoModal } from "@/components/proofreader/proceso-modal";
 import { analyzeText } from "@/actions/analyze-text";
@@ -84,7 +85,12 @@ export default function ProofreaderPage() {
   const matchCursorRef = useRef(0);
 
   const { profile } = useAuth();
-  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("proofreader");
+  const {
+    proveedores,
+    cargando: cargandoProveedores,
+    error: errorProveedores,
+    recargar: recargarProveedores,
+  } = useProveedoresActivos("proofreader");
   const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
   const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
 
@@ -690,9 +696,13 @@ export default function ProofreaderPage() {
 
   return (
     <div className="container mx-auto h-[calc(100vh-122px)] flex flex-col p-4 max-w-7xl overflow-hidden">
+      {/* Un fallo de carga no es falta de proveedor: se avisa y se ofrece reintentar. */}
+      {errorProveedores && (
+        <AvisoErrorProveedores error={errorProveedores} onReintentar={recargarProveedores} className="mb-4" />
+      )}
       <ApiKeyRequiredModal
         isLoading={cargandoProveedores}
-        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isOpen={!cargandoProveedores && !errorProveedores && proveedores.length === 0}
         isAdmin={esAdmin}
         herramienta="el Corrector"
       />

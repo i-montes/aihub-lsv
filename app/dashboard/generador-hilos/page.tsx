@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { WordPressSearch } from "@/components/thread-generator/wordpress-search";
 import { ThreadPreview } from "@/components/thread-generator/thread-preview";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { WordPressPost } from "@/types/proofreader";
 import { threadsGenerator } from "@/actions/generate-threads";
@@ -62,7 +63,12 @@ export default function ThreadGenerator() {
   const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
 
-  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("threads_generator");
+  const {
+    proveedores,
+    cargando: cargandoProveedores,
+    error: errorProveedores,
+    recargar: recargarProveedores,
+  } = useProveedoresActivos("threads_generator");
   const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
   const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
 
@@ -200,9 +206,13 @@ export default function ThreadGenerator() {
 
   return (
     <div className="container py-8">
+      {/* Un fallo de carga no es falta de proveedor: se avisa y se ofrece reintentar. */}
+      {errorProveedores && (
+        <AvisoErrorProveedores error={errorProveedores} onReintentar={recargarProveedores} className="mb-4" />
+      )}
       <ApiKeyRequiredModal
         isLoading={cargandoProveedores}
-        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isOpen={!cargandoProveedores && !errorProveedores && proveedores.length === 0}
         isAdmin={esAdmin}
         herramienta="Hilos"
       />

@@ -239,10 +239,23 @@ export default function ToolsSettingsPage() {
         return b.usageCount - a.usageCount
       })
 
-      const respuesta = await fetch("/api/herramientas/proveedores-activos", { cache: "no-store" })
-      const datos = await respuesta.json().catch(() => null)
-      const porHerramienta: Record<string, ProveedorActivo[]> = respuesta.ok ? datos?.porHerramienta ?? {} : {}
-      setTools(toolsFiltradas.map((t) => ({ ...t, proveedores: porHerramienta[t.identity ?? ""] ?? [] })))
+      // Si la consulta de proveedores falla, las tarjetas no dicen "Sin
+      // proveedor" (sería falso): quedan con `proveedores: undefined` y
+      // muestran "Proveedores no disponibles".
+      let porHerramienta: Record<string, ProveedorActivo[]> | null = null
+      try {
+        const respuesta = await fetch("/api/herramientas/proveedores-activos", { cache: "no-store" })
+        const datos = await respuesta.json().catch(() => null)
+        if (respuesta.ok) porHerramienta = datos?.porHerramienta ?? {}
+      } catch (errorProveedores) {
+        console.error("Error fetching proveedores activos:", errorProveedores)
+      }
+      setTools(
+        toolsFiltradas.map((t) => ({
+          ...t,
+          proveedores: porHerramienta ? porHerramienta[t.identity ?? ""] ?? [] : undefined,
+        }))
+      )
     } catch (err) {
       console.error("Error fetching tools:", err)
       setError(err instanceof Error ? err.message : "Error desconocido al cargar herramientas")

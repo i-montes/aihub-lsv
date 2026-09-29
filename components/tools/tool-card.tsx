@@ -29,7 +29,9 @@ export function ToolCard({ tool, onEdit }: ToolCardProps) {
             : ""}
         </p>
         <div className="flex flex-wrap gap-1 mb-3">
-          {(tool.proveedores ?? []).length === 0 ? (
+          {tool.proveedores === undefined ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Proveedores no disponibles</span>
+          ) : tool.proveedores.length === 0 ? (
             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Sin proveedor</span>
           ) : (
             tool.proveedores!.map((p, i) => (

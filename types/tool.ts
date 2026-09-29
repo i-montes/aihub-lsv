@@ -14,6 +14,9 @@ export interface Tool {
   prompts?: any
   temperature?: number
   topP?: number
-  /** Proveedores encendidos en orden, para las tarjetas. Se cargan aparte de `tools`. */
+  /**
+   * Proveedores encendidos en orden, para las tarjetas. Se cargan aparte de
+   * `tools`. `undefined` si la consulta falló; `[]` si no hay ninguno.
+   */
   proveedores?: ProveedorActivo[]
 }

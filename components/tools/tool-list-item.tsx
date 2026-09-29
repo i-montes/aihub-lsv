@@ -43,7 +43,11 @@ export function ToolListItem({ tool, onEdit }: ToolListItemProps) {
       </div>
       <div className="flex items-center gap-2">
         <div className="hidden md:flex gap-1">
-          {(tool.proveedores ?? []).length === 0 ? (
+          {tool.proveedores === undefined ? (
+            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+              Proveedores no disponibles
+            </span>
+          ) : tool.proveedores.length === 0 ? (
             <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
               Sin proveedor
             </span>
