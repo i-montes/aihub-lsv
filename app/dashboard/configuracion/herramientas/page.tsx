@@ -357,9 +357,10 @@ export default function ToolsSettingsPage() {
         })
       }
 
-      // El refresco de la lista lo dispara `onSaved`, una vez que el diálogo
-      // también guardó los proveedores: así las tarjetas no se repintan con
-      // datos viejos mientras el PUT de proveedores sigue en camino.
+      // El refresco de la lista lo dispara `onSaved` al cerrar el diálogo:
+      // tras guardar también los proveedores, o al cancelar después de que
+      // el prompt ya se guardó (así una copia recién creada de una
+      // predeterminada no se vuelve a insertar al reabrir).
       return true
     } catch (err) {
       console.error("Error saving tool:", err)

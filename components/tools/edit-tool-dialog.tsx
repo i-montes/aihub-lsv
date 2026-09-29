@@ -30,7 +30,7 @@ interface EditToolDialogProps {
   onOpenChange: (open: boolean) => void;
   tool: Tool | null;
   onSave: (tool: Tool) => Promise<boolean>;
-  /** Se llama cuando el prompt y los proveedores quedaron guardados, antes de cerrar el diálogo. */
+  /** Se llama al cerrar el diálogo si el prompt quedó guardado (con o sin proveedores), para recargar la lista. */
   onSaved?: () => void;
 }
 
@@ -187,6 +187,19 @@ export function EditToolDialog({
     setPrompts(newPrompts);
   };
 
+  /**
+   * Cierra el diálogo por cualquier vía. Si el prompt ya se guardó (por
+   * ejemplo, se insertó la copia de una predeterminada y luego falló el PUT
+   * de proveedores), avisa a la página para que recargue la lista: si no, al
+   * reabrir se vería aún la predeterminada y se insertaría una segunda copia.
+   * `guardadoAhora` cubre el cierre tras éxito, cuando `promptGuardado` aún
+   * no refleja el guardado recién hecho.
+   */
+  const cerrar = (guardadoAhora = false) => {
+    if (promptGuardado || guardadoAhora) onSaved?.();
+    onOpenChange(false);
+  };
+
   const handleCopyPrompt = async () => {
     if (prompts[activePromptIndex]) {
       try {
@@ -259,15 +272,14 @@ export function EditToolDialog({
         return;
       }
 
-      onSaved?.();
-      onOpenChange(false);
+      cerrar(true);
     } finally {
       setGuardando(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(abierto) => (abierto ? onOpenChange(true) : cerrar())}>
       
       <DialogContent className="sm:max-w-[900px] lg:max-w-[1000px] w-[95vw] max-h-[90vh] h-full overflow-hidden p-0 flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
@@ -408,7 +420,7 @@ export function EditToolDialog({
               </p>
             </div>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => cerrar()}>
             Cancelar
           </Button>
           <Button
