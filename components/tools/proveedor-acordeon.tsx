@@ -56,6 +56,9 @@ export function ProveedorAcordeon({
               aria-label={estado.encendido ? "Encendido" : "Apagado"}
             />
             <span className="font-medium">{nombre}</span>
+            {error && (
+              <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-label="Error al guardar" title={error} />
+            )}
             {estado.encendido && estado.modelo && (
               <span className="text-xs text-gray-500">{estado.modelo}</span>
             )}

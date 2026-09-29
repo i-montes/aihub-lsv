@@ -133,6 +133,11 @@ export function ToolConfig({ herramienta, proveedores, onProveedoresChange, suge
     }
   };
 
+  // Si el guardado falló por un proveedor, abrir su acordeón para que se vea el error.
+  useEffect(() => {
+    if (errorGuardado?.proveedor) setAbierto(errorGuardado.proveedor);
+  }, [errorGuardado]);
+
   // Al abrir un proveedor con clave guardada, consultar su lista una vez.
   useEffect(() => {
     if (!abierto) return;

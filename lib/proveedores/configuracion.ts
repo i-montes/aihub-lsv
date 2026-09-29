@@ -139,6 +139,29 @@ export async function listarConfiguracionHerramienta(
   return { proveedores, sugerencias };
 }
 
+/** Una fila para el RPC `guardar_herramienta_proveedores` */
+export interface FilaParaGuardar {
+  proveedor: Proveedor;
+  /** `null`: conservar la clave de la fila existente */
+  api_key: string | null;
+  modelo: string;
+  reasoning_effort: string | null;
+  verbosity: string | null;
+  posicion: number;
+}
+
+/** Las filas del RPC en el orden recibido: la posición es el índice (0 corre por defecto). */
+export function conPosiciones(proveedores: ProveedorParaGuardar[]): FilaParaGuardar[] {
+  return proveedores.map((p, posicion) => ({
+    proveedor: p.proveedor,
+    api_key: p.apiKey ?? null,
+    modelo: p.modelo,
+    reasoning_effort: p.reasoningEffort,
+    verbosity: p.verbosity,
+    posicion,
+  }));
+}
+
 /**
  * Guarda la lista completa: los que vienen se insertan o actualizan en ese
  * orden, los que no vienen se borran. Antes comprueba que ninguna clave nueva
@@ -185,14 +208,7 @@ export async function guardarConfiguracionHerramienta(
   const { error } = await supabase.rpc("guardar_herramienta_proveedores", {
     p_organization_id: organizationId,
     p_herramienta: herramienta,
-    p_proveedores: proveedores.map((p, posicion) => ({
-      proveedor: p.proveedor,
-      api_key: p.apiKey ?? null,
-      modelo: p.modelo,
-      reasoning_effort: p.reasoningEffort,
-      verbosity: p.verbosity,
-      posicion,
-    })) as unknown as Json,
+    p_proveedores: conPosiciones(proveedores) as unknown as Json,
   });
 
   if (error) {

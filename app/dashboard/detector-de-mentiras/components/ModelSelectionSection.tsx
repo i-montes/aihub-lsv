@@ -5,6 +5,7 @@ import {
   Controller,
   UseFormSetValue,
   UseFormGetValues,
+  useWatch,
 } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,10 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proveedores]);
+
+  // Se observa el principal para que el filtro del selector de comparación
+  // se recalcule al cambiarlo (getValues no provoca un nuevo render).
+  const modeloPrincipal = useWatch({ control, name: "selectedModel" });
 
   const [compareEnabled, setCompareEnabled] = useState(
     getValues("compare") || false
@@ -228,7 +233,7 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {availableModels
-                      .filter((m) => m.provider !== getValues("selectedModel")?.provider)
+                      .filter((m) => m.provider !== modeloPrincipal?.provider)
                       .map((modelInfo) => (
                       <SelectItem
                         key={`compare-${modelInfo.provider}|${modelInfo.model}`}
