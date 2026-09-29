@@ -1,5 +1,5 @@
 /**
- * Formas compartidas entre servidor y cliente para "Preguntas al chatbot".
+ * Formas compartidas entre servidor y cliente para "Preguntas a SillaIA".
  * Deliberadamente sin importar nada de `agente.ts`/`tools.ts` (que jalan
  * `pg` y las tools reales): este archivo lo importa el cliente, y esas
  * dependencias son de servidor únicamente.

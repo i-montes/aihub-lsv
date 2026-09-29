@@ -227,7 +227,7 @@ export type AnalyticsQuienEsQuien = {
 };
 
 /**
- * Analytics de "Preguntas al chatbot": un agente que consulta (sólo lectura)
+ * Analytics de "Preguntas a SillaIA": un agente que consulta (sólo lectura)
  * la base de datos del chatbot de La Silla Vacía para responder, en lenguaje
  * natural y a varios turnos, qué le han preguntado los lectores.
  *

@@ -223,6 +223,32 @@ export default function ToolsSettingsPage() {
         })
       }
 
+      // Preguntas a SillaIA tampoco vive en default_tools. Lo que se escriba
+      // aquí se suma a las instrucciones base del agente (no las reemplaza),
+      // ver lib/preguntas-chatbot/agente.ts.
+      const tienePreguntasChatbot = toolsFiltradas.some(
+        (t) => t.identity === "preguntas-chatbot"
+      )
+      if (!tienePreguntasChatbot) {
+        toolsFiltradas.push({
+          id: "preguntas-chatbot-default",
+          title: "Preguntas a SillaIA",
+          description:
+            "Instrucciones adicionales para el agente que responde qué le han preguntado los lectores a SillaIA. Se suman a las instrucciones base.",
+          tags: ["Análisis", "Audiencias"],
+          favorite: false,
+          usageCount: 0,
+          lastUsed: "Nunca",
+          isDefault: true,
+          identity: "preguntas-chatbot",
+          schema: {},
+          prompts: [{ title: "Principal", content: "" }],
+          temperature: 0.7,
+          topP: 1,
+          models: [],
+        })
+      }
+
       toolsFiltradas.sort((a, b) => {
         const lastUsedA = a.lastUsed === "Nunca" ? new Date(0) : new Date(a.lastUsed)
         const lastUsedB = b.lastUsed === "Nunca" ? new Date(0) : new Date(b.lastUsed)

@@ -14,6 +14,7 @@ import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
+import { leerPromptDeOrganizacion } from "@/lib/organizaciones/prompt-herramienta";
 
 /**
  * El agente puede llamar la tool de SQL varias veces antes de responder, y un
@@ -132,11 +133,20 @@ export async function POST(request: NextRequest) {
   let resultadoFinal: ReturnType<typeof normalizarResultado> | null = null;
   let errorDelTurno: string | null = null;
 
+  // Lo que la organización escribió en Ajustes > Herramientas; se suma a las
+  // instrucciones base del agente (ver lib/preguntas-chatbot/agente.ts).
+  const promptOrganizacion = await leerPromptDeOrganizacion(
+    await getSupabaseRouteHandler(),
+    organizationId,
+    "preguntas-chatbot"
+  );
+
   const agent = crearAgentePreguntasChatbot({
     apiKey,
     proveedor,
     modelo,
     registrarConsulta: (info) => consultas.push(info),
+    promptOrganizacion,
   });
 
   const response = await createAgentUIStreamResponse({

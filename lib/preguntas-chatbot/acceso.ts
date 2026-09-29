@@ -12,11 +12,13 @@ export type ResultadoAcceso =
   | { negado: null; organizationId: string; userId: string };
 
 /**
- * Comprueba acceso a "Preguntas al chatbot": además de que la organización
- * tenga la herramienta habilitada (como el resto del kit), exige rol OWNER —
- * expone en texto libre lo que cualquier lector le ha preguntado al chatbot,
- * así que se trata como el resto de analíticas internas, no como una
- * herramienta de contenido para todo el equipo.
+ * Comprueba acceso a "Preguntas a SillaIA": que haya sesión y que la
+ * organización tenga la herramienta habilitada, como el resto del kit.
+ *
+ * Hasta septiembre de 2026 exigía además rol OWNER, porque expone en texto
+ * libre lo que los lectores le preguntan al chatbot. Se abrió a todo el
+ * equipo de La Silla Vacía: es una herramienta de contenido para quien
+ * escribe, no una analítica interna.
  */
 export async function verificarAccesoPreguntasChatbot(): Promise<ResultadoAcceso> {
   const supabase = await getSupabaseRouteHandler();
@@ -31,7 +33,7 @@ export async function verificarAccesoPreguntasChatbot(): Promise<ResultadoAcceso
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("organizationId, role")
+    .select("organizationId")
     .eq("id", user.id)
     .single();
 
@@ -39,15 +41,6 @@ export async function verificarAccesoPreguntasChatbot(): Promise<ResultadoAcceso
     return {
       negado: {
         mensaje: "No se pudo obtener la organización del usuario",
-        status: 403,
-      },
-    };
-  }
-
-  if (profile.role !== "OWNER") {
-    return {
-      negado: {
-        mensaje: "Sólo el dueño de la organización puede usar esta herramienta",
         status: 403,
       },
     };

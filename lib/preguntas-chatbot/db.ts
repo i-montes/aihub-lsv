@@ -3,7 +3,7 @@ import { Client, types } from "pg";
 /**
  * Acceso de sólo lectura a la base de datos del chatbot de La Silla Vacía
  * (un proyecto Supabase aparte del de esta app), para que el agente de
- * "Preguntas al chatbot" pueda consultar `chats_new` con SQL que el propio
+ * "Preguntas a SillaIA" pueda consultar `chats_new` con SQL que el propio
  * modelo redacta.
  *
  * Dejar que un modelo escriba SQL libre es peligroso por diseño, así que hay

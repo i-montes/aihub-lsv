@@ -149,16 +149,15 @@ export function Sidebar() {
               />
             )}
 
-            {profile?.role == "OWNER" &&
-              seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
-                <NavItem
-                  icon={<MessageSquare className="size-5" />}
-                  label="Preguntas al chatbot"
-                  href="/dashboard/preguntas-chatbot"
-                  isActive={pathname === "/dashboard/preguntas-chatbot"}
-                  isExpanded={isExpanded}
-                />
-              )}
+            {seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
+              <NavItem
+                icon={<MessageSquare className="size-5" />}
+                label="Preguntas a SillaIA"
+                href="/dashboard/preguntas-chatbot"
+                isActive={pathname === "/dashboard/preguntas-chatbot"}
+                isExpanded={isExpanded}
+              />
+            )}
 
             {/* <NavItem
               icon={<BarChart className="size-5" />}

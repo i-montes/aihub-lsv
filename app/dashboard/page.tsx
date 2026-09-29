@@ -248,9 +248,8 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {/* Preguntas al chatbot */}
-          {profile?.role == "OWNER" &&
-            seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
+          {/* Preguntas a SillaIA */}
+          {seMuestraEnNavegacion(organization?.name, "preguntas-chatbot") && (
               <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex flex-col h-full">
@@ -262,10 +261,10 @@ export default function Dashboard() {
                         Nuevo
                       </span>
                     </div>
-                    <h3 className="text-xl font-bold mb-2">Preguntas al chatbot</h3>
+                    <h3 className="text-xl font-bold mb-2">Preguntas a SillaIA</h3>
                     <p className="text-gray-500 mb-4 flex-grow">
-                      Pregúntale a un agente qué le han preguntado los lectores al
-                      chatbot, por tema, por fecha o comparando varios a la vez.
+                      Pregúntale a un agente qué le han preguntado los lectores a
+                      SillaIA, por tema, por fecha o comparando varios a la vez.
                     </p>
                     <div className="flex justify-between items-center mt-2">
                       <Link href="/dashboard/preguntas-chatbot">

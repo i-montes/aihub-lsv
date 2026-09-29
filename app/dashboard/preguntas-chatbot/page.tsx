@@ -24,7 +24,7 @@ const EJEMPLOS = [
 ];
 
 /**
- * "Preguntas al chatbot": un agente conversacional que consulta (sólo
+ * "Preguntas a SillaIA": un agente conversacional que consulta (sólo
  * lectura, SQL que el propio modelo redacta) qué le han preguntado los
  * lectores al chatbot de La Silla Vacía, y resume la respuesta en una tabla
  * y una gráfica.
@@ -126,9 +126,9 @@ export default function PreguntasChatbotPage() {
       {/* Cabecera */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Preguntas al chatbot</h1>
+          <h1 className="text-2xl font-bold">Preguntas a SillaIA</h1>
           <p className="text-gray-500">
-            Pregunta en lenguaje natural qué le han preguntado los lectores al chatbot.
+            Pregunta en lenguaje natural qué le han preguntado los lectores a SillaIA.
           </p>
         </div>
         <div className="flex items-center gap-2">

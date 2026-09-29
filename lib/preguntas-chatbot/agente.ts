@@ -65,9 +65,15 @@ function columnasParaElPrompt(): string {
 /**
  * Ojo con las barras: en un template literal "\m" se vuelve "m", así que los
  * límites de palabra de Postgres (\m, \M) van escritos "\\m" y "\\M".
+ *
+ * `promptOrganizacion` es lo que la organización escribió en Ajustes >
+ * Herramientas. Va al final, como una sección más, y no reemplaza lo de
+ * arriba: la parte técnica (columnas, reglas de SQL, contrato con las tools)
+ * tiene que quedar intacta o el agente deja de funcionar. Lo que sí puede
+ * cambiar desde ahí es el estilo, las prioridades y cómo se redacta.
  */
-function instrucciones(): string {
-  return `Eres un analista de audiencias de La Silla Vacía. Respondes, en español y a partir de
+function instrucciones(promptOrganizacion?: string): string {
+  const base = `Eres un analista de audiencias de La Silla Vacía. Respondes, en español y a partir de
 datos reales, qué le han preguntado los lectores a SillaIA, el chatbot del medio.
 
 Hoy es ${hoyEnBogota()} en Bogotá.
@@ -269,6 +275,18 @@ Cuando tengas la respuesta, llama SIEMPRE a "reportarResultado" para cerrar el t
 - "recientes" solo para el caso de preguntas más recientes; "resumen" solo para comparaciones.
 - Si la pregunta no se puede responder con estos datos, o no hay resultados, dilo en una
   frase en "comentario", sugiere una forma de reformularla y deja las listas vacías.`;
+
+  const adicional = promptOrganizacion?.trim();
+  if (!adicional) return base;
+
+  return `${base}
+
+# Instrucciones de la organización
+
+Estas instrucciones las escribió la organización y mandan sobre el estilo y las prioridades
+de arriba. No cambian las reglas para las consultas ni el cierre con "reportarResultado".
+
+${adicional}`;
 }
 
 /**
@@ -300,10 +318,12 @@ export function crearAgentePreguntasChatbot(opts: {
   proveedor: ProveedorSoportado;
   modelo: string;
   registrarConsulta: RegistrarConsulta;
+  /** Prompt de Ajustes > Herramientas; ver `instrucciones` */
+  promptOrganizacion?: string;
 }) {
   return new ToolLoopAgent({
     model: crearModelo(opts.proveedor, opts.modelo, opts.apiKey),
-    instructions: instrucciones(),
+    instructions: instrucciones(opts.promptOrganizacion),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     tools: {
       consultarPreguntasChatbot: crearHerramientaConsulta(opts.registrarConsulta),
