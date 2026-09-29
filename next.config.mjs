@@ -28,6 +28,23 @@ const nextConfig = {
     : {}),
 
 
+  // Integraciones desapareció: las claves viven ahora en cada herramienta.
+  // Los enlaces viejos (favoritos, documentación externa) llevan a Herramientas.
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/configuracion/integraciones",
+        destination: "/dashboard/configuracion/herramientas",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/configuracion/documentacion/configuraciones/integraciones",
+        destination: "/dashboard/configuracion/documentacion/configuraciones/herramientas",
+        permanent: false,
+      },
+    ];
+  },
+
   // Configuración de Turbopack (Requerida en Next.js 16 para silenciar errores si se usa webpack)
   turbopack: {},
 

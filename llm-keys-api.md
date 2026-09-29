@@ -214,10 +214,10 @@ Desde el 29 de septiembre de 2026 las claves son las de la herramienta Quién es
 quién en Ajustes > Herramientas; `models` trae el modelo configurado y
 `includeInactive` no tiene efecto.
 
-Las claves van **en claro**, sin enmascarar — ese es el propósito del endpoint, a
-diferencia de `GET /api/integrations`, que las trunca para la interfaz. La
-respuesta lleva `Cache-Control: no-store` para que ningún proxy ni navegador las
-guarde.
+Las claves van **en claro**, sin enmascarar — ese es el propósito del endpoint.
+En la interfaz (Ajustes > Herramientas) sólo se ven enmascaradas, con los
+últimos cuatro caracteres. La respuesta lleva `Cache-Control: no-store` para que
+ningún proxy ni navegador las guarde.
 
 Si la organización no tiene claves, `apiKeys` es un arreglo vacío y el estado
 sigue siendo `200`.
