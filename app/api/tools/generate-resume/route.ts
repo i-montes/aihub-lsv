@@ -1,6 +1,3 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, generateText } from 'ai';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,6 +7,13 @@ import { getSupabaseRouteHandler } from "@/lib/supabase/server";
 import { MINI_MODELS } from "@/lib/utils";
 import { AnalyticsGeneradorResumenService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
+import {
+  obtenerProveedorDeHerramienta,
+  ProveedorNoConfiguradoError,
+  type ProveedorEnUso,
+} from "@/lib/proveedores/configuracion";
+import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import type { Proveedor } from "@/lib/proveedores/tipos";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
 function normalizeText(text: string): string {
@@ -21,11 +25,6 @@ interface AuthResult {
   user: any;
   organizationId: string;
   userData: any;
-}
-
-interface ApiKeyResult {
-  key: string;
-  provider: string;
 }
 
 interface ToolConfig {
@@ -128,67 +127,28 @@ async function authenticateUser(debugLogger: DebugLogger): Promise<AuthResult> {
   return { user, organizationId, userData };
 }
 
-// API Key function
-async function getApiKey(
+// Configuración del proveedor (clave, modelo y ajustes) desde la herramienta
+async function obtenerConfiguracion(
   organizationId: string,
   provider: string,
   debugLogger: DebugLogger
-): Promise<ApiKeyResult> {
-  await debugLogger.logApiKey("Fetching API key", "fetching", {
-    provider: provider.toLowerCase() as any,
-    status: "fetching",
-    hasValue: false,
-  });
-
-  const supabase = await getSupabaseRouteHandler();
-  const { data: apiKeyData, error: apiKeyError } = await supabase
-    .from("api_key_table")
-    .select("key, provider")
-    .eq("organizationId", organizationId)
-    .eq("provider", provider.toUpperCase() as any)
-    .eq("status", "ACTIVE")
-    .single();
-
-  if (apiKeyError || !apiKeyData) {
+): Promise<ProveedorEnUso> {
+  try {
+    return await obtenerProveedorDeHerramienta(organizationId, "resume", provider);
+  } catch (error) {
+    const mensaje =
+      error instanceof ProveedorNoConfiguradoError
+        ? error.message
+        : "No se pudo obtener la configuración del proveedor";
     await debugLogger.logApiKey(
       "API key not found",
       "not_found",
-      {
-        provider: provider.toLowerCase() as any,
-        status: "not_found",
-        hasValue: false,
-      },
-      {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-        context: { apiKeyError },
-      }
+      { provider: provider.toLowerCase() as any, status: "not_found", hasValue: false },
+      { message: mensaje, code: "API_KEY_NOT_FOUND" }
     );
-    await debugLogger.finalize("failed", {
-      error: {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-      },
-    });
-    throw new Error("No se pudo obtener la API key para este proveedor");
+    await debugLogger.finalize("failed", { error: { message: mensaje, code: "API_KEY_NOT_FOUND" } });
+    throw new Error(mensaje);
   }
-
-  if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-    await debugLogger.logApiKey("API key is empty or invalid", "empty", {
-      provider: provider.toLowerCase() as any,
-      status: "empty",
-      hasValue: false,
-    });
-    await debugLogger.finalize("failed", {
-      error: {
-        message: "La API key está vacía o no es válida",
-        code: "API_KEY_EMPTY",
-      },
-    });
-    throw new Error("La API key está vacía o no es válida");
-  }
-
-  return apiKeyData;
 }
 
 // Tool Configuration function
@@ -339,51 +299,16 @@ const selectImportantNews = async (
       ),
     });
 
-    let result;
-    switch (selectedModel.provider.toLowerCase()) {
-      case "openai":
-        debugLogger.info("Usando proveedor OpenAI");
-        const openai = createOpenAI({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: openai(model),
-          prompt: prompt,
-          maxRetries: 5,
-          schema: schema,
-        });
-        break;
-      case "anthropic":
-        debugLogger.info("Usando proveedor Anthropic");
-        const anthropic = createAnthropic({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: anthropic(model),
-          prompt: prompt,
-          schema: schema,
-          maxRetries: 5,
-        });
-        break;
-      case "google":
-        debugLogger.info("Usando proveedor Google");
-        const google = createGoogleGenerativeAI({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: google(model),
-          prompt: prompt,
-          schema: schema,
-          maxRetries: 5,
-        });
-        break;
-      default:
-        debugLogger.error(`Proveedor no soportado: ${selectedModel.provider}`);
-        throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
-    }
+    // La selección es una tarea corta: esfuerzo bajo a propósito.
+    const configuracionMini: ProveedorEnUso = {
+      proveedor: selectedModel.provider.toUpperCase() as Proveedor,
+      modelo: model,
+      apiKey,
+      reasoningEffort: "low",
+      verbosity: "low",
+    };
+    const { model: modelo } = crearModeloConfigurado({ ...configuracionMini, modelo: model });
+    const result = await generateObject({ model: modelo, prompt, schema, maxRetries: 5 });
 
     debugLogger.info("Selección de noticias completada", {
       duration: Date.now() - startTime,
@@ -410,16 +335,15 @@ const selectImportantNews = async (
 
 // Función para generar el resumen final
 async function generateResume(
-  modelConfig: { provider: string; model: string },
+  configuracion: ProveedorEnUso,
   principalPrompt: string,
   selectedNews: any[],
   toolConfig: ToolConfig,
-  apiKey: string,
   debugLogger: DebugLogger
 ) {
   debugLogger.info("Iniciando generación de resumen", {
-    provider: modelConfig.provider,
-    model: modelConfig.model,
+    provider: configuracion.proveedor,
+    model: configuracion.modelo,
     newsCount: selectedNews.length,
   });
 
@@ -429,7 +353,7 @@ async function generateResume(
   const combinedPrompt = `
 INSTRUCCIONES:
 ${principalPrompt}
-    
+
 ARTICULOS SELECCIONADOS:
 ${selectedNews
     .map((news: any) => {
@@ -438,38 +362,13 @@ ${selectedNews
     .join("\n\n----------\n\n")}
 `;
 
-  switch (modelConfig.provider.toLowerCase()) {
-    case "openai":
-      debugLogger.info("Usando proveedor OpenAI");
-      const openai = createOpenAI({ apiKey });
-      return generateText({
-        model: openai(modelConfig.model),
-        prompt: combinedPrompt,
-      });
-
-    case "anthropic":
-      debugLogger.info("Usando proveedor Anthropic");
-      const anthropic = createAnthropic({ apiKey });
-      return generateText({
-        model: anthropic(modelConfig.model),
-        prompt: combinedPrompt,
-      });
-
-    case "google":
-      debugLogger.info("Usando proveedor Google");
-      const google = createGoogleGenerativeAI({ apiKey });
-      return generateText({
-        model: google(modelConfig.model),
-        prompt: combinedPrompt,
-        temperature,
-        topP: top_p,
-      });
-
-    default:
-      const errorMsg = `Proveedor no soportado: ${modelConfig.provider}`;
-      debugLogger.error(errorMsg);
-      throw new Error(errorMsg);
-  }
+  const { model, providerOptions } = crearModeloConfigurado(configuracion);
+  return generateText({
+    model,
+    prompt: combinedPrompt,
+    providerOptions,
+    ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
+  });
 }
 
 /**
@@ -508,8 +407,10 @@ export async function POST(request: NextRequest) {
       promptsCount: Array.isArray(toolConfig.prompts) ? toolConfig.prompts.length : 0,
     });
 
-    // 3. Obtener API key
-    const apiKey = await getApiKey(organizationId, requestData.selectedModel.provider, debugLogger);
+    // 3. Obtener configuración del proveedor (clave, modelo y ajustes)
+    const configuracion = await obtenerConfiguracion(organizationId, requestData.selectedModel.provider, debugLogger);
+    requestData.selectedModel = { provider: configuracion.proveedor, model: configuracion.modelo };
+    const apiKey = configuracion.apiKey;
 
     // 4. Procesar prompts
     const prompts = toolConfig.prompts || [];
@@ -608,7 +509,7 @@ export async function POST(request: NextRequest) {
           selectionPrompt,
           debugLogger,
           requestData.selectedModel,
-          apiKey.key,
+          apiKey,
           1, // mínimo 1
           selectedCount // máximo basado en contenido disponible
         );
@@ -670,7 +571,7 @@ export async function POST(request: NextRequest) {
                 selectionPrompt,
                 debugLogger,
                 requestData.selectedModel,
-                apiKey.key,
+                apiKey,
                 1, // mínimo 1 por batch
                 newsPerBatch // máximo por batch
               );
@@ -723,7 +624,7 @@ export async function POST(request: NextRequest) {
                 selectionPrompt,
                 debugLogger,
                 requestData.selectedModel,
-                apiKey.key,
+                apiKey,
                 1,
                 Math.max(neededNews, 3) // Seleccionar al menos las que necesitamos
               );
@@ -778,7 +679,7 @@ export async function POST(request: NextRequest) {
               selectionPrompt,
               debugLogger,
               requestData.selectedModel,
-              apiKey.key,
+              apiKey,
               1,
               neededNews + 2 // Seleccionar un poco más por seguridad
             );
@@ -851,7 +752,7 @@ export async function POST(request: NextRequest) {
           selectionPrompt,
           debugLogger,
           requestData.selectedModel,
-          apiKey.key,
+          apiKey,
           minRequired, // Garantizar mínimo 5 si hay suficientes
           5  // máximo 5
         );
@@ -909,11 +810,10 @@ export async function POST(request: NextRequest) {
 
     // 10. Generar resumen final
     const result = await generateResume(
-      requestData.selectedModel,
+      configuracion,
       principalPrompt,
       selectedNews,
       toolConfig,
-      apiKey.key,
       debugLogger
     );
 

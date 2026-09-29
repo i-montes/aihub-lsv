@@ -12,7 +12,6 @@ import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dial
 import { SelectedContentModal } from "@/components/shared/selected-content-modal";
 import { Button } from "@/components/ui/button";
 import { FileText, Edit3, Eye, Copy } from "lucide-react";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 
 import {
@@ -24,7 +23,9 @@ import {
 } from "@/components/ui/dialog";
 import { marked } from "marked";
 import ReactMarkdown from "react-markdown";
-import { MODELS } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos";
 
 export type WordPressPost = {
   id: number;
@@ -76,26 +77,18 @@ export default function GeneradorResumenes() {
     model: string;
     provider: string;
   }>({ model: "", provider: "" });
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [modelProviderMap, setModelProviderMap] = useState<
-    Record<string, string>
-  >({});
-  const [models, setModels] = useState<
-    {
-      model: string;
-      provider: string;
-    }[]
-  >([]);
 
-  const [apiKeyStatus, setApiKeyStatus] = useState<{
-    isLoading: boolean;
-    hasApiKey: boolean;
-    isAdmin: boolean;
-  }>({
-    isLoading: true,
-    hasApiKey: false,
-    isAdmin: false,
-  });
+  const { profile } = useAuth();
+  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("resume");
+  const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
+  const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
+
+  useEffect(() => {
+    if (models.length > 0 && !selectedModel.model) {
+      setSelectedModel(models[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proveedores]);
 
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -233,107 +226,6 @@ export default function GeneradorResumenes() {
       throw error;
     }
   };
-
-  const checkApiKeyExists = async () => {
-    try {
-      setApiKeyStatus((prev) => ({ ...prev, isLoading: true }));
-      const supabase = getSupabaseClient();
-
-      // Obtener la sesión del usuario actual
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData?.user) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Obtener el ID de la organización y el rol del usuario
-      const { data: profileData, error: userError } = await supabase
-        .from("profiles")
-        .select("organizationId, role")
-        .eq("id", userData.user.id)
-        .single();
-
-      if (userError || !profileData?.organizationId) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Verificar si el usuario es admin o propietario
-      const isAdmin =
-        profileData.role === "OWNER" || profileData.role === "ADMIN";
-
-      // Verificar si existe alguna API key para esta organización y obtener sus modelos
-      const { data: apiKeys, error: apiKeyError } = await supabase
-        .from("api_key_table")
-        .select("id, models, provider")
-        .eq("organizationId", profileData.organizationId)
-        .eq("status", "ACTIVE");
-
-      if (apiKeyError) {
-        console.error("Error al verificar API keys:", apiKeyError);
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin });
-        return;
-      }
-
-      // Fetch custom tools for this organization
-      const { data: customTool, error: customToolsError } = await supabase
-        .from("tools")
-        .select("models")
-        .eq("organization_id", profileData.organizationId)
-        .eq("identity", "resume")
-        .single();
-
-      if (customToolsError) {
-        console.error(
-          "Error al obtener herramientas personalizadas:",
-          customToolsError
-        );
-      }
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (customTool?.models?.length > 0) {
-        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
-      }
-
-      setModels(customTool?.models || []);
-
-      // Extraer todos los modelos disponibles de las API keys con su proveedor
-      const allModels: string[] = [];
-      const map: Record<string, string> = {};
-      apiKeys.forEach(
-        (key: { id: string; models: string[]; provider: string }) => {
-          if (key.models && Array.isArray(key.models)) {
-            key.models.forEach((model) => {
-              if (!allModels.includes(model)) {
-                allModels.push(model);
-                map[model] = key.provider || "";
-              }
-            });
-          }
-        }
-      );
-
-      // Si hay al menos una API key, establecer hasApiKey como true
-      setApiKeyStatus({
-        isLoading: false,
-        hasApiKey: apiKeys.length > 0,
-        isAdmin,
-      });
-
-      // Establecer los modelos disponibles
-      setAvailableModels(allModels);
-
-      setModelProviderMap(map);
-    } catch (error) {
-      console.error("Error al verificar API keys:", error);
-      setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-    }
-  };
-
-  useEffect(() => {
-    checkApiKeyExists();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,19 +395,6 @@ export default function GeneradorResumenes() {
     setDialogOpen(true);
   };
 
-  const getProviderDisplayName = (provider: string): string => {
-    switch (provider.toLowerCase()) {
-      case "openai":
-        return "OpenAI";
-      case "anthropic":
-        return "Anthropic";
-      case "google":
-        return "Google";
-      default:
-        return provider;
-    }
-  };
-
   const copyToClipboard = async () => {
     try {
       const htmlContent = marked(resumen) as string;
@@ -559,9 +438,10 @@ export default function GeneradorResumenes() {
   return (
     <div className="p-6">
       <ApiKeyRequiredModal
-        isLoading={apiKeyStatus.isLoading}
-        isOpen={!apiKeyStatus.hasApiKey}
-        isAdmin={apiKeyStatus.isAdmin}
+        isLoading={cargandoProveedores}
+        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isAdmin={esAdmin}
+        herramienta="Resúmenes"
       />
       <h1 className="text-2xl font-bold mb-6">Generador de resúmenes</h1>
 
@@ -732,14 +612,14 @@ export default function GeneradorResumenes() {
                     const [model, provider] = value.split("|");
                     setSelectedModel({ model, provider });
                   }}
-                  disabled={models.length === 0 || apiKeyStatus.isLoading}
+                  disabled={models.length === 0 || cargandoProveedores}
                 >
                   <SelectTrigger className="w-full min-w-48 bg-white border-gray-200 hover:bg-gray-50">
                     <SelectValue
                       placeholder={
-                        apiKeyStatus.isLoading
+                        cargandoProveedores
                           ? "Cargando..."
-                          : "Seleccionar modelo"
+                          : "Seleccionar proveedor"
                       }
                     />
                   </SelectTrigger>
@@ -751,10 +631,10 @@ export default function GeneradorResumenes() {
                       >
                         <div className="flex flex-row items-center justify-between gap-2">
                           <span className="font-medium">
-                            {MODELS[modelInfo.model as keyof typeof MODELS]}
+                            {modelInfo.model}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {getProviderDisplayName(modelInfo.provider)}
+                            {NOMBRE_PROVEEDOR[modelInfo.provider as keyof typeof NOMBRE_PROVEEDOR] ?? modelInfo.provider}
                           </span>
                         </div>
                       </SelectItem>
