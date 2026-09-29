@@ -210,6 +210,10 @@ Si vienen los dos, gana la cabecera.
 }
 ```
 
+Desde el 29 de septiembre de 2026 las claves son las de la herramienta Quién es
+quién en Ajustes > Herramientas; `models` trae el modelo configurado y
+`includeInactive` no tiene efecto.
+
 Las claves van **en claro**, sin enmascarar — ese es el propósito del endpoint, a
 diferencia de `GET /api/integrations`, que las trunca para la interfaz. La
 respuesta lleva `Cache-Control: no-store` para que ningún proxy ni navegador las

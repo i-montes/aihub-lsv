@@ -1,14 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import type { Database } from "@/lib/supabase/database.types"
+import { normalizarProveedor, PROVEEDORES } from "@/lib/proveedores/tipos"
+import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { getTokenFromAuthorizationHeader, verifyOrgToken, type OrgTokenError } from "@/lib/services/org-token"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-type Provider = Database["public"]["Enums"]["provider_ai"]
-
-const PROVIDERS: Provider[] = ["OPENAI", "GOOGLE", "PERPLEXITY", "ANTHROPIC"]
 
 /** Respuesta genérica: no revelamos por qué falló el token a quien no lo tiene. */
 const UNAUTHORIZED = { error: "Token inválido o expirado" }
@@ -27,9 +23,10 @@ function unauthorized(reason: OrgTokenError) {
 /**
  * POST /api/internal/llm-keys
  *
- * Devuelve las API keys de LLM de una organización. La organización viene en un
- * token base64 firmado (ver `lib/services/org-token.ts`), que se envía en la
- * cabecera `Authorization: Bearer <token>` o, en su defecto, en el cuerpo.
+ * Devuelve las claves de Quién es quién de una organización, configuradas en
+ * Ajustes > Herramientas. La organización viene en un token base64 firmado
+ * (ver `lib/services/org-token.ts`), que se envía en la cabecera
+ * `Authorization: Bearer <token>` o, en su defecto, en el cuerpo.
  *
  * Se usa POST y no GET a propósito: así el token no queda en la URL, ni por
  * tanto en logs de acceso, historial o cabeceras `Referer`.
@@ -61,18 +58,15 @@ export async function POST(request: NextRequest) {
 
     const { organizationId } = result.payload
 
-    const provider = typeof body.provider === "string" ? body.provider.toUpperCase() : null
-    if (provider && !PROVIDERS.includes(provider as Provider)) {
+    const provider = body.provider === undefined || body.provider === null ? null : normalizarProveedor(body.provider)
+    if (body.provider !== undefined && body.provider !== null && !provider) {
       return NextResponse.json(
-        { error: `Proveedor no válido. Valores permitidos: ${PROVIDERS.join(", ")}` },
+        { error: `Proveedor no válido. Valores permitidos: ${PROVEEDORES.join(", ")}` },
         { status: 400, headers: NO_STORE_HEADERS },
       )
     }
 
-    const supabaseAdmin = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
+    const supabaseAdmin = getSupabaseAdmin()
 
     // Comprobamos que la organización existe: un token firmado para una
     // organización borrada no debe devolver una lista vacía silenciosamente.
@@ -97,20 +91,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Las claves de Quién es quién: el servicio externo las pide con el token
+    // de organización. La respuesta conserva la misma forma que antes para no
+    // tocar el servicio externo; `includeInactive` ya no aplica porque un
+    // proveedor sin clave simplemente no tiene fila.
     let query = supabaseAdmin
-      .from("api_key_table")
-      .select("id, provider, key, models, id_channel, status, createdAt, updatedAt")
-      .eq("organizationId", organizationId)
+      .from("herramienta_proveedores")
+      .select("proveedor, api_key, modelo, created_at, updated_at")
+      .eq("organization_id", organizationId)
+      .eq("herramienta", "quien-es-quien")
+      .order("posicion", { ascending: true })
 
     if (provider) {
-      query = query.eq("provider", provider as Provider)
+      query = query.eq("proveedor", provider)
     }
 
-    if (body.includeInactive !== true) {
-      query = query.eq("status", "ACTIVE")
-    }
-
-    const { data: apiKeys, error } = await query.order("createdAt", { ascending: false })
+    const { data: filas, error } = await query
+    const apiKeys = (filas ?? []).map((f) => ({
+      id: `quien-es-quien:${f.proveedor}`,
+      provider: f.proveedor,
+      key: f.api_key,
+      models: [f.modelo],
+      id_channel: null,
+      status: "ACTIVE",
+      createdAt: f.created_at,
+      updatedAt: f.updated_at,
+    }))
 
     if (error) {
       console.error("[internal/llm-keys] Error al obtener las claves API:", error)
@@ -121,14 +127,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.info(
-      `[internal/llm-keys] ${apiKeys?.length ?? 0} clave(s) entregadas a la organización ${organizationId} (jti ${result.payload.jti})`,
+      `[internal/llm-keys] ${apiKeys.length} clave(s) entregadas a la organización ${organizationId} (jti ${result.payload.jti})`,
     )
 
     return NextResponse.json(
       {
         organizationId,
         organizationName: organization.name,
-        apiKeys: apiKeys ?? [],
+        apiKeys,
       },
       { headers: NO_STORE_HEADERS },
     )
