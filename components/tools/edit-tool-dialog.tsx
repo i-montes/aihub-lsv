@@ -30,6 +30,8 @@ interface EditToolDialogProps {
   onOpenChange: (open: boolean) => void;
   tool: Tool | null;
   onSave: (tool: Tool) => Promise<boolean>;
+  /** Se llama cuando el prompt y los proveedores quedaron guardados, antes de cerrar el diálogo. */
+  onSaved?: () => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export function EditToolDialog({
   onOpenChange,
   tool,
   onSave,
+  onSaved,
 }: EditToolDialogProps) {
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
   const [activePromptIndex, setActivePromptIndex] = useState(0);
@@ -49,8 +52,11 @@ export function EditToolDialog({
   const [proveedores, setProveedores] = useState<ProveedorEnEdicion[]>(PROVEEDORES.map(proveedorVacio));
   const [sugerencias, setSugerencias] = useState<Record<Proveedor, string[]>>({ OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
   const [cargandoProveedores, setCargandoProveedores] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [errorGuardado, setErrorGuardado] = useState<{ mensaje: string; proveedor?: Proveedor } | null>(null);
   const [guardando, setGuardando] = useState(false);
+  /** El prompt ya se guardó en este intento; si el PUT de proveedores falla, un reintento no lo vuelve a guardar. */
+  const [promptGuardado, setPromptGuardado] = useState(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string>("");
 
@@ -97,6 +103,15 @@ export function EditToolDialog({
       setToolTopP(tool.topP as number);
 
       setErrorGuardado(null);
+      setErrorCarga(null);
+      setPromptGuardado(false);
+      // Se resetea antes de pedir la configuración: si la organización cambió
+      // de herramienta mientras la anterior seguía cargando, o si la consulta
+      // falla, nunca queda en pantalla (ni se puede guardar) la configuración
+      // de otra herramienta.
+      setProveedores(PROVEEDORES.map(proveedorVacio));
+      setSugerencias({ OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
+
       if (tool.identity && isOpen) {
         let cancelado = false;
         setCargandoProveedores(true);
@@ -109,7 +124,10 @@ export function EditToolDialog({
             setSugerencias(datos.sugerencias ?? { OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
           })
           .catch((e: Error) => {
-            if (!cancelado) setErrorGuardado({ mensaje: e.message });
+            if (!cancelado) {
+              setProveedores(PROVEEDORES.map(proveedorVacio));
+              setErrorCarga(e.message);
+            }
           })
           .finally(() => {
             if (!cancelado) setCargandoProveedores(false);
@@ -181,48 +199,69 @@ export function EditToolDialog({
   };
 
   const encendidos = proveedores.filter((p) => p.encendido);
-  const puedeGuardar = !guardando && !cargandoProveedores && encendidos.length > 0 && encendidos.every((p) => p.modelo.trim() !== "");
+  const puedeGuardar =
+    !guardando &&
+    !cargandoProveedores &&
+    !errorCarga &&
+    encendidos.length > 0 &&
+    encendidos.every((p) => p.modelo.trim() !== "");
 
   const handleSave = async () => {
     if (!tool || !puedeGuardar) return;
+    if (!tool.identity) {
+      setSaveError("Esta herramienta no tiene identidad; no se pueden guardar proveedores.");
+      return;
+    }
     setSaveError("");
     setErrorGuardado(null);
     setGuardando(true);
     try {
       // Primero el prompt y el formato en `tools`, como siempre; después los
-      // proveedores en su tabla. Si lo segundo falla, lo primero queda guardado
-      // y el diálogo lo dice.
-      const promptGuardado = await onSave({
-        ...tool,
-        prompts,
-        schema: toolSchema,
-        temperature: toolTemperature as number,
-        topP: toolTopP,
-      });
+      // proveedores en su tabla. Si lo segundo falla, lo primero queda
+      // guardado y el diálogo lo dice; un reintento no vuelve a guardar el
+      // prompt, va directo al PUT de proveedores.
       if (!promptGuardado) {
-        setSaveError("No se pudo guardar el prompt. Los proveedores no se tocaron.");
+        const guardado = await onSave({
+          ...tool,
+          prompts,
+          schema: toolSchema,
+          temperature: toolTemperature as number,
+          topP: toolTopP,
+        });
+        if (!guardado) {
+          setSaveError("No se pudo guardar el prompt. Los proveedores no se tocaron.");
+          return;
+        }
+        setPromptGuardado(true);
+      }
+
+      try {
+        const respuesta = await fetch(`/api/herramientas/${tool.identity}/proveedores`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            proveedores: encendidos.map((p) => ({
+              proveedor: p.proveedor,
+              modelo: p.modelo.trim(),
+              reasoningEffort: p.reasoningEffort,
+              verbosity: p.proveedor === "OPENAI" ? p.verbosity : null,
+              ...(p.claveNueva.trim() ? { apiKey: p.claveNueva.trim() } : { conservarClave: true }),
+            })),
+          }),
+        });
+        const datos = await respuesta.json().catch(() => null);
+        if (!respuesta.ok) {
+          setErrorGuardado({ mensaje: datos?.error ?? "No se pudieron guardar los proveedores", proveedor: datos?.proveedor });
+          setSaveError("El prompt se guardó, pero los proveedores no. Revisa el error en el proveedor marcado.");
+          return;
+        }
+      } catch {
+        setErrorGuardado({ mensaje: "No se pudo conectar para guardar los proveedores" });
+        setSaveError("El prompt se guardó, pero los proveedores no. Revisa la conexión e inténtalo de nuevo.");
         return;
       }
 
-      const respuesta = await fetch(`/api/herramientas/${tool.identity}/proveedores`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proveedores: encendidos.map((p) => ({
-            proveedor: p.proveedor,
-            modelo: p.modelo.trim(),
-            reasoningEffort: p.reasoningEffort,
-            verbosity: p.proveedor === "OPENAI" ? p.verbosity : null,
-            ...(p.claveNueva.trim() ? { apiKey: p.claveNueva.trim() } : { conservarClave: true }),
-          })),
-        }),
-      });
-      const datos = await respuesta.json().catch(() => null);
-      if (!respuesta.ok) {
-        setErrorGuardado({ mensaje: datos?.error ?? "No se pudieron guardar los proveedores", proveedor: datos?.proveedor });
-        setSaveError("El prompt se guardó, pero los proveedores no. Revisa el error en el proveedor marcado.");
-        return;
-      }
+      onSaved?.();
       onOpenChange(false);
     } finally {
       setGuardando(false);
@@ -339,6 +378,10 @@ export function EditToolDialog({
               </h3>
               {cargandoProveedores ? (
                 <p className="text-sm text-gray-500">Cargando proveedores…</p>
+              ) : errorCarga ? (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {errorCarga}
+                </p>
               ) : (
                 <ToolConfig
                   herramienta={tool.identity ?? ""}

@@ -357,8 +357,9 @@ export default function ToolsSettingsPage() {
         })
       }
 
-      // Refresh tools list
-      fetchTools()
+      // El refresco de la lista lo dispara `onSaved`, una vez que el diálogo
+      // también guardó los proveedores: así las tarjetas no se repintan con
+      // datos viejos mientras el PUT de proveedores sigue en camino.
       return true
     } catch (err) {
       console.error("Error saving tool:", err)
@@ -492,6 +493,7 @@ export default function ToolsSettingsPage() {
         onOpenChange={setIsEditModalOpen}
         tool={selectedTool}
         onSave={handleSaveTool}
+        onSaved={fetchTools}
       />
 
     

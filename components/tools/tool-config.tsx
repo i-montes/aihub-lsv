@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { Accordion } from "@/components/ui/accordion";
 import { ProveedorAcordeon } from "@/components/tools/proveedor-acordeon";
@@ -36,7 +36,13 @@ export interface ProveedorEnEdicion {
 interface ToolConfigProps {
   herramienta: string;
   proveedores: ProveedorEnEdicion[];
-  onProveedoresChange: (proveedores: ProveedorEnEdicion[]) => void;
+  /**
+   * Setter de React, no un callback con el valor cerrado: las actualizaciones
+   * de aquí siempre son funcionales (`prev => ...`) para no pisar una clave
+   * recién escrita con el estado que existía cuando arrancó una consulta
+   * asíncrona (ver Tarea 8, corrección de la clave que se perdía).
+   */
+  onProveedoresChange: Dispatch<SetStateAction<ProveedorEnEdicion[]>>;
   sugerencias: Record<Proveedor, string[]>;
   /** Error del guardado, para mostrarlo en el acordeón del proveedor */
   errorGuardado: { mensaje: string; proveedor?: Proveedor } | null;
@@ -80,13 +86,32 @@ export function proveedoresDesdeConfiguracion(configurados: ProveedorConfigurado
 export function ToolConfig({ herramienta, proveedores, onProveedoresChange, sugerencias, errorGuardado }: ToolConfigProps) {
   const [abierto, setAbierto] = useState<string | undefined>(undefined);
   const temporizadores = useRef<Partial<Record<Proveedor, ReturnType<typeof setTimeout>>>>({});
+  // Cuenta las consultas de modelos por proveedor: si llega una respuesta de
+  // una consulta vieja (el usuario ya escribió otra clave o cambió de
+  // herramienta), su id ya no coincide y se descarta.
+  const peticiones = useRef<Partial<Record<Proveedor, number>>>({});
+  const montado = useRef(true);
 
+  useEffect(() => {
+    montado.current = true;
+    const temporizadoresAlDesmontar = temporizadores.current;
+    return () => {
+      montado.current = false;
+      Object.values(temporizadoresAlDesmontar).forEach((t) => t && clearTimeout(t));
+    };
+  }, []);
+
+  // Siempre funcional: nunca se pisa el estado con el `proveedores` que
+  // tenía cerrado un timeout o una promesa vieja.
   const actualizar = (proveedor: Proveedor, cambios: Partial<ProveedorEnEdicion>) => {
-    onProveedoresChange(proveedores.map((p) => (p.proveedor === proveedor ? { ...p, ...cambios } : p)));
+    onProveedoresChange((prev) => prev.map((p) => (p.proveedor === proveedor ? { ...p, ...cambios } : p)));
   };
 
   const consultarModelos = async (proveedor: Proveedor, claveNueva: string) => {
+    const idPeticion = (peticiones.current[proveedor] ?? 0) + 1;
+    peticiones.current[proveedor] = idPeticion;
     actualizar(proveedor, { cargandoModelos: true, errorModelos: null });
+    const esVigente = () => montado.current && peticiones.current[proveedor] === idPeticion;
     try {
       const respuesta = await fetch("/api/herramientas/modelos", {
         method: "POST",
@@ -94,12 +119,14 @@ export function ToolConfig({ herramienta, proveedores, onProveedoresChange, suge
         body: JSON.stringify(claveNueva ? { proveedor, apiKey: claveNueva } : { proveedor, herramienta }),
       });
       const datos = await respuesta.json().catch(() => null);
+      if (!esVigente()) return;
       if (!respuesta.ok) {
         actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: null, errorModelos: datos?.error ?? "sin respuesta" });
         return;
       }
       actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: datos?.modelos ?? [], errorModelos: null });
     } catch {
+      if (!esVigente()) return;
       actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: null, errorModelos: "sin conexión" });
     }
   };
@@ -115,7 +142,19 @@ export function ToolConfig({ herramienta, proveedores, onProveedoresChange, suge
   }, [abierto]);
 
   const cambiarClave = (proveedor: Proveedor, claveNueva: string) => {
-    actualizar(proveedor, { claveNueva, encendido: claveNueva.trim() !== "" || proveedores.find((p) => p.proveedor === proveedor)!.claveEnmascarada !== null, modelosDisponibles: null, errorModelos: null });
+    onProveedoresChange((prev) =>
+      prev.map((p) =>
+        p.proveedor === proveedor
+          ? {
+              ...p,
+              claveNueva,
+              encendido: claveNueva.trim() !== "" || p.claveEnmascarada !== null,
+              modelosDisponibles: null,
+              errorModelos: null,
+            }
+          : p
+      )
+    );
     const anterior = temporizadores.current[proveedor];
     if (anterior) clearTimeout(anterior);
     if (claveNueva.trim().length < 8) return;
@@ -123,16 +162,18 @@ export function ToolConfig({ herramienta, proveedores, onProveedoresChange, suge
   };
 
   const mover = (indice: number, direccion: -1 | 1) => {
-    const destino = indice + direccion;
-    if (destino < 0 || destino >= proveedores.length) return;
-    const copia = [...proveedores];
-    [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
-    onProveedoresChange(copia);
+    onProveedoresChange((prev) => {
+      const destino = indice + direccion;
+      if (destino < 0 || destino >= prev.length) return prev;
+      const copia = [...prev];
+      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+      return copia;
+    });
   };
 
   const apagar = (proveedor: Proveedor) => {
     if (!window.confirm(`¿Apagar ${NOMBRE_PROVEEDOR[proveedor]} en esta herramienta? Se borrará su clave al guardar.`)) return;
-    onProveedoresChange(proveedores.map((p) => (p.proveedor === proveedor ? proveedorVacio(proveedor) : p)));
+    onProveedoresChange((prev) => prev.map((p) => (p.proveedor === proveedor ? proveedorVacio(proveedor) : p)));
   };
 
   const primeroEncendido = proveedores.find((p) => p.encendido)?.proveedor;
