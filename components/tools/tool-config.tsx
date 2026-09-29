@@ -191,8 +191,9 @@ export function ToolConfig({ herramienta, proveedores, onProveedoresChange, suge
       </div>
 
       {!hayEncendidos && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          Enciende al menos un proveedor con su clave y un modelo.
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Sin proveedores encendidos la herramienta queda apagada: sus usuarios verán un aviso para pedir la
+          configuración.
         </p>
       )}
       {errorGuardado && !errorGuardado.proveedor && (

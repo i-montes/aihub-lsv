@@ -108,15 +108,16 @@ export type ResultadoValidacion =
 
 /**
  * Valida el cuerpo del PUT de configuración. `proveedoresGuardados` son los
- * que ya tienen fila: `conservarClave` sólo vale para ellos.
+ * que ya tienen fila: `conservarClave` sólo vale para ellos. Una lista vacía
+ * es válida: la herramienta queda apagada.
  */
 export function validarCuerpoGuardado(
   cuerpo: unknown,
   proveedoresGuardados: readonly Proveedor[]
 ): ResultadoValidacion {
   const lista = (cuerpo as { proveedores?: unknown } | null)?.proveedores;
-  if (!Array.isArray(lista) || lista.length === 0) {
-    return { ok: false, error: "Configura al menos un proveedor con clave y modelo" };
+  if (!Array.isArray(lista)) {
+    return { ok: false, error: "Falta la lista de proveedores" };
   }
 
   const resultado: ProveedorParaGuardar[] = [];

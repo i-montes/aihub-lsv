@@ -144,6 +144,11 @@ export async function listarConfiguracionHerramienta(
  * orden, los que no vienen se borran. Antes comprueba que ninguna clave nueva
  * esté en otra herramienta; el índice único respalda la comprobación si dos
  * guardados compiten.
+ *
+ * Una lista vacía apaga la herramienta: no hay claves que comprobar y el RPC
+ * recibe `[]`. En la función SQL, `jsonb_array_elements('[]')` no devuelve
+ * filas, así que `proveedor not in (subconsulta vacía)` es verdadero para
+ * todas y se borran todas las filas de la herramienta.
  */
 export async function guardarConfiguracionHerramienta(
   organizationId: string,
@@ -153,6 +158,7 @@ export async function guardarConfiguracionHerramienta(
   const supabase = getSupabaseAdmin();
 
   const clavesNuevas = proveedores.filter((p) => p.apiKey).map((p) => p.apiKey!);
+  // Con lista vacía no hay claves nuevas: se salta la comprobación de repetidas.
   if (clavesNuevas.length > 0) {
     const { data: repetidas, error } = await supabase
       .from("herramienta_proveedores")

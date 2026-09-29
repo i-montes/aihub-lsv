@@ -61,11 +61,13 @@ describe("validarCuerpoGuardado", () => {
     expect(r.ok && r.proveedores[0]).toMatchObject({ modelo: "gpt-5.6-terra", apiKey: "sk-1" });
   });
 
-  it("rechaza una lista vacía", () => {
-    expect(validarCuerpoGuardado({ proveedores: [] }, [])).toEqual({
-      ok: false,
-      error: "Configura al menos un proveedor con clave y modelo",
-    });
+  it("acepta una lista vacía (la herramienta queda apagada)", () => {
+    expect(validarCuerpoGuardado({ proveedores: [] }, [])).toEqual({ ok: true, proveedores: [] });
+  });
+
+  it("rechaza un cuerpo sin lista de proveedores", () => {
+    expect(validarCuerpoGuardado({}, []).ok).toBe(false);
+    expect(validarCuerpoGuardado(null, []).ok).toBe(false);
   });
 
   it("rechaza un proveedor desconocido y uno repetido", () => {

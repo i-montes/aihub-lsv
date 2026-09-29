@@ -18,7 +18,7 @@ import {
 } from "@/components/tools/tool-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Tool } from "@/types/tool";
-import { PROVEEDORES, type Proveedor } from "@/lib/proveedores/tipos";
+import { NOMBRE_PROVEEDOR, PROVEEDORES, type Proveedor } from "@/lib/proveedores/tipos";
 
 interface PromptItem {
   title: string;
@@ -198,13 +198,11 @@ export function EditToolDialog({
     }
   };
 
+  // Cero proveedores encendidos es válido: la herramienta queda apagada.
+  // Cada proveedor encendido sí necesita modelo.
   const encendidos = proveedores.filter((p) => p.encendido);
-  const puedeGuardar =
-    !guardando &&
-    !cargandoProveedores &&
-    !errorCarga &&
-    encendidos.length > 0 &&
-    encendidos.every((p) => p.modelo.trim() !== "");
+  const sinModelo = encendidos.find((p) => p.modelo.trim() === "");
+  const puedeGuardar = !guardando && !cargandoProveedores && !errorCarga && !sinModelo;
 
   const handleSave = async () => {
     if (!tool || !puedeGuardar) return;
@@ -383,13 +381,20 @@ export function EditToolDialog({
                   {errorCarga}
                 </p>
               ) : (
-                <ToolConfig
-                  herramienta={tool.identity ?? ""}
-                  proveedores={proveedores}
-                  onProveedoresChange={setProveedores}
-                  sugerencias={sugerencias}
-                  errorGuardado={errorGuardado}
-                />
+                <>
+                  <ToolConfig
+                    herramienta={tool.identity ?? ""}
+                    proveedores={proveedores}
+                    onProveedoresChange={setProveedores}
+                    sugerencias={sugerencias}
+                    errorGuardado={errorGuardado}
+                  />
+                  {sinModelo && (
+                    <p className="mt-2 text-xs text-red-700">
+                      Falta el modelo de {NOMBRE_PROVEEDOR[sinModelo.proveedor]}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
