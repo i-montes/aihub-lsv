@@ -3,17 +3,17 @@
 import { Button } from "@/components/ui/button"
 import { Star, Edit } from "lucide-react"
 import type { Tool } from "@/types/tool"
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos"
 
 interface ToolCardProps {
   tool: Tool
-  tagColors: Record<string, string>
   onEdit: (tool: Tool) => void
 }
 
 /**
  * Card component for displaying a tool
  */
-export function ToolCard({ tool, tagColors, onEdit }: ToolCardProps) {
+export function ToolCard({ tool, onEdit }: ToolCardProps) {
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden group hover:shadow-sm transition-shadow">
       <div className="p-4">
@@ -29,16 +29,18 @@ export function ToolCard({ tool, tagColors, onEdit }: ToolCardProps) {
             : ""}
         </p>
         <div className="flex flex-wrap gap-1 mb-3">
-          {tool.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className={`text-xs px-2 py-0.5 rounded-full ${tagColors[tag] || "bg-gray-100 text-gray-800"}`}
-            >
-              {tag}
-            </span>
-          ))}
-          {tool.tags.length > 3 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-800">+{tool.tags.length - 3}</span>
+          {(tool.proveedores ?? []).length === 0 ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Sin proveedor</span>
+          ) : (
+            tool.proveedores!.map((p, i) => (
+              <span
+                key={p.proveedor}
+                className={`text-xs px-2 py-0.5 rounded-full ${i === 0 ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
+                title={i === 0 ? "Por defecto" : undefined}
+              >
+                {NOMBRE_PROVEEDOR[p.proveedor]} · {p.modelo}
+              </span>
+            ))
           )}
         </div>
         <div className="flex items-center justify-between text-xs text-gray-500">

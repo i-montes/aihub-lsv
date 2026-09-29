@@ -9,17 +9,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Tool } from "@/types/tool";
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos";
 
 interface ToolListItemProps {
   tool: Tool;
-  tagColors: Record<string, string>;
   onEdit: (tool: Tool) => void;
 }
 
 /**
  * List item component for displaying a tool
  */
-export function ToolListItem({ tool, tagColors, onEdit }: ToolListItemProps) {
+export function ToolListItem({ tool, onEdit }: ToolListItemProps) {
   return (
     <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50">
       <div className="flex items-center gap-3">
@@ -43,20 +43,21 @@ export function ToolListItem({ tool, tagColors, onEdit }: ToolListItemProps) {
       </div>
       <div className="flex items-center gap-2">
         <div className="hidden md:flex gap-1">
-          {tool.tags.slice(0, 2).map((tag) => (
-            <span
-              key={tag}
-              className={`text-xs px-2 py-1 rounded-full ${
-                tagColors[tag] || "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {tag}
+          {(tool.proveedores ?? []).length === 0 ? (
+            <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+              Sin proveedor
             </span>
-          ))}
-          {tool.tags.length > 2 && (
-            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800">
-              +{tool.tags.length - 2}
-            </span>
+          ) : (
+            <>
+              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800" title="Por defecto">
+                {NOMBRE_PROVEEDOR[tool.proveedores![0].proveedor]} · {tool.proveedores![0].modelo}
+              </span>
+              {tool.proveedores!.length > 1 && (
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800">
+                  +{tool.proveedores!.length - 1}
+                </span>
+              )}
+            </>
           )}
         </div>
         <div className="text-xs text-gray-500 hidden md:block">

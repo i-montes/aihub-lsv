@@ -13,19 +13,7 @@ import { getSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import type { Tool } from "@/types/tool"
 import { PROMPTS_BASE_PREGUNTAS_CHATBOT } from "@/lib/preguntas-chatbot/prompt-base"
-
-// Define tag colors for consistent styling
-const tagColors: Record<string, string> = {
-  Análisis: "bg-blue-100 text-blue-800",
-  Noticias: "bg-green-100 text-green-800",
-  Titulares: "bg-purple-100 text-purple-800",
-  SEO: "bg-yellow-100 text-yellow-800",
-  "Fact-checking": "bg-red-100 text-red-800",
-  Investigación: "bg-gray-100 text-gray-800",
-  Resumen: "bg-green-100 text-green-800",
-  Ejecutivo: "bg-indigo-100 text-indigo-800",
-  Sentimiento: "bg-pink-100 text-pink-800",
-}
+import type { ProveedorActivo } from "@/lib/proveedores/tipos"
 
 /**
  * Main page component for tool settings
@@ -145,9 +133,6 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
-            reasoningEffort: tool.reasoning_effort,
-            verbosity: tool.verbosity,
-            models: tool.models || [], // Ensure models is always an array
           })
         })
       }
@@ -186,9 +171,6 @@ export default function ToolsSettingsPage() {
             prompts: tool.prompts,
             temperature: tool.temperature,
             topP: tool.top_p,
-            reasoningEffort: tool.reasoning_effort,
-            verbosity: tool.verbosity,
-            models: tool.models || [], // Ensure models is always an array
           })
         }
       })
@@ -220,7 +202,6 @@ export default function ToolsSettingsPage() {
           prompts: [{ title: "Principal", content: "" }],
           temperature: 0.7,
           topP: 1,
-          models: [],
         })
       }
 
@@ -247,7 +228,6 @@ export default function ToolsSettingsPage() {
           prompts: PROMPTS_BASE_PREGUNTAS_CHATBOT.map((p) => ({ ...p })),
           temperature: 0.7,
           topP: 1,
-          models: [],
         })
       }
 
@@ -259,7 +239,10 @@ export default function ToolsSettingsPage() {
         return b.usageCount - a.usageCount
       })
 
-      setTools(toolsFiltradas)
+      const respuesta = await fetch("/api/herramientas/proveedores-activos", { cache: "no-store" })
+      const datos = await respuesta.json().catch(() => null)
+      const porHerramienta: Record<string, ProveedorActivo[]> = respuesta.ok ? datos?.porHerramienta ?? {} : {}
+      setTools(toolsFiltradas.map((t) => ({ ...t, proveedores: porHerramienta[t.identity ?? ""] ?? [] })))
     } catch (err) {
       console.error("Error fetching tools:", err)
       setError(err instanceof Error ? err.message : "Error desconocido al cargar herramientas")
@@ -288,7 +271,7 @@ export default function ToolsSettingsPage() {
     setIsEditModalOpen(true)
   }
 
-  const handleSaveTool = async (tool: Tool) => {
+  const handleSaveTool = async (tool: Tool): Promise<boolean> => {
     try {
       const supabase = getSupabaseClient()
 
@@ -336,12 +319,9 @@ export default function ToolsSettingsPage() {
             organization_id: organizationId,
             temperature: tool.temperature,
             top_p: tool.topP,
-            reasoning_effort: tool.reasoningEffort,
-            verbosity: tool.verbosity,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             usage: 0,
-            models: tool.models,
           })
           .select()
 
@@ -363,10 +343,7 @@ export default function ToolsSettingsPage() {
             schema: tool.schema,
             temperature: tool.temperature,
             top_p: tool.topP,
-            reasoning_effort: tool.reasoningEffort,
-            verbosity: tool.verbosity,
             updated_at: new Date().toISOString(),
-            models: tool.models,
           })
           .eq("id", tool.id)
 
@@ -382,6 +359,7 @@ export default function ToolsSettingsPage() {
 
       // Refresh tools list
       fetchTools()
+      return true
     } catch (err) {
       console.error("Error saving tool:", err)
       toast({
@@ -389,9 +367,8 @@ export default function ToolsSettingsPage() {
         description: err instanceof Error ? err.message : "Error desconocido al guardar la herramienta",
         variant: "destructive",
       })
+      return false
     }
-
-    setIsEditModalOpen(false)
   }
 
   const handleClearFilters = () => {
@@ -478,7 +455,6 @@ export default function ToolsSettingsPage() {
                     <ToolCard
                       key={tool.id}
                       tool={tool}
-                      tagColors={tagColors}
                       onEdit={handleEditClick}
                     />
                   ))}
@@ -500,7 +476,6 @@ export default function ToolsSettingsPage() {
                     <ToolListItem
                       key={tool.id}
                       tool={tool}
-                      tagColors={tagColors}
                       onEdit={handleEditClick}
                     />
                   ))}

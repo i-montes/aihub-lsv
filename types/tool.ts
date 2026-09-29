@@ -1,3 +1,5 @@
+import type { ProveedorActivo } from "@/lib/proveedores/tipos"
+
 export interface Tool {
   id: number | string
   title: string
@@ -12,25 +14,6 @@ export interface Tool {
   prompts?: any
   temperature?: number
   topP?: number
-  /** Cuánto razona el modelo: OpenAI `reasoningEffort`, Anthropic `effort` */
-  reasoningEffort?: string
-  /** Longitud y detalle de la respuesta. Sólo lo aplica OpenAI */
-  verbosity?: string
-  models?: {
-    provider: string
-    model: string
-    /** Esfuerzo de razonamiento para este modelo (independiente de los demás) */
-    reasoningEffort?: string
-    /** Verbosidad para este modelo (solo OpenAI) */
-    verbosity?: string
-  }[]
+  /** Proveedores encendidos en orden, para las tarjetas. Se cargan aparte de `tools`. */
+  proveedores?: ProveedorActivo[]
 }
-
-/** Niveles de esfuerzo de razonamiento por proveedor */
-export const REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const
-
-/** Niveles de verbosidad (OpenAI) */
-export const VERBOSITY_LEVELS = ["low", "medium", "high"] as const
-
-export const DEFAULT_REASONING_EFFORT = "medium"
-export const DEFAULT_VERBOSITY = "medium"
