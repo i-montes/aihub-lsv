@@ -30,13 +30,13 @@ import {
 import { toast } from "sonner";
 import { WordPressSearch } from "@/components/thread-generator/wordpress-search";
 import { ThreadPreview } from "@/components/thread-generator/thread-preview";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { WordPressPost } from "@/types/proofreader";
 import { threadsGenerator } from "@/actions/generate-threads";
-import { MODELS } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos";
 import { agregarCorreccionAnalytics, updateAnalytics, incrementAnalyticsCounter } from "@/actions/update-analytics";
 
 export default function ThreadGenerator() {
@@ -51,12 +51,6 @@ export default function ThreadGenerator() {
   const [outputFormat, setOutputFormat] = useState<
     "tesis" | "investigacion" | "lista"
   >("tesis");
-  const [models, setModels] = useState<
-    {
-      model: string;
-      provider: string;
-    }[]
-  >([]);
 
   const [generatedThread, setGeneratedThread] = useState<
     { content: string; imageUrl?: string }[]
@@ -65,22 +59,19 @@ export default function ThreadGenerator() {
     model: string;
     provider: string;
   }>({ model: "", provider: "" });
-  const [modelProviderMap, setModelProviderMap] = useState<
-    Record<string, string>
-  >({});
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  // Estado para el modal de API key requerida
-  const [apiKeyStatus, setApiKeyStatus] = useState<{
-    isLoading: boolean;
-    hasApiKey: boolean;
-    isAdmin: boolean;
-  }>({
-    isLoading: true,
-    hasApiKey: false,
-    isAdmin: false,
-  });
   const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
+
+  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("threads_generator");
+  const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
+  const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
+
+  useEffect(() => {
+    if (models.length > 0 && !selectedModel.model) {
+      setSelectedModel(models[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proveedores]);
 
   // Ensure logs are strings for rendering
   const formatLogEntry = (log: any): string => {
@@ -160,84 +151,6 @@ export default function ThreadGenerator() {
     }
   };
 
-  const checkApiKeyExists = async () => {
-    try {
-      setApiKeyStatus((prev) => ({ ...prev, isLoading: true }));
-      const supabase = getSupabaseClient();
-
-      // Verificar si el usuario es admin o propietario
-      const isAdmin =
-        profile?.role === "OWNER" || profile?.role === "ADMIN";
-
-      // Verificar si existe alguna API key para esta organización y obtener sus modelos
-      const { data: apiKeys, error: apiKeyError } = await supabase
-        .from("api_key_table")
-        .select("id, models, provider")
-        .eq("organizationId", profile?.organizationId)
-        .eq("status", "ACTIVE");
-
-      if (apiKeyError) {
-        console.error("Error al verificar API keys:", apiKeyError);
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin });
-        return;
-      }
-
-      // Fetch custom tools for this organization
-      const { data: customTool, error: customToolsError } = await supabase
-        .from("tools")
-        .select("models")
-        .eq("organization_id", profile?.organizationId)
-        .eq("identity", "threads_generator")
-        .single();
-
-      
-      if (customToolsError) {
-        console.error(
-          "Error al obtener herramientas personalizadas:",
-          customToolsError
-        );
-      }
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (customTool?.models?.length > 0) {
-        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
-      }
-
-      setModels(customTool?.models || []);
-
-      // Extraer todos los modelos disponibles de las API keys con su proveedor
-      const allModels: string[] = [];
-      const map: Record<string, string> = {};
-      apiKeys.forEach(
-        (key: { id: string; models: string[]; provider: string }) => {
-          if (key.models && Array.isArray(key.models)) {
-            key.models.forEach((model) => {
-              if (!allModels.includes(model)) {
-                allModels.push(model);
-                map[model] = key.provider || "";
-              }
-            });
-          }
-        }
-      );
-
-      // Si hay al menos una API key, establecer hasApiKey como true
-      setApiKeyStatus({
-        isLoading: false,
-        hasApiKey: apiKeys.length > 0,
-        isAdmin,
-      });
-
-      // Establecer los modelos disponibles
-      setAvailableModels(allModels);
-
-      setModelProviderMap(map);
-    } catch (error) {
-      console.error("Error al verificar API keys:", error);
-      setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-    }
-  };
-
   const insertPostContent = (post: WordPressPost) => {
     setSourceContent(post.content?.rendered || "");
     setSourceTitle(post.title?.rendered || "");
@@ -249,19 +162,6 @@ export default function ThreadGenerator() {
   const handleModelChange = (option: string) => {
     const [model, provider] = option.split("|");
     setSelectedModel({ model, provider });
-  };
-
-  const getProviderDisplayName = (provider: string): string => {
-    switch (provider.toLowerCase()) {
-      case "openai":
-        return "OpenAI";
-      case "anthropic":
-        return "Anthropic";
-      case "google":
-        return "Google";
-      default:
-        return provider;
-    }
   };
 
   const handleCopy = async (text: string, key: number | "all") => {
@@ -298,21 +198,13 @@ export default function ThreadGenerator() {
     handleCopy(allContent, "all");
   };
 
-  // checkApiKeyExists consulta por profile.organizationId; con deps vacías
-  // corría antes de que el perfil cargara y mostraba el modal de "API key
-  // requerida" aunque la organización sí tuviera claves.
-  useEffect(() => {
-    if (profile?.organizationId) {
-      checkApiKeyExists();
-    }
-  }, [profile?.organizationId]);
-
   return (
     <div className="container py-8">
       <ApiKeyRequiredModal
-        isLoading={apiKeyStatus.isLoading}
-        isOpen={!apiKeyStatus.hasApiKey}
-        isAdmin={apiKeyStatus.isAdmin}
+        isLoading={cargandoProveedores}
+        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isAdmin={esAdmin}
+        herramienta="Hilos"
       />
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
@@ -342,14 +234,14 @@ export default function ThreadGenerator() {
                         const [model, provider] = value.split("|");
                         setSelectedModel({ model, provider });
                       }}
-                      disabled={models.length === 0 || apiKeyStatus.isLoading}
+                      disabled={models.length === 0 || cargandoProveedores}
                     >
                       <SelectTrigger className="w-full min-w-48 bg-white border-gray-200 hover:bg-gray-50">
                         <SelectValue
                           placeholder={
-                            apiKeyStatus.isLoading
+                            cargandoProveedores
                               ? "Cargando..."
-                              : "Seleccionar modelo"
+                              : "Seleccionar proveedor"
                           }
                         />
                       </SelectTrigger>
@@ -361,10 +253,10 @@ export default function ThreadGenerator() {
                           >
                             <div className="flex flex-row items-center justify-between gap-2">
                               <span className="font-medium">
-                                {MODELS[modelInfo.model as keyof typeof MODELS]}
+                                {modelInfo.model}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {getProviderDisplayName(modelInfo.provider)}
+                                {NOMBRE_PROVEEDOR[modelInfo.provider as keyof typeof NOMBRE_PROVEEDOR] ?? modelInfo.provider}
                               </span>
                             </div>
                           </SelectItem>
