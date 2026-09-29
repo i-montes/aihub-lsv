@@ -14,7 +14,7 @@ import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
-import { leerPromptDeOrganizacion } from "@/lib/organizaciones/prompt-herramienta";
+import { leerConfiguracionDeOrganizacion } from "@/lib/organizaciones/prompt-herramienta";
 
 /**
  * El agente puede llamar la tool de SQL varias veces antes de responder, y un
@@ -87,15 +87,29 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
 
-  // Sin selección explícita se usa el modelo de siempre, para que un cliente
-  // viejo (o una pestaña abierta antes del despliegue) siga funcionando.
+  // Prompt y modelo que la organización guardó en Ajustes > Herramientas.
+  // Sin fila propia, el agente corre con el prompt base (ver prompt-base.ts).
+  const configuracion = await leerConfiguracionDeOrganizacion(
+    await getSupabaseRouteHandler(),
+    organizationId,
+    "preguntas-chatbot"
+  );
+
+  // Orden de preferencia para el modelo: lo que mande el cuerpo (hoy la
+  // interfaz no manda nada), luego el primer modelo guardado en Ajustes, y si
+  // no hay ninguno el de siempre, para que un cliente viejo siga funcionando.
+  const modeloDeAjustes = configuracion.modelos.find((m) => esProveedorSoportado(m.provider));
   const proveedor: ProveedorSoportado = esProveedorSoportado(body?.proveedor)
     ? (body.proveedor.toLowerCase() as ProveedorSoportado)
-    : PROVEEDOR_PREGUNTAS_CHATBOT;
+    : modeloDeAjustes
+      ? (modeloDeAjustes.provider.toLowerCase() as ProveedorSoportado)
+      : PROVEEDOR_PREGUNTAS_CHATBOT;
   const modelo: string =
     typeof body?.modelo === "string" && body.modelo.trim()
       ? body.modelo.trim()
-      : MODELO_PREGUNTAS_CHATBOT;
+      : modeloDeAjustes
+        ? modeloDeAjustes.model
+        : MODELO_PREGUNTAS_CHATBOT;
 
   const credencial = await obtenerApiKey(organizationId, proveedor);
   if (!credencial) {
@@ -133,20 +147,12 @@ export async function POST(request: NextRequest) {
   let resultadoFinal: ReturnType<typeof normalizarResultado> | null = null;
   let errorDelTurno: string | null = null;
 
-  // Lo que la organización escribió en Ajustes > Herramientas; se suma a las
-  // instrucciones base del agente (ver lib/preguntas-chatbot/agente.ts).
-  const promptOrganizacion = await leerPromptDeOrganizacion(
-    await getSupabaseRouteHandler(),
-    organizationId,
-    "preguntas-chatbot"
-  );
-
   const agent = crearAgentePreguntasChatbot({
     apiKey,
     proveedor,
     modelo,
     registrarConsulta: (info) => consultas.push(info),
-    promptOrganizacion,
+    pestanasPrompt: configuracion.prompts,
   });
 
   const response = await createAgentUIStreamResponse({

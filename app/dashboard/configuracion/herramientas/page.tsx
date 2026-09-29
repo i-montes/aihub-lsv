@@ -12,6 +12,7 @@ import { EditToolDialog } from "@/components/tools/edit-tool-dialog"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import type { Tool } from "@/types/tool"
+import { PROMPTS_BASE_PREGUNTAS_CHATBOT } from "@/lib/preguntas-chatbot/prompt-base"
 
 // Define tag colors for consistent styling
 const tagColors: Record<string, string> = {
@@ -223,9 +224,10 @@ export default function ToolsSettingsPage() {
         })
       }
 
-      // Preguntas a SillaIA tampoco vive en default_tools. Lo que se escriba
-      // aquí se suma a las instrucciones base del agente (no las reemplaza),
-      // ver lib/preguntas-chatbot/agente.ts.
+      // Preguntas a SillaIA tampoco vive en default_tools: el prompt base
+      // está en el código (lib/preguntas-chatbot/prompt-base.ts) y se muestra
+      // completo, en sus pestañas, para que la organización lo edite. Al
+      // guardar, lo que quede en las pestañas reemplaza al base.
       const tienePreguntasChatbot = toolsFiltradas.some(
         (t) => t.identity === "preguntas-chatbot"
       )
@@ -234,7 +236,7 @@ export default function ToolsSettingsPage() {
           id: "preguntas-chatbot-default",
           title: "Preguntas a SillaIA",
           description:
-            "Instrucciones adicionales para el agente que responde qué le han preguntado los lectores a SillaIA. Se suman a las instrucciones base.",
+            "Instrucciones del agente que responde qué le han preguntado los lectores a SillaIA. Los marcadores {{HOY}} y {{COLUMNAS}} los rellena el servidor.",
           tags: ["Análisis", "Audiencias"],
           favorite: false,
           usageCount: 0,
@@ -242,7 +244,7 @@ export default function ToolsSettingsPage() {
           isDefault: true,
           identity: "preguntas-chatbot",
           schema: {},
-          prompts: [{ title: "Principal", content: "" }],
+          prompts: PROMPTS_BASE_PREGUNTAS_CHATBOT.map((p) => ({ ...p })),
           temperature: 0.7,
           topP: 1,
           models: [],
