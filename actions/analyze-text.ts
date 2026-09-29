@@ -1,9 +1,6 @@
 "use server";
 
 import { generateObject } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { DebugLogger } from "@/lib/logger";
 import { getSupabaseServer } from "@/lib/supabase/server";
@@ -15,6 +12,8 @@ import {
   type CorreccionPlana,
   type PasoDeFrase,
 } from "@/lib/proofreader/correccion-por-frase";
+import { obtenerProveedorDeHerramienta, ProveedorNoConfiguradoError, type ProveedorEnUso } from "@/lib/proveedores/configuracion";
+import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
 
 // Schema para la respuesta del modelo
 // Artículos largos truncaban el JSON a la mitad y el usuario recibía
@@ -36,8 +35,9 @@ const ProofreaderResponseSchema = z.object({
 
 export async function analyzeText(
   text: string,
-  selectedModel: { model: string; provider: string },
+  selectedModelElegido: { model: string; provider: string },
 ) {
+  let selectedModel = selectedModelElegido;
   // Inicializar logger con contexto específico de proofreader
   const debugLogger = new DebugLogger({
     toolIdentity: "proofreader",
@@ -154,101 +154,19 @@ export async function analyzeText(
       role: userData.role,
     });
 
-    // 2. Obtener la API key para el proveedor seleccionado
-    debugLogger.info("Obteniendo API key para el proveedor", {
-      provider: selectedModel.provider,
-    });
-    const { data: apiKeyData, error: apiKeyError } = await supabase
-      .from("api_key_table")
-      .select("key, provider")
-      .eq("organizationId", organizationId)
-      .eq("provider", selectedModel.provider)
-      .eq("status", "ACTIVE")
-      .single();
-
-    if (apiKeyError || !apiKeyData) {
-      await debugLogger.logApiKey(
-        "API key not found",
-        "not_found",
-        {
-          provider: selectedModel.provider as any,
-          status: "not_found",
-          hasValue: false,
-        },
-        {
-          message: "No se pudo obtener la API key para este proveedor",
-          code: "API_KEY_NOT_FOUND",
-          context: { apiKeyError },
-        },
-      );
-
-      await debugLogger.finalize("failed", {
-        model: {
-          provider: selectedModel.provider as any,
-          model: selectedModel.model,
-          effort: "medium",
-          verbosity: "medium",
-        },
-        error: {
-          message: "No se pudo obtener la API key para este proveedor",
-          code: "API_KEY_NOT_FOUND",
-        },
-      });
-
-      return {
-        success: false,
-        error: "No se pudo obtener la API key para este proveedor",
-        correcciones: [],
-        debugLogs: debugLogger.getLogs(),
-      };
+    // 2. Clave, modelo y ajustes del proveedor elegido, desde Ajustes > Herramientas
+    let configuracion;
+    try {
+      configuracion = await obtenerProveedorDeHerramienta(organizationId, "proofreader", selectedModel.provider);
+    } catch (error) {
+      const mensaje = error instanceof ProveedorNoConfiguradoError ? error.message : "No se pudo obtener la configuración del proveedor";
+      await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, { message: mensaje, code: "API_KEY_NOT_FOUND" });
+      await debugLogger.finalize("failed", { error: { message: mensaje, code: "API_KEY_NOT_FOUND" } });
+      throw new Error(mensaje);
     }
-
-    // Verificar que la clave API no esté vacía
-    if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-      await debugLogger.logApiKey(
-        "API key is empty",
-        "empty",
-        {
-          provider: selectedModel.provider as any,
-          status: "empty",
-          hasValue: false,
-        },
-        {
-          message: "La API key está vacía o no es válida",
-          code: "API_KEY_EMPTY",
-        },
-      );
-
-      await debugLogger.finalize("failed", {
-        model: {
-          provider: selectedModel.provider as any,
-          model: selectedModel.model,
-          effort: "medium",
-          verbosity: "medium",
-        },
-        error: {
-          message: "La API key está vacía o no es válida",
-          code: "API_KEY_EMPTY",
-        },
-      });
-
-      return {
-        success: false,
-        error: "La API key está vacía o no es válida",
-        correcciones: [],
-        debugLogs: debugLogger.getLogs(),
-      };
-    }
-
-    await debugLogger.logApiKey("API key retrieved successfully", "found", {
-      provider: selectedModel.provider as any,
-      status: "found",
-      hasValue: true,
-    });
-
-    debugLogger.info("API key obtenida correctamente", {
-      provider: apiKeyData.provider,
-    });
+    const apiKey = configuracion.apiKey;
+    // El modelo lo decide la configuración, no el cliente.
+    selectedModel = { provider: configuracion.proveedor, model: configuracion.modelo };
 
     // 3. Obtener la configuración de la herramienta "proofreader"
     debugLogger.info("Obteniendo configuración de la herramienta proofreader");
@@ -378,8 +296,6 @@ export async function analyzeText(
       });
     }
 
-    const apiKey = apiKeyData.key;
-
     // 5. Tamiz con Jev y corrección frase por frase.
     //
     // El camino rápido corta el texto en frases, le pregunta a Jev cuáles
@@ -389,39 +305,15 @@ export async function analyzeText(
     //
     // Las frases marcadas se corrigen con un modelo propio, rápido y barato,
     // porque son muchas llamadas cortas en paralelo y no una grande. El
-    // selector de la interfaz se usa sólo si no hay clave de ese proveedor.
-    // La comparación del proveedor se hace aquí y no en la consulta: la tabla
-    // lo guarda en mayúsculas ("OPENAI") y filtrar por la constante en
-    // minúscula dejaba la clave sin encontrar, así que el corrector caía al
-    // modelo del selector sin que se notara. Traer las activas de la
-    // organización y comparar en JS no depende de cómo trate PostgREST las
-    // mayúsculas.
-    const { data: clavesActivas } = await supabase
-      .from("api_key_table")
-      .select("key, provider")
-      .eq("organizationId", organizationId)
-      .eq("status", "ACTIVE");
-
-    const claveCorrector = (clavesActivas ?? []).find(
-      (c: { key: string | null; provider: string | null }) =>
-        c.provider?.toLowerCase() === MODELO_CORRECTOR.provider.toLowerCase() &&
-        c.key?.trim(),
-    );
-
-    const corrector = claveCorrector
-      ? { modelo: MODELO_CORRECTOR, apiKey: claveCorrector.key }
-      : { modelo: selectedModel, apiKey };
-
-    if (!claveCorrector) {
-      debugLogger.warn(
-        `Sin clave de ${MODELO_CORRECTOR.provider}: las frases se corrigen con el modelo elegido`,
-        { modelo: selectedModel.model },
-      );
-      console.error(
-        `[corrector] ⚠️  sin clave ${MODELO_CORRECTOR.provider} activa; se usa ${selectedModel.model}.`,
-        "Proveedores activos:",
-        (clavesActivas ?? []).map((c: { provider: string | null }) => c.provider),
-      );
+    // paso por frase usa el modelo fijo de OpenAI si el Corrector tiene
+    // OpenAI encendido; si no, el proveedor elegido.
+    let corrector: { modelo: { provider: string; model: string }; apiKey: string };
+    try {
+      const openai = await obtenerProveedorDeHerramienta(organizationId, "proofreader", "OPENAI");
+      corrector = { modelo: MODELO_CORRECTOR, apiKey: openai.apiKey };
+    } catch {
+      corrector = { modelo: selectedModel, apiKey };
+      debugLogger.warn(`Sin OpenAI en el Corrector: las frases se corrigen con ${selectedModel.model}`);
     }
 
     debugLogger.info("Intentando análisis por frase con Jev", {
@@ -435,6 +327,11 @@ export async function analyzeText(
         apiKey: corrector.apiKey,
         promptPrincipal: principalPrompt,
         guiaDeEstilo: styleGuidePrompt,
+        // MODELO_CORRECTOR es a propósito rápido: se deja con los valores por
+        // defecto. Con el proveedor elegido sí se respeta lo configurado.
+        ...(corrector.modelo === selectedModel
+          ? { reasoningEffort: configuracion.reasoningEffort, verbosity: configuracion.verbosity }
+          : {}),
       });
 
       if (!porFrase) {
@@ -489,7 +386,7 @@ export async function analyzeText(
         principalPrompt,
         styleGuidePrompt,
         selectedModel,
-        apiKey,
+        configuracion,
         debugLogger,
       }));
     }
@@ -657,14 +554,14 @@ async function analizarDeUnaSolaVez({
   principalPrompt,
   styleGuidePrompt,
   selectedModel,
-  apiKey,
+  configuracion,
   debugLogger,
 }: {
   text: string;
   principalPrompt: string;
   styleGuidePrompt: string;
   selectedModel: { model: string; provider: string };
-  apiKey: string;
+  configuracion: ProveedorEnUso;
   debugLogger: DebugLogger;
 }) {
   const combinedPrompt = `
@@ -698,68 +595,16 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     model: selectedModel.model,
   });
 
-  let result;
-
-  switch (selectedModel.provider.toLowerCase()) {
-    case "openai":
-      debugLogger.info("Usando proveedor OpenAI");
-      const openai = createOpenAI({
-        apiKey: apiKey,
-      });
-
-      result = await generateObject({
-        model: openai(selectedModel.model),
-        schema: ProofreaderResponseSchema,
-        prompt: combinedPrompt,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-        providerOptions: {
-          openai: {
-            reasoningEffort: "medium",
-            textVerbosity: "medium",
-            store: false,
-          },
-        },
-      });
-      break;
-    case "anthropic":
-      debugLogger.info("Usando proveedor Anthropic");
-      const anthropic = createAnthropic({
-        apiKey: apiKey,
-      });
-
-      result = await generateObject({
-        model: anthropic(selectedModel.model),
-        schema: ProofreaderResponseSchema,
-        prompt: combinedPrompt,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-      });
-      break;
-    case "google":
-      debugLogger.info("Usando proveedor Google");
-      const google = createGoogleGenerativeAI({
-        apiKey: apiKey,
-      });
-
-      result = await generateObject({
-        model: google(selectedModel.model),
-        schema: ProofreaderResponseSchema,
-        prompt: combinedPrompt,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-      });
-      break;
-    default:
-      const errorMsg = `Proveedor no soportado: ${selectedModel.provider}`;
-      debugLogger.error(errorMsg);
-
-      await debugLogger.finalize("failed", {
-        error: {
-          message: errorMsg,
-          code: "UNSUPPORTED_PROVIDER",
-        },
-      });
-
-      throw new Error(errorMsg);
-  }
+  const { model, providerOptions } = crearModeloConfigurado(configuracion);
+  const result = await generateObject({
+    model,
+    schema: ProofreaderResponseSchema,
+    prompt: combinedPrompt,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    // `crearModeloConfigurado` tipa sus opciones como Record<string, unknown>
+    // porque las arma para varios proveedores; generateObject espera JSON puro.
+    providerOptions: providerOptions as Record<string, Record<string, string | boolean>>,
+  });
 
   return {
     correcciones: result.object.correcciones,

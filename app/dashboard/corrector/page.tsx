@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Suggestion, WordPressPost } from "@/types/proofreader";
 import {
@@ -34,20 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MODELS } from "@/lib/utils";
-
-const getProviderDisplayName = (provider: string): string => {
-  switch (provider.toLowerCase()) {
-    case "openai":
-      return "OpenAI";
-    case "anthropic":
-      return "Anthropic";
-    case "google":
-      return "Google";
-    default:
-      return provider;
-  }
-};
+import { useAuth } from "@/hooks/use-auth";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos";
 
 export default function ProofreaderPage() {
   // State
@@ -58,14 +46,10 @@ export default function ProofreaderPage() {
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<{
     model: string;
     provider: string;
   }>({ model: "", provider: "" });
-  const [modelProviderMap, setModelProviderMap] = useState<
-    Record<string, string>
-  >({});
   const [appliedSuggestions, setAppliedSuggestions] = useState<Suggestion[]>(
     []
   );
@@ -87,23 +71,6 @@ export default function ProofreaderPage() {
   const [peticionJev, setPeticionJev] = useState<any>(null);
   const [peticionesJev, setPeticionesJev] = useState<any[]>([]);
   const [promptCorrector, setPromptCorrector] = useState<any>(null);
-  const [models, setModels] = useState<
-    {
-      model: string;
-      provider: string;
-    }[]
-  >([]);
-
-  // Estado para el modal de API key requerida
-  const [apiKeyStatus, setApiKeyStatus] = useState<{
-    isLoading: boolean;
-    hasApiKey: boolean;
-    isAdmin: boolean;
-  }>({
-    isLoading: true,
-    hasApiKey: false,
-    isAdmin: false,
-  });
 
   // Estado para el ID de analytics
   const [analyticsId, setAnalyticsId] = useState<string | number | null>(null);
@@ -116,10 +83,17 @@ export default function ProofreaderPage() {
   // («gobierno», por ejemplo) se corrija en la ocurrencia que toca
   const matchCursorRef = useRef(0);
 
-  // Verificar si existe alguna API key al cargar la página
+  const { profile } = useAuth();
+  const { proveedores, cargando: cargandoProveedores } = useProveedoresActivos("proofreader");
+  const models = proveedores.map((p) => ({ model: p.modelo, provider: p.proveedor }));
+  const esAdmin = profile?.role === "OWNER" || profile?.role === "ADMIN";
+
   useEffect(() => {
-    checkApiKeyExists();
-  }, []);
+    if (models.length > 0 && !selectedModel.model) {
+      setSelectedModel(models[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proveedores]);
 
   // Resaltar y desplazarse a una sugerencia, sin tocar el documento
   const scrollToSuggestion = (suggestion: Suggestion) => {
@@ -333,103 +307,6 @@ export default function ProofreaderPage() {
   }, []);
 
   // Functions
-  const checkApiKeyExists = async () => {
-    try {
-      setApiKeyStatus((prev) => ({ ...prev, isLoading: true }));
-      const supabase = getSupabaseClient();
-
-      // Obtener la sesión del usuario actual
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData?.user) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Obtener el ID de la organización y el rol del usuario
-      const { data: profileData, error: userError } = await supabase
-        .from("profiles")
-        .select("organizationId, role")
-        .eq("id", userData.user.id)
-        .single();
-
-      if (userError || !profileData?.organizationId) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Verificar si el usuario es admin o propietario
-      const isAdmin =
-        profileData.role === "OWNER" || profileData.role === "ADMIN";
-
-      // Verificar si existe alguna API key para esta organización y obtener sus modelos
-      const { data: apiKeys, error: apiKeyError } = await supabase
-        .from("api_key_table")
-        .select("id, models, provider")
-        .eq("organizationId", profileData.organizationId)
-        .eq("status", "ACTIVE");
-
-      if (apiKeyError) {
-        console.error("Error al verificar API keys:", apiKeyError);
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin });
-        return;
-      }
-
-      // Fetch custom tools for this organization
-      const { data: customTool, error: customToolsError } = await supabase
-        .from("tools")
-        .select("models")
-        .eq("organization_id", profileData.organizationId)
-        .eq("identity", "proofreader")
-        .single();
-
-      if (customToolsError) {
-        console.error(
-          "Error al obtener herramientas personalizadas:",
-          customToolsError
-        );
-      }
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (customTool?.models?.length > 0) {
-        setSelectedModel(customTool?.models[0] || { model: "", provider: "" });
-      }
-
-      setModels(customTool?.models || []);
-
-      // Extraer todos los modelos disponibles de las API keys con su proveedor
-      const allModels: string[] = [];
-      const map: Record<string, string> = {};
-      apiKeys.forEach(
-        (key: { id: string; models: string[]; provider: string }) => {
-          if (key.models && Array.isArray(key.models)) {
-            key.models.forEach((model) => {
-              if (!allModels.includes(model)) {
-                allModels.push(model);
-                map[model] = key.provider || "";
-              }
-            });
-          }
-        }
-      );
-
-      // Si hay al menos una API key, establecer hasApiKey como true
-      setApiKeyStatus({
-        isLoading: false,
-        hasApiKey: apiKeys.length > 0,
-        isAdmin,
-      });
-
-      // Establecer los modelos disponibles
-      setAvailableModels(allModels);
-
-      setModelProviderMap(map);
-    } catch (error) {
-      console.error("Error al verificar API keys:", error);
-      setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-    }
-  };
-
   const handleTextChange = (html: string) => {
     setOriginalText(html);
   };
@@ -800,7 +677,7 @@ export default function ProofreaderPage() {
   };
 
   // Si está cargando, mostrar un estado de carga
-  if (apiKeyStatus.isLoading) {
+  if (cargandoProveedores) {
     return (
       <div className="container mx-auto h-[calc(100vh-122px)] flex items-center justify-center">
         <div className="text-center">
@@ -814,8 +691,10 @@ export default function ProofreaderPage() {
   return (
     <div className="container mx-auto h-[calc(100vh-122px)] flex flex-col p-4 max-w-7xl overflow-hidden">
       <ApiKeyRequiredModal
-        isOpen={!apiKeyStatus.hasApiKey}
-        isAdmin={apiKeyStatus.isAdmin}
+        isLoading={cargandoProveedores}
+        isOpen={!cargandoProveedores && proveedores.length === 0}
+        isAdmin={esAdmin}
+        herramienta="el Corrector"
       />
 
       <div className="flex flex-col h-full space-y-4">
@@ -879,14 +758,14 @@ export default function ProofreaderPage() {
                       const [model, provider] = value.split("|");
                       setSelectedModel({ model, provider });
                     }}
-                    disabled={models.length === 0 || apiKeyStatus.isLoading}
+                    disabled={models.length === 0 || cargandoProveedores}
                   >
                     <SelectTrigger className="w-auto min-w-48 bg-white border-gray-200 hover:bg-gray-50">
                       <SelectValue
                         placeholder={
-                          apiKeyStatus.isLoading
+                          cargandoProveedores
                             ? "Cargando..."
-                            : "Seleccionar modelo"
+                            : "Seleccionar proveedor"
                         }
                       />
                     </SelectTrigger>
@@ -898,10 +777,10 @@ export default function ProofreaderPage() {
                         >
                           <div className="flex flex-row items-center justify-between gap-2">
                             <span className="font-medium">
-                              {MODELS[modelInfo.model as keyof typeof MODELS]}
+                              {modelInfo.model}
                             </span>
                             <span className="text-xs text-gray-500">
-                              {getProviderDisplayName(modelInfo.provider)}
+                              {NOMBRE_PROVEEDOR[modelInfo.provider as keyof typeof NOMBRE_PROVEEDOR] ?? modelInfo.provider}
                             </span>
                           </div>
                         </SelectItem>

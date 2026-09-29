@@ -719,12 +719,15 @@ async function corregir(
     /** Sólo para mostrarlo; `modelo` ya viene construido. */
     nombreModelo: string;
     provider: string;
+    /** Esfuerzo y verbosidad configurados en Ajustes > Herramientas. */
+    reasoningEffort?: string;
+    verbosity?: string | null;
     arranque: number;
     traza: Map<number, PasoDeFrase>;
     señal?: AbortSignal;
   },
 ) {
-  const providerOptions = opcionesDeProveedor(opciones.provider);
+  const providerOptions = opcionesDeProveedor(opciones.provider, opciones.reasoningEffort, opciones.verbosity);
   // El manual completo NO va aquí. Jev ya identificó qué reglas se incumplen y
   // el texto de cada una viaja en el mensaje del usuario con sus ejemplos, así
   // que mandar los 23.000 caracteres del manual era pagar en cada llamada por
@@ -872,6 +875,9 @@ export async function analizarPorFrase(
     apiKey: string;
     promptPrincipal: string;
     guiaDeEstilo: string;
+    /** Esfuerzo y verbosidad configurados en Ajustes > Herramientas. */
+    reasoningEffort?: string;
+    verbosity?: string | null;
     señal?: AbortSignal;
   },
 ): Promise<ResultadoPorFrase | null> {
@@ -947,6 +953,8 @@ export async function analizarPorFrase(
     modelo: crearModelo(opciones.modeloElegido, opciones.apiKey),
     nombreModelo: opciones.modeloElegido.model,
     provider: opciones.modeloElegido.provider,
+    reasoningEffort: opciones.reasoningEffort,
+    verbosity: opciones.verbosity,
     arranque,
     traza: tamiz.traza,
     señal: opciones.señal,
@@ -1023,13 +1031,13 @@ function crearModelo(
   }
 }
 
-function opcionesDeProveedor(provider: string) {
+function opcionesDeProveedor(provider: string, reasoningEffort = "medium", verbosity: string | null = "medium") {
   if (provider.toLowerCase() !== "openai") return undefined;
 
   return {
     openai: {
-      reasoningEffort: "medium",
-      textVerbosity: "medium",
+      reasoningEffort,
+      textVerbosity: verbosity ?? "medium",
       store: false,
       ...cacheOpenAI("corrector"),
     },
