@@ -601,9 +601,7 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     schema: ProofreaderResponseSchema,
     prompt: combinedPrompt,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
-    // `crearModeloConfigurado` tipa sus opciones como Record<string, unknown>
-    // porque las arma para varios proveedores; generateObject espera JSON puro.
-    providerOptions: providerOptions as Record<string, Record<string, string | boolean>>,
+    providerOptions,
   });
 
   return {

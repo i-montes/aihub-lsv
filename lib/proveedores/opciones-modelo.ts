@@ -1,10 +1,13 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { LanguageModel } from "ai";
+import type { generateText, LanguageModel } from "ai";
 
 import type { ProveedorEnUso } from "@/lib/proveedores/configuracion";
 import { VERBOSIDAD_POR_DEFECTO, type Proveedor } from "@/lib/proveedores/tipos";
+
+/** El tipo de `providerOptions` que aceptan generateText, generateObject y los agentes; `ai` no lo reexporta, así que se deriva de la firma. */
+export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
 
 /**
  * Cómo se traduce el esfuerzo configurado en Ajustes a cada proveedor:
@@ -19,8 +22,8 @@ export function opcionesDeProveedor(
   proveedor: Proveedor,
   reasoningEffort: string,
   verbosity: string | null,
-  extraOpenAI: Record<string, unknown> = {}
-): Record<string, Record<string, unknown>> {
+  extraOpenAI: Record<string, string | number | boolean | null> = {}
+): ProviderOptions {
   const sinXhigh = reasoningEffort === "xhigh" ? "high" : reasoningEffort;
   switch (proveedor) {
     case "OPENAI":
@@ -42,8 +45,8 @@ export function opcionesDeProveedor(
 /** El modelo instanciado con la clave de la herramienta, más sus opciones */
 export function crearModeloConfigurado(
   config: ProveedorEnUso,
-  extraOpenAI: Record<string, unknown> = {}
-): { model: LanguageModel; providerOptions: Record<string, Record<string, unknown>> } {
+  extraOpenAI: Record<string, string | number | boolean | null> = {}
+): { model: LanguageModel; providerOptions: ProviderOptions } {
   const providerOptions = opcionesDeProveedor(config.proveedor, config.reasoningEffort, config.verbosity, extraOpenAI);
   switch (config.proveedor) {
     case "OPENAI":
