@@ -25,8 +25,10 @@ export interface ProveedorEnEdicion {
   /** El usuario pulsó "Cambiar" y quiere escribir otra clave */
   reemplazandoClave: boolean;
   modelo: string;
-  reasoningEffort: string;
-  verbosity: string;
+  /** `null`: por defecto del modelo, no se envía */
+  reasoningEffort: string | null;
+  /** `null`: por defecto del modelo, no se envía. Sólo OpenAI. */
+  verbosity: string | null;
   /** Lista del proveedor. `null` mientras no se ha consultado o si falló. */
   modelosDisponibles: string[] | null;
   cargandoModelos: boolean;
@@ -72,7 +74,7 @@ export function proveedoresDesdeConfiguracion(configurados: ProveedorConfigurado
     claveEnmascarada: c.claveEnmascarada,
     modelo: c.modelo,
     reasoningEffort: c.reasoningEffort,
-    verbosity: c.verbosity ?? VERBOSIDAD_POR_DEFECTO,
+    verbosity: c.verbosity,
   }));
   const faltantes = PROVEEDORES.filter((p) => !configurados.some((c) => c.proveedor === p)).map(proveedorVacio);
   return [...guardados, ...faltantes];

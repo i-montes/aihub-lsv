@@ -110,12 +110,22 @@ describe("validarCuerpoGuardado", () => {
     expect(validarCuerpoGuardado({ proveedores: [{ ...base, proveedor: "GOOGLE", reasoningEffort: "minimal" }] }, []).ok).toBe(true);
   });
 
-  it("aplica el esfuerzo por defecto y descarta la verbosidad fuera de OpenAI", () => {
+  it("sin esfuerzo usa el del modelo (null) y descarta la verbosidad fuera de OpenAI", () => {
     const r = validarCuerpoGuardado(
       { proveedores: [{ ...base, proveedor: "GOOGLE", verbosity: "high" }] },
       []
     );
-    expect(r.ok && r.proveedores[0]).toMatchObject({ reasoningEffort: "medium", verbosity: null });
+    expect(r.ok && r.proveedores[0]).toMatchObject({ reasoningEffort: null, verbosity: null });
+  });
+
+  it("\"auto\" en el esfuerzo significa por defecto del modelo", () => {
+    const r = validarCuerpoGuardado({ proveedores: [{ ...base, proveedor: "ANTHROPIC", reasoningEffort: "auto" }] }, []);
+    expect(r.ok && r.proveedores[0]).toMatchObject({ reasoningEffort: null });
+  });
+
+  it("verbosidad vacía en OpenAI significa por defecto del modelo", () => {
+    const r = validarCuerpoGuardado({ proveedores: [{ ...base, verbosity: "" }] }, []);
+    expect(r.ok && r.proveedores[0]).toMatchObject({ reasoningEffort: null, verbosity: null });
   });
 
   it("rechaza una verbosidad inválida en OpenAI", () => {

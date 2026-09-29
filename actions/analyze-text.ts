@@ -335,10 +335,10 @@ export async function analyzeText(
         promptPrincipal: principalPrompt,
         guiaDeEstilo: styleGuidePrompt,
         // MODELO_CORRECTOR es a propósito rápido: se deja con los valores por
-        // defecto. Con el proveedor elegido sí se respeta lo configurado.
-        ...(corrector.modelo === selectedModel
-          ? { reasoningEffort: configuracion.reasoningEffort, verbosity: configuracion.verbosity }
-          : {}),
+        // defecto del modelo (null, no se envían). Con el proveedor elegido sí
+        // se respeta lo configurado.
+        reasoningEffort: corrector.modelo === selectedModel ? configuracion.reasoningEffort : null,
+        verbosity: corrector.modelo === selectedModel ? configuracion.verbosity : null,
       });
 
       if (!porFrase) {

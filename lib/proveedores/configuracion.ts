@@ -2,7 +2,6 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/database.types";
 import {
   enmascararClave,
-  ESFUERZO_POR_DEFECTO,
   NOMBRE_HERRAMIENTA,
   NOMBRE_PROVEEDOR,
   normalizarProveedor,
@@ -41,7 +40,8 @@ export interface ProveedorEnUso {
   proveedor: Proveedor;
   modelo: string;
   apiKey: string;
-  reasoningEffort: string;
+  /** `null`: por defecto del modelo, no se envía */
+  reasoningEffort: string | null;
   verbosity: string | null;
 }
 
@@ -88,7 +88,7 @@ export async function obtenerProveedorDeHerramienta(
     proveedor: normalizado,
     modelo: fila.modelo,
     apiKey: fila.api_key.trim(),
-    reasoningEffort: fila.reasoning_effort ?? ESFUERZO_POR_DEFECTO,
+    reasoningEffort: fila.reasoning_effort,
     verbosity: fila.verbosity,
   };
 }
@@ -124,7 +124,7 @@ export async function listarConfiguracionHerramienta(
     .map((f) => ({
       proveedor: f.proveedor as Proveedor,
       modelo: f.modelo,
-      reasoningEffort: f.reasoning_effort ?? ESFUERZO_POR_DEFECTO,
+      reasoningEffort: f.reasoning_effort,
       verbosity: f.verbosity,
       claveEnmascarada: enmascararClave(f.api_key),
     }));

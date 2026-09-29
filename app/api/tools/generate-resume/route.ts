@@ -299,13 +299,16 @@ const selectImportantNews = async (
       ),
     });
 
-    // La selección es una tarea corta: esfuerzo bajo a propósito.
+    // La selección es una tarea corta: esfuerzo bajo a propósito, pero sólo
+    // en OpenAI. Los modelos mini de Anthropic y Google pueden no aceptar el
+    // esfuerzo, así que ahí se deja el del modelo (null, no se envía).
+    const proveedorMini = selectedModel.provider.toUpperCase() as Proveedor;
     const configuracionMini: ProveedorEnUso = {
-      proveedor: selectedModel.provider.toUpperCase() as Proveedor,
+      proveedor: proveedorMini,
       modelo: model,
       apiKey,
-      reasoningEffort: "low",
-      verbosity: "low",
+      reasoningEffort: proveedorMini === "OPENAI" ? "low" : null,
+      verbosity: proveedorMini === "OPENAI" ? "low" : null,
     };
     const { model: modelo } = crearModeloConfigurado({ ...configuracionMini, modelo: model });
     const result = await generateObject({ model: modelo, prompt, schema, maxRetries: 5 });

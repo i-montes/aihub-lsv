@@ -4,7 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { generateText, LanguageModel } from "ai";
 
 import type { ProveedorEnUso } from "@/lib/proveedores/configuracion";
-import { VERBOSIDAD_POR_DEFECTO, type Proveedor } from "@/lib/proveedores/tipos";
+import type { Proveedor } from "@/lib/proveedores/tipos";
 
 /** El tipo de `providerOptions` que aceptan generateText, generateObject y los agentes; `ai` no lo reexporta, así que se deriva de la firma. */
 export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
@@ -15,12 +15,15 @@ export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["pr
  * `thinkingLevel` en Google. Antes sólo el Detector lo aplicaba; ahora todas
  * las herramientas pasan por aquí.
  *
+ * `null` en el esfuerzo o la verbosidad significa "por defecto del modelo":
+ * la opción no se envía, porque hay modelos que la rechazan con un 400.
+ *
  * `xhigh` sólo existe en OpenAI: si llegara para otro proveedor (no debería,
  * la validación lo impide) se recorta a `high` en vez de fallar.
  */
 export function opcionesDeProveedor(
   proveedor: Proveedor,
-  reasoningEffort: string,
+  reasoningEffort: string | null,
   verbosity: string | null,
   extraOpenAI: Record<string, string | number | boolean | null> = {}
 ): ProviderOptions {
@@ -29,16 +32,16 @@ export function opcionesDeProveedor(
     case "OPENAI":
       return {
         openai: {
-          reasoningEffort,
-          textVerbosity: verbosity ?? VERBOSIDAD_POR_DEFECTO,
+          ...(reasoningEffort !== null ? { reasoningEffort } : {}),
+          ...(verbosity !== null ? { textVerbosity: verbosity } : {}),
           store: false,
           ...extraOpenAI,
         },
       };
     case "ANTHROPIC":
-      return { anthropic: { effort: sinXhigh } };
+      return sinXhigh !== null ? { anthropic: { effort: sinXhigh } } : {};
     case "GOOGLE":
-      return { google: { thinkingConfig: { thinkingLevel: sinXhigh } } };
+      return sinXhigh !== null ? { google: { thinkingConfig: { thinkingLevel: sinXhigh } } } : {};
   }
 }
 

@@ -23,8 +23,23 @@ export const ESFUERZOS: Record<Proveedor, readonly string[]> = {
 /** Verbosidad: sólo OpenAI la tiene */
 export const VERBOSIDADES = ["low", "medium", "high"] as const;
 
-export const ESFUERZO_POR_DEFECTO = "medium";
-export const VERBOSIDAD_POR_DEFECTO = "medium";
+/**
+ * `null` significa "por defecto del modelo": no se envía la opción al
+ * proveedor. Es el valor inicial de todo proveedor nuevo, porque hay modelos
+ * que rechazan el esfuerzo o la verbosidad.
+ */
+export const ESFUERZO_POR_DEFECTO: string | null = null;
+export const VERBOSIDAD_POR_DEFECTO: string | null = null;
+
+/** Valor que usan los selectores para "Por defecto del modelo" */
+export const VALOR_POR_DEFECTO_DEL_MODELO = "auto";
+
+/** Ausente, vacío, `null` o `"auto"` → `null` (por defecto del modelo) */
+function opcionalONulo(valor: unknown): unknown {
+  return valor === undefined || valor === null || valor === "" || valor === VALOR_POR_DEFECTO_DEL_MODELO
+    ? null
+    : valor;
+}
 
 /** Herramientas que llevan proveedores, por su identidad en `tools` */
 export const HERRAMIENTAS_CON_PROVEEDORES = [
@@ -58,7 +73,8 @@ export interface ProveedorActivo {
 
 /** Lo que ve un administrador en el diálogo: todo menos la clave completa */
 export interface ProveedorConfigurado extends ProveedorActivo {
-  reasoningEffort: string;
+  /** `null`: por defecto del modelo */
+  reasoningEffort: string | null;
   verbosity: string | null;
   claveEnmascarada: string;
 }
@@ -70,7 +86,8 @@ export interface ProveedorParaGuardar {
   /** Clave nueva. Ausente si `conservarClave` es verdadero. */
   apiKey?: string;
   conservarClave: boolean;
-  reasoningEffort: string;
+  /** `null`: por defecto del modelo, no se envía */
+  reasoningEffort: string | null;
   verbosity: string | null;
 }
 
@@ -126,20 +143,27 @@ export function validarCuerpoGuardado(
       return { ok: false, error: `Falta la clave de ${nombre}`, proveedor };
     }
 
-    const reasoningEffort =
-      typeof fila?.reasoningEffort === "string" && fila.reasoningEffort !== ""
-        ? fila.reasoningEffort
-        : ESFUERZO_POR_DEFECTO;
-    if (!ESFUERZOS[proveedor].includes(reasoningEffort)) {
-      return { ok: false, error: `${nombre} no admite el esfuerzo ${reasoningEffort}`, proveedor };
+    const esfuerzoRecibido = opcionalONulo(fila?.reasoningEffort);
+    let reasoningEffort: string | null = ESFUERZO_POR_DEFECTO;
+    if (esfuerzoRecibido !== null) {
+      if (typeof esfuerzoRecibido !== "string" || !ESFUERZOS[proveedor].includes(esfuerzoRecibido)) {
+        return { ok: false, error: `${nombre} no admite el esfuerzo ${String(esfuerzoRecibido)}`, proveedor };
+      }
+      reasoningEffort = esfuerzoRecibido;
     }
 
     let verbosity: string | null = null;
     if (proveedor === "OPENAI") {
-      verbosity =
-        typeof fila?.verbosity === "string" && fila.verbosity !== "" ? fila.verbosity : VERBOSIDAD_POR_DEFECTO;
-      if (!(VERBOSIDADES as readonly string[]).includes(verbosity)) {
-        return { ok: false, error: `${nombre} no admite la verbosidad ${verbosity}`, proveedor };
+      const verbosidadRecibida = opcionalONulo(fila?.verbosity);
+      verbosity = VERBOSIDAD_POR_DEFECTO;
+      if (verbosidadRecibida !== null) {
+        if (
+          typeof verbosidadRecibida !== "string" ||
+          !(VERBOSIDADES as readonly string[]).includes(verbosidadRecibida)
+        ) {
+          return { ok: false, error: `${nombre} no admite la verbosidad ${String(verbosidadRecibida)}`, proveedor };
+        }
+        verbosity = verbosidadRecibida;
       }
     }
 

@@ -7,8 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ESFUERZOS, NOMBRE_PROVEEDOR, VERBOSIDADES } from "@/lib/proveedores/tipos";
+import { ESFUERZOS, NOMBRE_PROVEEDOR, VALOR_POR_DEFECTO_DEL_MODELO, VERBOSIDADES } from "@/lib/proveedores/tipos";
 import type { ProveedorEnEdicion } from "@/components/tools/tool-config";
+
+/** El Select no admite `null`: "auto" representa "Por defecto del modelo" */
+const aSelect = (valor: string | null) => valor ?? VALOR_POR_DEFECTO_DEL_MODELO;
+const deSelect = (valor: string) => (valor === VALOR_POR_DEFECTO_DEL_MODELO ? null : valor);
 
 interface Props {
   estado: ProveedorEnEdicion;
@@ -153,11 +157,15 @@ export function ProveedorAcordeon({
 
             <div>
               <Label className="mb-1 block text-xs text-gray-600">Esfuerzo de razonamiento</Label>
-              <Select value={estado.reasoningEffort} onValueChange={(reasoningEffort) => onCambiar({ reasoningEffort })}>
+              <Select
+                value={aSelect(estado.reasoningEffort)}
+                onValueChange={(valor) => onCambiar({ reasoningEffort: deSelect(valor) })}
+              >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={VALOR_POR_DEFECTO_DEL_MODELO}>Por defecto del modelo</SelectItem>
                   {ESFUERZOS[estado.proveedor].map((nivel) => (
                     <SelectItem key={nivel} value={nivel}>
                       {nivel}
@@ -165,16 +173,21 @@ export function ProveedorAcordeon({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="mt-0.5 text-xs text-gray-400">
+                Sólo aplica a modelos con razonamiento configurable. Si el proveedor rechaza el valor, elige
+                &apos;Por defecto del modelo&apos;.
+              </p>
             </div>
 
             {estado.proveedor === "OPENAI" && (
               <div>
                 <Label className="mb-1 block text-xs text-gray-600">Verbosidad</Label>
-                <Select value={estado.verbosity} onValueChange={(verbosity) => onCambiar({ verbosity })}>
+                <Select value={aSelect(estado.verbosity)} onValueChange={(valor) => onCambiar({ verbosity: deSelect(valor) })}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={VALOR_POR_DEFECTO_DEL_MODELO}>Por defecto del modelo</SelectItem>
                     {VERBOSIDADES.map((nivel) => (
                       <SelectItem key={nivel} value={nivel}>
                         {nivel}

@@ -720,7 +720,7 @@ async function corregir(
     nombreModelo: string;
     provider: string;
     /** Esfuerzo y verbosidad configurados en Ajustes > Herramientas. */
-    reasoningEffort?: string;
+    reasoningEffort?: string | null;
     verbosity?: string | null;
     arranque: number;
     traza: Map<number, PasoDeFrase>;
@@ -876,7 +876,7 @@ export async function analizarPorFrase(
     promptPrincipal: string;
     guiaDeEstilo: string;
     /** Esfuerzo y verbosidad configurados en Ajustes > Herramientas. */
-    reasoningEffort?: string;
+    reasoningEffort?: string | null;
     verbosity?: string | null;
     señal?: AbortSignal;
   },
@@ -1031,13 +1031,17 @@ function crearModelo(
   }
 }
 
-function opcionesDeProveedor(provider: string, reasoningEffort = "medium", verbosity: string | null = "medium") {
+/**
+ * `null` en el esfuerzo o la verbosidad significa "por defecto del modelo":
+ * no se envía la opción, porque hay modelos que la rechazan.
+ */
+function opcionesDeProveedor(provider: string, reasoningEffort: string | null = null, verbosity: string | null = null) {
   if (provider.toLowerCase() !== "openai") return undefined;
 
   return {
     openai: {
-      reasoningEffort,
-      textVerbosity: verbosity ?? "medium",
+      ...(reasoningEffort !== null ? { reasoningEffort } : {}),
+      ...(verbosity !== null ? { textVerbosity: verbosity } : {}),
       store: false,
       ...cacheOpenAI("corrector"),
     },
