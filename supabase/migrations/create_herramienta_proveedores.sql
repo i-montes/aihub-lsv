@@ -4,6 +4,12 @@
 -- cada herramienta tiene las suyas. Sólo la lee y escribe el rol de servicio;
 -- el navegador nunca ve esta tabla. Ver
 -- docs/superpowers/specs/2026-09-29-claves-por-herramienta-design.md.
+--
+-- Los grants explícitos de abajo existen porque Supabase da EXECUTE a anon y
+-- authenticated por defecto sobre toda función nueva de public (y `revoke …
+-- from public` no lo quita). Tras aplicar, conviene comprobar:
+--   select has_function_privilege('authenticated', 'public.guardar_herramienta_proveedores(uuid,text,jsonb)', 'execute'); -- debe ser false
+--   select has_table_privilege('service_role', 'public.herramienta_proveedores', 'select'); -- debe ser true
 
 create table if not exists public.herramienta_proveedores (
   organization_id uuid not null references public.organization (id) on delete cascade,
@@ -24,6 +30,9 @@ create unique index if not exists herramienta_proveedores_clave_unica
   on public.herramienta_proveedores (organization_id, api_key);
 
 alter table public.herramienta_proveedores enable row level security;
+
+revoke all on public.herramienta_proveedores from anon, authenticated;
+grant select, insert, update, delete on public.herramienta_proveedores to service_role;
 
 drop policy if exists "service_role_todo" on public.herramienta_proveedores;
 create policy "service_role_todo"
@@ -59,6 +68,7 @@ begin
     and herramienta = p_herramienta
     and proveedor not in (
       select value ->> 'proveedor' from jsonb_array_elements(p_proveedores)
+      where value ->> 'proveedor' is not null
     );
 
   for fila in select value from jsonb_array_elements(p_proveedores) loop
@@ -101,4 +111,5 @@ end;
 $$;
 
 revoke all on function public.guardar_herramienta_proveedores(uuid, text, jsonb) from public;
+revoke execute on function public.guardar_herramienta_proveedores(uuid, text, jsonb) from anon, authenticated;
 grant execute on function public.guardar_herramienta_proveedores(uuid, text, jsonb) to service_role;
