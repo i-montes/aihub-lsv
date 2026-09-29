@@ -65,15 +65,11 @@ describe("listarModelos", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    try {
-      await listarModelos("OPENAI", "bad-key");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ErrorProveedor);
-      if (error instanceof ErrorProveedor) {
-        expect(error.message).toBe("Incorrect API key");
-        expect(error.status).toBe(400);
-      }
-    }
+    await expect(listarModelos("OPENAI", "bad-key")).rejects.toBeInstanceOf(ErrorProveedor);
+    await expect(listarModelos("OPENAI", "bad-key")).rejects.toMatchObject({
+      status: 400,
+      message: "Incorrect API key",
+    });
   });
 
   it("500 con cuerpo no JSON rechaza con ErrorProveedor estado 502", async () => {
@@ -84,14 +80,8 @@ describe("listarModelos", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    try {
-      await listarModelos("OPENAI", "key");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ErrorProveedor);
-      if (error instanceof ErrorProveedor) {
-        expect(error.status).toBe(502);
-      }
-    }
+    await expect(listarModelos("OPENAI", "key")).rejects.toBeInstanceOf(ErrorProveedor);
+    await expect(listarModelos("OPENAI", "key")).rejects.toMatchObject({ status: 502 });
   });
 
   it("200 cuyo json() rechaza (cuerpo no JSON) rechaza con ErrorProveedor estado 502", async () => {
@@ -102,29 +92,19 @@ describe("listarModelos", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    try {
-      await listarModelos("OPENAI", "key");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ErrorProveedor);
-      if (error instanceof ErrorProveedor) {
-        expect(error.message).toContain("devolvió una respuesta que no se pudo leer");
-        expect(error.status).toBe(502);
-      }
-    }
+    await expect(listarModelos("OPENAI", "key")).rejects.toBeInstanceOf(ErrorProveedor);
+    await expect(listarModelos("OPENAI", "key")).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining("devolvió una respuesta que no se pudo leer"),
+    });
   });
 
   it("fetch lanzando TypeError rechaza con ErrorProveedor estado 502 con 'No se pudo conectar'", async () => {
     const mockFetch = vi.fn().mockRejectedValue(new TypeError("failed"));
     vi.stubGlobal("fetch", mockFetch);
 
-    try {
-      await listarModelos("OPENAI", "key");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ErrorProveedor);
-      if (error instanceof ErrorProveedor) {
-        expect(error.message).toContain("No se pudo conectar");
-        expect(error.status).toBe(502);
-      }
-    }
+    await expect(listarModelos("OPENAI", "key")).rejects.toBeInstanceOf(ErrorProveedor);
+    await expect(listarModelos("OPENAI", "key")).rejects.toMatchObject({ status: 502 });
+    await expect(listarModelos("OPENAI", "key")).rejects.toThrow(/No se pudo conectar/);
   });
 });
