@@ -10,6 +10,14 @@ export async function GET() {
   const sesion = await sesionDeOrganizacion();
   if (!sesion.ok) return NextResponse.json({ error: sesion.error }, { status: sesion.status });
 
-  const porHerramienta = await listarProveedoresActivosDeTodas(sesion.organizationId);
-  return NextResponse.json({ porHerramienta }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const porHerramienta = await listarProveedoresActivosDeTodas(sesion.organizationId);
+    return NextResponse.json({ porHerramienta }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[herramientas/proveedores-activos] Error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 }

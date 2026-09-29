@@ -21,30 +21,29 @@ export async function POST(request: NextRequest) {
   const proveedor = normalizarProveedor(cuerpo?.proveedor);
   if (!proveedor) return NextResponse.json({ error: "Proveedor desconocido" }, { status: 400 });
 
-  let apiKey = typeof cuerpo?.apiKey === "string" ? cuerpo.apiKey.trim() : "";
-  if (!apiKey) {
-    const herramienta = cuerpo?.herramienta;
-    if (!esHerramientaConProveedores(herramienta)) {
-      return NextResponse.json({ error: "Falta la clave" }, { status: 400 });
-    }
-    try {
-      apiKey = (await obtenerProveedorDeHerramienta(sesion.organizationId, herramienta, proveedor)).apiKey;
-    } catch (error) {
-      if (error instanceof ProveedorNoConfiguradoError) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-      }
-      throw error;
-    }
-  }
-
   try {
+    let apiKey = typeof cuerpo?.apiKey === "string" ? cuerpo.apiKey.trim() : "";
+    if (!apiKey) {
+      const herramienta = cuerpo?.herramienta;
+      if (!esHerramientaConProveedores(herramienta)) {
+        return NextResponse.json({ error: "Falta la clave" }, { status: 400 });
+      }
+      apiKey = (await obtenerProveedorDeHerramienta(sesion.organizationId, herramienta, proveedor)).apiKey;
+    }
+
     const modelos = await listarModelos(proveedor, apiKey);
     return NextResponse.json({ modelos }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof ProveedorNoConfiguradoError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof ErrorProveedor) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error("[herramientas/modelos] Error listando modelos:", error);
-    return NextResponse.json({ error: "No se pudo consultar la lista de modelos" }, { status: 500 });
+    console.error("[herramientas/modelos] Error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

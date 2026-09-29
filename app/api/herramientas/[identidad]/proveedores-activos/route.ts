@@ -19,6 +19,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const sesion = await sesionDeOrganizacion();
   if (!sesion.ok) return NextResponse.json({ error: sesion.error }, { status: sesion.status });
 
-  const proveedores = await listarProveedoresActivos(sesion.organizationId, identidad);
-  return NextResponse.json({ proveedores }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const proveedores = await listarProveedoresActivos(sesion.organizationId, identidad);
+    return NextResponse.json({ proveedores }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[herramientas/[identidad]/proveedores-activos] Error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 }
