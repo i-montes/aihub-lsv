@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DEFAULT_MODELS } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -93,8 +92,6 @@ export default function AdminOrganizationsPage() {
     name: "",
     lastname: "",
     organization_name: "",
-    api_key: "",
-    provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
   })
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
   const [orgForToken, setOrgForToken] = useState<Organization | null>(null)
@@ -378,17 +375,16 @@ export default function AdminOrganizationsPage() {
 
   const createOrganization = async () => {
     // Validar campos obligatorios
-    if (!createOrgFormData.email || !createOrgFormData.name || 
-        !createOrgFormData.lastname || !createOrgFormData.organization_name ||
-        !createOrgFormData.api_key || !createOrgFormData.provider) {
+    if (!createOrgFormData.email || !createOrgFormData.name ||
+        !createOrgFormData.lastname || !createOrgFormData.organization_name) {
       toast.error("Todos los campos son obligatorios")
       return
     }
 
     try {
       setCreateOrgLoading(true)
-      
-      // Crear la organización con API key y herramientas por defecto
+
+      // Crear la organización con herramientas por defecto
       const response = await fetch("/api/organization/create", {
         method: "POST",
         headers: {
@@ -399,8 +395,6 @@ export default function AdminOrganizationsPage() {
           name: createOrgFormData.name,
           lastname: createOrgFormData.lastname,
           organization_name: createOrgFormData.organization_name,
-          api_key: createOrgFormData.api_key,
-          provider: createOrgFormData.provider,
           role: "OWNER"
         }),
       })
@@ -411,15 +405,13 @@ export default function AdminOrganizationsPage() {
         throw new Error(data.error || "Error al crear la organización")
       }
 
-      toast.success("Organización, API key y herramientas creadas exitosamente. Se ha enviado una invitación por email.")
+      toast.success("Organización y herramientas creadas exitosamente. Se ha enviado una invitación por email.")
       setCreateOrgModalOpen(false)
-      setCreateOrgFormData({ 
-        email: "", 
-        name: "", 
-        lastname: "", 
+      setCreateOrgFormData({
+        email: "",
+        name: "",
+        lastname: "",
         organization_name: "",
-        api_key: "",
-        provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
       })
       
       // Actualizar la lista de organizaciones
@@ -1103,51 +1095,19 @@ export default function AdminOrganizationsPage() {
                   required
                 />
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Proveedor de IA *</label>
-                  <Select
-                    value={createOrgFormData.provider}
-                    onValueChange={(value: "OPENAI" | "GOOGLE" | "ANTHROPIC") => 
-                      setCreateOrgFormData(prev => ({ ...prev, provider: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar proveedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OPENAI">OpenAI ({DEFAULT_MODELS.OPENAI})</SelectItem>
-                      <SelectItem value="GOOGLE">Google ({DEFAULT_MODELS.GOOGLE})</SelectItem>
-                      <SelectItem value="ANTHROPIC">Anthropic ({DEFAULT_MODELS.ANTHROPIC})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">API Key *</label>
-                  <Input
-                    type="password"
-                    value={createOrgFormData.api_key}
-                    onChange={(e) => setCreateOrgFormData(prev => ({ ...prev, api_key: e.target.value }))}
-                    placeholder="Ingresa la API key del proveedor"
-                    required
-                  />
-                </div>
-              </div>
+
+              <p className="text-xs text-gray-500">La organización nace sin claves de IA. Su administrador las configura en Ajustes &gt; Herramientas.</p>
             </div>
             <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setCreateOrgModalOpen(false)
-                  setCreateOrgFormData({ 
-                    email: "", 
-                    name: "", 
-                    lastname: "", 
+                  setCreateOrgFormData({
+                    email: "",
+                    name: "",
+                    lastname: "",
                     organization_name: "",
-                    api_key: "",
-                    provider: "OPENAI" as "OPENAI" | "GOOGLE" | "ANTHROPIC"
                   })
                 }}
                 disabled={createOrgLoading}

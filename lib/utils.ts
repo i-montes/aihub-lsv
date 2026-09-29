@@ -16,9 +16,3 @@ export const MINI_MODELS = {
   GOOGLE: "gemini-3-flash-preview",
   ANTHROPIC: "claude-haiku-4-5-20251001"
 }
-
-export const MODELS = {
-  [DEFAULT_MODELS.GOOGLE]: "Gemini 3.1 Pro Preview",
-  [DEFAULT_MODELS.ANTHROPIC]: "Claude Opus 4.8",
-  [DEFAULT_MODELS.OPENAI]: "GPT 5.6 Terra"
-}
