@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ErrorProveedor,
   filtrarModelosAnthropic,
   filtrarModelosGoogle,
   filtrarModelosOpenAI,
+  listarModelos,
 } from "@/lib/proveedores/listar-modelos";
 
 describe("filtrarModelosOpenAI", () => {
@@ -31,5 +33,98 @@ describe("filtrarModelosGoogle", () => {
       "gemini-3-flash-preview",
       "gemini-3.1-pro-preview",
     ]);
+  });
+});
+
+describe("listarModelos", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("OpenAI 200 con respuesta exitosa filtra y verifica encabezado Authorization", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({ data: [{ id: "gpt-5.6-terra" }, { id: "whisper-1" }] }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const resultado = await listarModelos("OPENAI", "test-key");
+
+    expect(resultado).toEqual(["gpt-5.6-terra"]);
+    expect(mockFetch).toHaveBeenCalledWith("https://api.openai.com/v1/models", {
+      headers: { Authorization: "Bearer test-key" },
+    });
+  });
+
+  it("401 con mensaje de error rechaza con ErrorProveedor con estado 400", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn().mockResolvedValue({ error: { message: "Incorrect API key" } }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    try {
+      await listarModelos("OPENAI", "bad-key");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ErrorProveedor);
+      if (error instanceof ErrorProveedor) {
+        expect(error.message).toBe("Incorrect API key");
+        expect(error.status).toBe(400);
+      }
+    }
+  });
+
+  it("500 con cuerpo no JSON rechaza con ErrorProveedor estado 502", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: vi.fn().mockRejectedValue(new SyntaxError("Unexpected token")),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    try {
+      await listarModelos("OPENAI", "key");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ErrorProveedor);
+      if (error instanceof ErrorProveedor) {
+        expect(error.status).toBe(502);
+      }
+    }
+  });
+
+  it("200 cuyo json() rechaza (cuerpo no JSON) rechaza con ErrorProveedor estado 502", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockRejectedValue(new SyntaxError("Unexpected end of JSON input")),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    try {
+      await listarModelos("OPENAI", "key");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ErrorProveedor);
+      if (error instanceof ErrorProveedor) {
+        expect(error.message).toContain("devolvió una respuesta que no se pudo leer");
+        expect(error.status).toBe(502);
+      }
+    }
+  });
+
+  it("fetch lanzando TypeError rechaza con ErrorProveedor estado 502 con 'No se pudo conectar'", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new TypeError("failed"));
+    vi.stubGlobal("fetch", mockFetch);
+
+    try {
+      await listarModelos("OPENAI", "key");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ErrorProveedor);
+      if (error instanceof ErrorProveedor) {
+        expect(error.message).toContain("No se pudo conectar");
+        expect(error.status).toBe(502);
+      }
+    }
   });
 });

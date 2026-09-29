@@ -83,7 +83,16 @@ export async function listarModelos(proveedor: Proveedor, apiKey: string): Promi
     throw new ErrorProveedor(mensaje, respuesta.status === 401 || respuesta.status === 403 ? 400 : 502);
   }
 
-  const datos = await respuesta.json();
+  let datos;
+  try {
+    datos = await respuesta.json();
+  } catch {
+    throw new ErrorProveedor(
+      `${NOMBRE_PROVEEDOR[proveedor]} devolvió una respuesta que no se pudo leer`,
+      502
+    );
+  }
+
   switch (proveedor) {
     case "OPENAI":
       return filtrarModelosOpenAI((datos?.data ?? []).map((m: { id: string }) => m.id));
