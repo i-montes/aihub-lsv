@@ -8,7 +8,8 @@ import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-m
 
 // Importar módulos creados
 import { formSchema, type FormSchema, defaultFormValues } from "./constants";
-import { useApiKeyStatus } from "./hooks/useApiKeyStatus";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { useAuth } from "@/hooks/use-auth";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { FormHeader } from "./components/FormHeader";
 import { MainInfoSection } from "./components/MainInfoSection";
@@ -54,7 +55,13 @@ export default function LieDetectorPage() {
   // console.log(getValues())
 
   // Hooks personalizados para lógica de negocio
-  const apiKeyStatus = useApiKeyStatus();
+  const { profile } = useAuth();
+  const { proveedores, cargando } = useProveedoresActivos("detector");
+  const apiKeyStatus = {
+    isLoading: cargando,
+    hasApiKey: proveedores.length > 0,
+    isAdmin: profile?.role === "OWNER" || profile?.role === "ADMIN",
+  };
   const {
     isAnalyzing,
     analysisResult,
@@ -80,7 +87,7 @@ export default function LieDetectorPage() {
   }
 
   if (!apiKeyStatus.hasApiKey) {
-    return <ApiKeyRequiredModal isOpen={true} isAdmin={apiKeyStatus.isAdmin} />;
+    return <ApiKeyRequiredModal isOpen={true} isAdmin={apiKeyStatus.isAdmin} herramienta="el Detector" />;
   }
 
   return (

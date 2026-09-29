@@ -1,6 +1,3 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, type ModelMessage } from 'ai';
 import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -17,6 +14,12 @@ import {
   type SalidaModelo,
 } from "@/lib/detector/documento";
 import { calcularCosto } from "@/lib/costos";
+import {
+  obtenerProveedorDeHerramienta,
+  ProveedorNoConfiguradoError,
+  type ProveedorEnUso,
+} from "@/lib/proveedores/configuracion";
+import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
 import type { FormSchema } from "@/app/dashboard/detector-de-mentiras/constants";
 import {
   formSchema,
@@ -30,33 +33,11 @@ interface AuthResult {
   userData: any;
 }
 
-interface ApiKeyResult {
-  key: string;
-  provider: string;
-}
-
 interface ToolConfig {
   prompts: any[];
   temperature: number;
   top_p: number;
   schema?: any;
-  /** Fallback global cuando el modelo no tiene esfuerzo propio */
-  reasoning_effort?: string;
-  /** Fallback global de verbosidad cuando el modelo no tiene la suya */
-  verbosity?: string;
-  /** Lista de modelos activos con su configuración individual */
-  models?: { provider: string; model: string; reasoningEffort?: string; verbosity?: string }[];
-}
-
-const DEFAULT_REASONING_EFFORT = "medium";
-const DEFAULT_VERBOSITY = "medium";
-
-/**
- * Anthropic sólo admite low | medium | high; "xhigh" es exclusivo de OpenAI,
- * así que se recorta al nivel más alto que acepta.
- */
-function anthropicEffort(effort: string): "low" | "medium" | "high" {
-  return effort === "xhigh" ? "high" : (effort as "low" | "medium" | "high");
 }
 
 interface ModelConfig {
@@ -177,69 +158,21 @@ async function authenticateUser(debugLogger: DebugLogger): Promise<AuthResult> {
   return { user, organizationId, userData };
 }
 
-// API Key function
-async function getApiKey(
+// Configuración del proveedor (clave, modelo y ajustes) desde la herramienta
+async function obtenerConfiguracion(
   organizationId: string,
   provider: string,
   debugLogger: DebugLogger
-): Promise<ApiKeyResult> {
-  await debugLogger.logApiKey("Fetching API key", "fetching", {
-    provider: provider.toLowerCase() as any,
-    status: "fetching",
-    hasValue: false,
-  });
-
-  const supabase = await getSupabaseRouteHandler();
-  const { data: apiKeyData, error: apiKeyError } = await supabase
-    .from("api_key_table")
-    .select("key, provider")
-    .eq("organizationId", organizationId)
-    .eq("provider", provider.toUpperCase() as any)
-    .eq("status", "ACTIVE")
-    .single();
-
-  console.log(provider, organizationId)
-
-  if (apiKeyError || !apiKeyData) {
-    await debugLogger.logApiKey(
-      "API key not found",
-      "not_found",
-      {
-        provider: provider.toLowerCase() as any,
-        status: "not_found",
-        hasValue: false,
-      },
-      {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-        context: { apiKeyError },
-      }
-    );
-    await debugLogger.finalize("failed", {
-      error: {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-      },
-    });
-    throw new Error("No se pudo obtener la API key para este proveedor");
+): Promise<ProveedorEnUso> {
+  await debugLogger.logApiKey("Fetching API key", "fetching", { provider: provider.toLowerCase() as any, status: "fetching", hasValue: false });
+  try {
+    return await obtenerProveedorDeHerramienta(organizationId, "detector", provider);
+  } catch (error) {
+    const mensaje = error instanceof ProveedorNoConfiguradoError ? error.message : "No se pudo obtener la configuración del proveedor";
+    await debugLogger.logApiKey("API key not found", "not_found", { provider: provider.toLowerCase() as any, status: "not_found", hasValue: false }, { message: mensaje, code: "API_KEY_NOT_FOUND" });
+    await debugLogger.finalize("failed", { error: { message: mensaje, code: "API_KEY_NOT_FOUND" } });
+    throw new Error(mensaje);
   }
-
-  if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-    await debugLogger.logApiKey("API key is empty or invalid", "empty", {
-      provider: provider.toLowerCase() as any,
-      status: "empty",
-      hasValue: false,
-    });
-    await debugLogger.finalize("failed", {
-      error: {
-        message: "La API key está vacía o no es válida",
-        code: "API_KEY_EMPTY",
-      },
-    });
-    throw new Error("La API key está vacía o no es válida");
-  }
-
-  return apiKeyData;
 }
 
 // Tool Configuration function
@@ -451,35 +384,20 @@ function buildUserContent(userPrompt: string, validatedData: FormSchema) {
 
 // Función para generar análisis con un modelo específico
 async function generateAnalysis(
-  modelConfig: { provider: string; model: string },
+  configuracion: ProveedorEnUso,
   systemPrompt: string,
   userPrompt: string,
   toolConfig: ToolConfig,
-  apiKey: string,
   debugLogger: DebugLogger,
   validatedData: FormSchema
 ) {
   debugLogger.info("Iniciando generación de análisis", {
-    provider: modelConfig.provider,
-    model: modelConfig.model,
+    provider: configuracion.proveedor,
+    model: configuracion.modelo,
   });
 
   const temperature = toolConfig.temperature;
   const top_p = toolConfig.top_p;
-
-  // Los hiperparámetros son independientes por modelo; el valor global actúa
-  // como fallback para modelos que no tienen configuración propia.
-  const modelEntry = toolConfig.models?.find(
-    (m) =>
-      m.model === modelConfig.model &&
-      m.provider.toLowerCase() === modelConfig.provider.toLowerCase()
-  );
-  const reasoningEffort =
-    modelEntry?.reasoningEffort ||
-    toolConfig.reasoning_effort ||
-    DEFAULT_REASONING_EFFORT;
-  const verbosity =
-    modelEntry?.verbosity || toolConfig.verbosity || DEFAULT_VERBOSITY;
 
   const content = buildUserContent(userPrompt, validatedData);
   const messages: ModelMessage[] = [{ role: "user", content }];
@@ -489,52 +407,14 @@ async function generateAnalysis(
     fileParts: content.filter((part) => part.type === "file").length,
   });
 
-  switch (modelConfig.provider.toLowerCase()) {
-    case "openai":
-      debugLogger.info("Usando proveedor OpenAI");
-      const openai = createOpenAI({ apiKey });
-      return generateText({
-        model: openai(modelConfig.model),
-        system: systemPrompt,
-        messages,
-        providerOptions: {
-          openai: {
-            reasoningEffort,
-            textVerbosity: verbosity,
-            store: false,
-          },
-        },
-      });
-
-    case "anthropic":
-      debugLogger.info("Usando proveedor Anthropic");
-      const anthropic = createAnthropic({ apiKey });
-      return generateText({
-        model: anthropic(modelConfig.model),
-        system: systemPrompt,
-        messages,
-        providerOptions: {
-          // `effort` activa el thinking adaptativo; estos modelos no admiten temperature
-          anthropic: { effort: anthropicEffort(reasoningEffort) },
-        },
-      });
-
-    case "google":
-      debugLogger.info("Usando proveedor Google");
-      const google = createGoogleGenerativeAI({ apiKey });
-      return generateText({
-        model: google(modelConfig.model),
-        system: systemPrompt,
-        messages,
-        temperature,
-        topP: top_p,
-      });
-
-    default:
-      const errorMsg = `Proveedor no soportado: ${modelConfig.provider}`;
-      debugLogger.error(errorMsg);
-      throw new Error(errorMsg);
-  }
+  const { model, providerOptions } = crearModeloConfigurado(configuracion);
+  return generateText({
+    model,
+    system: systemPrompt,
+    messages,
+    providerOptions,
+    ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
+  });
 }
 
 /**
@@ -545,22 +425,20 @@ async function generateAnalysis(
  * cuál de los dos es más lento.
  */
 async function medirAnalisis(
-  modelConfig: ModelConfig,
+  configuracion: ProveedorEnUso,
   systemPrompt: string,
   userPrompt: string,
   toolConfig: ToolConfig,
-  apiKey: string,
   debugLogger: DebugLogger,
   validatedData: FormSchema
 ): Promise<SalidaModelo> {
   const inicio = Date.now();
 
   const resultado = await generateAnalysis(
-    modelConfig,
+    configuracion,
     systemPrompt,
     userPrompt,
     toolConfig,
-    apiKey,
     debugLogger,
     validatedData
   );
@@ -568,8 +446,8 @@ async function medirAnalisis(
   const uso = resultado.usage;
 
   return {
-    proveedor: modelConfig.provider,
-    modelo: modelConfig.model,
+    proveedor: configuracion.proveedor.toLowerCase(),
+    modelo: configuracion.modelo,
     texto: resultado.text,
     tiempoMs: Date.now() - inicio,
     // Se leen los campos canónicos (inputTokenDetails/outputTokenDetails), no
@@ -747,15 +625,15 @@ export async function POST(request: NextRequest) {
         model2: validatedData.model_to_compare_1,
       });
 
-      // Obtener API keys para ambos modelos. El orden importa: `generated1`
+      // Obtener la configuración de ambos modelos. El orden importa: `generated1`
       // corresponde siempre al modelo principal y `generated2` al de comparación.
-      const apiKey1 = await getApiKey(organizationId, validatedData.selectedModel.provider, debugLogger);
-      const apiKey2 = await getApiKey(organizationId, validatedData.model_to_compare_1!.provider, debugLogger);
+      const config1 = await obtenerConfiguracion(organizationId, validatedData.selectedModel.provider, debugLogger);
+      const config2 = await obtenerConfiguracion(organizationId, validatedData.model_to_compare_1!.provider, debugLogger);
 
       // Generar análisis con ambos modelos de forma simultánea
       [salida1, salida2] = await Promise.all([
-        medirAnalisis(validatedData.selectedModel, systemPrompt, prompt, toolConfig, apiKey1.key, debugLogger, validatedData),
-        medirAnalisis(validatedData.model_to_compare_1!, systemPrompt, prompt, toolConfig, apiKey2.key, debugLogger, validatedData),
+        medirAnalisis(config1, systemPrompt, prompt, toolConfig, debugLogger, validatedData),
+        medirAnalisis(config2, systemPrompt, prompt, toolConfig, debugLogger, validatedData),
       ]);
     } else {
       debugLogger.info("Modo análisis simple", {
@@ -763,13 +641,12 @@ export async function POST(request: NextRequest) {
       });
 
       // Análisis simple con un solo modelo
-      const apiKey = await getApiKey(organizationId, validatedData.selectedModel?.provider || "", debugLogger);
+      const configuracion = await obtenerConfiguracion(organizationId, validatedData.selectedModel?.provider || "", debugLogger);
       salida1 = await medirAnalisis(
-        validatedData.selectedModel || { provider: "", model: "" },
+        configuracion,
         systemPrompt,
         prompt,
         toolConfig,
-        apiKey.key,
         debugLogger,
         validatedData
       );
