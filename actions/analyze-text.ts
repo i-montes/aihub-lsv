@@ -162,7 +162,12 @@ export async function analyzeText(
       const mensaje = error instanceof ProveedorNoConfiguradoError ? error.message : "No se pudo obtener la configuración del proveedor";
       await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, { message: mensaje, code: "API_KEY_NOT_FOUND" });
       await debugLogger.finalize("failed", { error: { message: mensaje, code: "API_KEY_NOT_FOUND" } });
-      throw new Error(mensaje);
+      return {
+        success: false,
+        error: mensaje,
+        correcciones: [],
+        debugLogs: debugLogger.getLogs(),
+      };
     }
     const apiKey = configuracion.apiKey;
     // El modelo lo decide la configuración, no el cliente.
@@ -311,9 +316,11 @@ export async function analyzeText(
     try {
       const openai = await obtenerProveedorDeHerramienta(organizationId, "proofreader", "OPENAI");
       corrector = { modelo: MODELO_CORRECTOR, apiKey: openai.apiKey };
-    } catch {
+    } catch (error) {
+      if (!(error instanceof ProveedorNoConfiguradoError)) throw error;
       corrector = { modelo: selectedModel, apiKey };
       debugLogger.warn(`Sin OpenAI en el Corrector: las frases se corrigen con ${selectedModel.model}`);
+      console.error(`[corrector] sin OpenAI en el Corrector; se usa ${selectedModel.model}`);
     }
 
     debugLogger.info("Intentando análisis por frase con Jev", {
