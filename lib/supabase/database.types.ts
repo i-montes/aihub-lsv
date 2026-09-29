@@ -652,6 +652,45 @@ export type Database = {
           },
         ]
       }
+      herramienta_proveedores: {
+        Row: {
+          organization_id: string
+          herramienta: string
+          proveedor: string
+          api_key: string
+          modelo: string
+          reasoning_effort: string | null
+          verbosity: string | null
+          posicion: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          organization_id: string
+          herramienta: string
+          proveedor: string
+          api_key: string
+          modelo: string
+          reasoning_effort?: string | null
+          verbosity?: string | null
+          posicion?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          organization_id?: string
+          herramienta?: string
+          proveedor?: string
+          api_key?: string
+          modelo?: string
+          reasoning_effort?: string | null
+          verbosity?: string | null
+          posicion?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tools: {
         Row: {
           created_at: string | null
@@ -846,6 +885,14 @@ export type Database = {
       get_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      guardar_herramienta_proveedores: {
+        Args: {
+          p_organization_id: string
+          p_herramienta: string
+          p_proveedores: Json
+        }
+        Returns: undefined
       }
       is_admin_of_organization: {
         Args: { user_id: string; org_id: string }

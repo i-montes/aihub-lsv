@@ -1,0 +1,16 @@
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+
+/**
+ * Cliente con rol de servicio, sin cookies ni sesión: salta las políticas de
+ * acceso. Sólo para código de servidor que ya comprobó quién pide y qué puede
+ * ver, como las rutas de /api/herramientas. Nunca importarlo desde un
+ * componente de cliente.
+ */
+export function getSupabaseAdmin() {
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
