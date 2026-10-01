@@ -10,6 +10,16 @@ import type { Proveedor } from "@/lib/proveedores/tipos";
 export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
 
 /**
+ * Cómo saca JSON `generateObject` con Anthropic. En modo "auto" el SDK sólo
+ * usa la salida estructurada nativa (`output_format`) con los modelos que
+ * conoce (hasta los 4.5); con cualquier otro —Sonnet 5, Opus 4.8...— cae a
+ * una tool "json" forzada con `tool_choice: "tool"`, que esos modelos
+ * rechazan con un 400 ("tool_choice: type 'tool' and 'any' are not supported
+ * for this model"). Todos los modelos que se ofrecen soportan la nativa.
+ */
+export const ANTHROPIC_SALIDA_ESTRUCTURADA = { structuredOutputMode: "outputFormat" } as const;
+
+/**
  * Cómo se traduce el esfuerzo configurado en Ajustes a cada proveedor:
  * `reasoningEffort` y `textVerbosity` en OpenAI, `effort` en Anthropic,
  * `thinkingLevel` en Google. Antes sólo el Detector lo aplicaba; ahora todas
@@ -39,7 +49,12 @@ export function opcionesDeProveedor(
         },
       };
     case "ANTHROPIC":
-      return sinXhigh !== null ? { anthropic: { effort: sinXhigh } } : {};
+      return {
+        anthropic: {
+          ...(sinXhigh !== null ? { effort: sinXhigh } : {}),
+          ...ANTHROPIC_SALIDA_ESTRUCTURADA,
+        },
+      };
     case "GOOGLE":
       return sinXhigh !== null ? { google: { thinkingConfig: { thinkingLevel: sinXhigh } } } : {};
   }
