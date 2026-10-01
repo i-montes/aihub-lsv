@@ -1,422 +1,231 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
-import { ResponseFormat } from "@/components/tools/response-format";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import { ApiKeyRequiredModal } from "../proofreader/api-key-required-modal";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DEFAULT_REASONING_EFFORT,
-  DEFAULT_VERBOSITY,
-  REASONING_EFFORTS,
-  VERBOSITY_LEVELS,
-} from "@/types/tool";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-interface ModelEntry {
-  provider: string;
-  model: string;
-  reasoningEffort?: string;
-  verbosity?: string;
+import { Accordion } from "@/components/ui/accordion";
+import { ProveedorAcordeon } from "@/components/tools/proveedor-acordeon";
+import {
+  ESFUERZO_POR_DEFECTO,
+  NOMBRE_PROVEEDOR,
+  PROVEEDORES,
+  VERBOSIDAD_POR_DEFECTO,
+  type Proveedor,
+  type ProveedorConfigurado,
+} from "@/lib/proveedores/tipos";
+
+/** Un proveedor mientras se edita en el diálogo */
+export interface ProveedorEnEdicion {
+  proveedor: Proveedor;
+  /** Tiene clave guardada o una nueva escrita */
+  encendido: boolean;
+  /** Clave guardada, enmascarada. `null` si no hay. */
+  claveEnmascarada: string | null;
+  /** Clave escrita ahora. Vacía si se conserva la guardada. */
+  claveNueva: string;
+  /** El usuario pulsó "Cambiar" y quiere escribir otra clave */
+  reemplazandoClave: boolean;
+  modelo: string;
+  /** `null`: por defecto del modelo, no se envía */
+  reasoningEffort: string | null;
+  /** `null`: por defecto del modelo, no se envía. Sólo OpenAI. */
+  verbosity: string | null;
+  /** Lista del proveedor. `null` mientras no se ha consultado o si falló. */
+  modelosDisponibles: string[] | null;
+  cargandoModelos: boolean;
+  errorModelos: string | null;
 }
 
 interface ToolConfigProps {
-  schema?: any;
-  onSchemaChange?: (schema: any) => void;
-  temperature?: number;
-  onTemperatureChange?: (temperature: number) => void;
-  topP?: number;
-  onTopPChange?: (topP: number) => void;
-  models?: ModelEntry[];
-  onModelsChange?: (models: ModelEntry[]) => void;
-  /** @deprecated El esfuerzo ahora se configura por modelo. Se mantiene como fallback. */
-  reasoningEffort?: string;
-  onReasoningEffortChange?: (reasoningEffort: string) => void;
-  /** @deprecated La verbosidad ahora se configura por modelo. Se mantiene como fallback. */
-  verbosity?: string;
-  onVerbosityChange?: (verbosity: string) => void;
+  herramienta: string;
+  proveedores: ProveedorEnEdicion[];
+  /**
+   * Setter de React, no un callback con el valor cerrado: las actualizaciones
+   * de aquí siempre son funcionales (`prev => ...`) para no pisar una clave
+   * recién escrita con el estado que existía cuando arrancó una consulta
+   * asíncrona (ver Tarea 8, corrección de la clave que se perdía).
+   */
+  onProveedoresChange: Dispatch<SetStateAction<ProveedorEnEdicion[]>>;
+  sugerencias: Record<Proveedor, string[]>;
+  /** Error del guardado, para mostrarlo en el acordeón del proveedor */
+  errorGuardado: { mensaje: string; proveedor?: Proveedor } | null;
+}
+
+export function proveedorVacio(proveedor: Proveedor): ProveedorEnEdicion {
+  return {
+    proveedor,
+    encendido: false,
+    claveEnmascarada: null,
+    claveNueva: "",
+    reemplazandoClave: false,
+    modelo: "",
+    reasoningEffort: ESFUERZO_POR_DEFECTO,
+    verbosity: VERBOSIDAD_POR_DEFECTO,
+    modelosDisponibles: null,
+    cargandoModelos: false,
+    errorModelos: null,
+  };
+}
+
+/** Los guardados en su orden, y después los que faltan, apagados */
+export function proveedoresDesdeConfiguracion(configurados: ProveedorConfigurado[]): ProveedorEnEdicion[] {
+  const guardados = configurados.map((c) => ({
+    ...proveedorVacio(c.proveedor),
+    encendido: true,
+    claveEnmascarada: c.claveEnmascarada,
+    modelo: c.modelo,
+    reasoningEffort: c.reasoningEffort,
+    verbosity: c.verbosity,
+  }));
+  const faltantes = PROVEEDORES.filter((p) => !configurados.some((c) => c.proveedor === p)).map(proveedorVacio);
+  return [...guardados, ...faltantes];
 }
 
 /**
- * Configuration component for tool settings
+ * Los proveedores de la herramienta: un acordeón por cada uno, en el orden
+ * que se guarda. La clave enciende el proveedor; al escribirla se consulta
+ * la lista de modelos con un retardo corto.
  */
-export function ToolConfig({
-  schema,
-  onSchemaChange,
-  temperature = 0.7,
-  onTemperatureChange,
-  topP = 1,
-  onTopPChange,
-  models = [],
-  onModelsChange,
-  reasoningEffort = DEFAULT_REASONING_EFFORT,
-  onReasoningEffortChange,
-  verbosity = DEFAULT_VERBOSITY,
-  onVerbosityChange,
-}: ToolConfigProps) {
-  const [schemaText, setSchemaText] = useState<string>(
-    schema ? JSON.stringify(schema, null, 2) : JSON.stringify({}, null, 2)
-  );
+export function ToolConfig({ herramienta, proveedores, onProveedoresChange, sugerencias, errorGuardado }: ToolConfigProps) {
+  const [abierto, setAbierto] = useState<string | undefined>(undefined);
+  const temporizadores = useRef<Partial<Record<Proveedor, ReturnType<typeof setTimeout>>>>({});
+  // Cuenta las consultas de modelos por proveedor: si llega una respuesta de
+  // una consulta vieja (el usuario ya escribió otra clave o cambió de
+  // herramienta), su id ya no coincide y se descarta.
+  const peticiones = useRef<Partial<Record<Proveedor, number>>>({});
+  const montado = useRef(true);
 
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [selectedModels, setSelectedModels] = useState<ModelEntry[]>([]);
-  const [showModelError, setShowModelError] = useState<boolean>(false);
-  const [apiKeyStatus, setApiKeyStatus] = useState<{
-    isLoading: boolean;
-    hasApiKey: boolean;
-    isAdmin: boolean;
-  }>({
-    isLoading: true,
-    hasApiKey: false,
-    isAdmin: false,
-  });
-
-  const [modelProviderMap, setModelProviderMap] = useState<
-    Record<string, string>
-  >({});
-
-  const getProviderDisplayName = (provider: string): string => {
-    switch (provider.toLowerCase()) {
-      case "openai":
-        return "OpenAI";
-      case "anthropic":
-        return "Anthropic";
-      case "google":
-        return "Google";
-      default:
-        return provider;
-    }
-  };
-
-  const checkApiKeyExists = async () => {
-    try {
-      setApiKeyStatus((prev) => ({ ...prev, isLoading: true }));
-      const supabase = getSupabaseClient();
-
-      // Obtener la sesión del usuario actual
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData?.user) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Obtener el ID de la organización y el rol del usuario
-      const { data: profileData, error: userError } = await supabase
-        .from("profiles")
-        .select("organizationId, role")
-        .eq("id", userData.user.id)
-        .single();
-
-      if (userError || !profileData?.organizationId) {
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-        return;
-      }
-
-      // Verificar si el usuario es admin o propietario
-      const isAdmin =
-        profileData.role === "OWNER" || profileData.role === "ADMIN";
-
-      // Verificar si existe alguna API key para esta organización y obtener sus modelos
-      const { data: apiKeys, error: apiKeyError } = await supabase
-        .from("api_key_table")
-        .select("id, models, provider")
-        .eq("organizationId", profileData.organizationId)
-        .eq("status", "ACTIVE");
-
-      if (apiKeyError) {
-        console.error("Error al verificar API keys:", apiKeyError);
-        setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin });
-        return;
-      }
-
-      // Extraer todos los modelos disponibles de las API keys con su proveedor
-      const allModels: string[] = [];
-      const map: Record<string, string> = {};
-      apiKeys.forEach(
-        (key: { id: string; models: string[]; provider: string }) => {
-          if (key.models && Array.isArray(key.models)) {
-            key.models.forEach((model) => {
-              if (!allModels.includes(model)) {
-                allModels.push(model);
-                map[model] = key.provider || "";
-              }
-            });
-          }
-        }
-      );
-
-      // Si hay al menos una API key, establecer hasApiKey como true
-      setApiKeyStatus({
-        isLoading: false,
-        hasApiKey: apiKeys.length > 0,
-        isAdmin,
-      });
-
-      // Establecer los modelos disponibles
-      setAvailableModels(allModels);
-
-      // Establecer el modelo seleccionado por defecto (el primero de la lista o vacío si no hay)
-      if (apiKeys.length > 0 && allModels.length > 0 && (!models || models.length === 0)) {
-        const defaultModel = allModels[0];
-        setSelectedModels([defaultModel]);
-        
-        // Update parent component with default model
-        if (onModelsChange) {
-          onModelsChange([{
-            model: defaultModel,
-            provider: map[defaultModel] || ""
-          }]);
-        }
-      }
-
-      setModelProviderMap(map);
-    } catch (error) {
-      console.error("Error al verificar API keys:", error);
-      setApiKeyStatus({ isLoading: false, hasApiKey: false, isAdmin: false });
-    }
-  };
-
-  // Initialize selected models from props (preserva reasoningEffort/verbosity si ya los tiene)
   useEffect(() => {
-    if (models && models.length > 0) {
-      setSelectedModels(
-        models.map((m) => ({
-          provider: m.provider,
-          model: m.model,
-          reasoningEffort: m.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
-          verbosity: m.verbosity ?? DEFAULT_VERBOSITY,
-        }))
-      );
-    }
-  }, [models]);
-
-  const handleModelChange = (modelName: string, checked: boolean) => {
-    if (!checked && selectedModels.length === 1 && selectedModels.some((m) => m.model === modelName)) {
-      setShowModelError(true);
-      setTimeout(() => setShowModelError(false), 3000);
-      return;
-    }
-
-    let next: ModelEntry[];
-    if (checked) {
-      next = [
-        ...selectedModels,
-        {
-          model: modelName,
-          provider: modelProviderMap[modelName] || "",
-          reasoningEffort: DEFAULT_REASONING_EFFORT,
-          verbosity: DEFAULT_VERBOSITY,
-        },
-      ];
-      setShowModelError(false);
-    } else {
-      next = selectedModels.filter((m) => m.model !== modelName);
-    }
-
-    setSelectedModels(next);
-    onModelsChange?.(next);
-  };
-
-  const handleModelEffortChange = (modelName: string, effort: string) => {
-    const next = selectedModels.map((m) =>
-      m.model === modelName ? { ...m, reasoningEffort: effort } : m
-    );
-    setSelectedModels(next);
-    onModelsChange?.(next);
-  };
-
-  const handleModelVerbosityChange = (modelName: string, verb: string) => {
-    const next = selectedModels.map((m) =>
-      m.model === modelName ? { ...m, verbosity: verb } : m
-    );
-    setSelectedModels(next);
-    onModelsChange?.(next);
-  };
-
-  // Cargar los modelos disponibles al montar el componente
-  useEffect(() => {
-    checkApiKeyExists();
+    montado.current = true;
+    const temporizadoresAlDesmontar = temporizadores.current;
+    return () => {
+      montado.current = false;
+      Object.values(temporizadoresAlDesmontar).forEach((t) => t && clearTimeout(t));
+    };
   }, []);
 
-  // Ayuda a mostrar la advertencia de xhigh en el modelo que corresponda
-  const providerOf = (modelName: string) =>
-    (modelProviderMap[modelName] || selectedModels.find((m) => m.model === modelName)?.provider || "").toLowerCase();
+  // Siempre funcional: nunca se pisa el estado con el `proveedores` que
+  // tenía cerrado un timeout o una promesa vieja.
+  const actualizar = (proveedor: Proveedor, cambios: Partial<ProveedorEnEdicion>) => {
+    onProveedoresChange((prev) => prev.map((p) => (p.proveedor === proveedor ? { ...p, ...cambios } : p)));
+  };
+
+  const consultarModelos = async (proveedor: Proveedor, claveNueva: string) => {
+    const idPeticion = (peticiones.current[proveedor] ?? 0) + 1;
+    peticiones.current[proveedor] = idPeticion;
+    actualizar(proveedor, { cargandoModelos: true, errorModelos: null });
+    const esVigente = () => montado.current && peticiones.current[proveedor] === idPeticion;
+    try {
+      const respuesta = await fetch("/api/herramientas/modelos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(claveNueva ? { proveedor, apiKey: claveNueva } : { proveedor, herramienta }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!esVigente()) return;
+      if (!respuesta.ok) {
+        actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: null, errorModelos: datos?.error ?? "sin respuesta" });
+        return;
+      }
+      actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: datos?.modelos ?? [], errorModelos: null });
+    } catch {
+      if (!esVigente()) return;
+      actualizar(proveedor, { cargandoModelos: false, modelosDisponibles: null, errorModelos: "sin conexión" });
+    }
+  };
+
+  // Si el guardado falló por un proveedor, abrir su acordeón para que se vea el error.
+  useEffect(() => {
+    if (errorGuardado?.proveedor) setAbierto(errorGuardado.proveedor);
+  }, [errorGuardado]);
+
+  // Al abrir un proveedor con clave guardada, consultar su lista una vez.
+  useEffect(() => {
+    if (!abierto) return;
+    const estado = proveedores.find((p) => p.proveedor === abierto);
+    if (estado && estado.claveEnmascarada && !estado.claveNueva && estado.modelosDisponibles === null && !estado.cargandoModelos && !estado.errorModelos) {
+      consultarModelos(estado.proveedor, "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto]);
+
+  const cambiarClave = (proveedor: Proveedor, claveNueva: string) => {
+    onProveedoresChange((prev) =>
+      prev.map((p) =>
+        p.proveedor === proveedor
+          ? {
+              ...p,
+              claveNueva,
+              encendido: claveNueva.trim() !== "" || p.claveEnmascarada !== null,
+              modelosDisponibles: null,
+              errorModelos: null,
+            }
+          : p
+      )
+    );
+    const anterior = temporizadores.current[proveedor];
+    if (anterior) clearTimeout(anterior);
+    if (claveNueva.trim().length < 8) return;
+    temporizadores.current[proveedor] = setTimeout(() => consultarModelos(proveedor, claveNueva.trim()), 600);
+  };
+
+  const mover = (indice: number, direccion: -1 | 1) => {
+    onProveedoresChange((prev) => {
+      const destino = indice + direccion;
+      if (destino < 0 || destino >= prev.length) return prev;
+      const copia = [...prev];
+      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+      return copia;
+    });
+  };
+
+  const apagar = (proveedor: Proveedor) => {
+    if (!window.confirm(`¿Apagar ${NOMBRE_PROVEEDOR[proveedor]} en esta herramienta? Se borrará su clave al guardar.`)) return;
+    onProveedoresChange((prev) => prev.map((p) => (p.proveedor === proveedor ? proveedorVacio(proveedor) : p)));
+  };
+
+  const primeroEncendido = proveedores.find((p) => p.encendido)?.proveedor;
+  const hayEncendidos = primeroEncendido !== undefined;
 
   return (
-    <div className="space-y-6">
-      <ApiKeyRequiredModal
-        isLoading={apiKeyStatus.isLoading}
-        isOpen={!apiKeyStatus.hasApiKey}
-        isAdmin={apiKeyStatus.isAdmin}
-      />
-
+    <div className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Modelos
-        </label>
-        {showModelError && (
-          <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-xs text-red-600">
-              Debe seleccionar al menos un modelo
-            </p>
-          </div>
-        )}
-        <div className={`space-y-3 max-h-96 overflow-y-auto ${selectedModels.length === 0 ? "border border-red-300 rounded-md p-2" : ""}`}>
-          {availableModels.length > 0 ? (
-            availableModels.map((modelName) => {
-              const isSelected = selectedModels.some((m) => m.model === modelName);
-              const entry = selectedModels.find((m) => m.model === modelName);
-              const provider = providerOf(modelName);
-              const isAnthropic = provider === "anthropic";
-              const isOpenAI = provider === "openai";
-              const effortOptions = isAnthropic
-                ? REASONING_EFFORTS.filter((e) => e !== "xhigh")
-                : REASONING_EFFORTS;
-
-              return (
-                <div key={modelName} className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={modelName}
-                      checked={isSelected}
-                      onCheckedChange={(checked) =>
-                        handleModelChange(modelName, checked as boolean)
-                      }
-                    />
-                    <label
-                      htmlFor={modelName}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {modelName} ({getProviderDisplayName(modelProviderMap[modelName])})
-                    </label>
-                  </div>
-
-                  {isSelected && entry && (isAnthropic || isOpenAI) && (
-                    <div className="ml-6 pl-3 border-l border-gray-200 space-y-2">
-                      <div>
-                        <Label className="text-xs text-gray-600 mb-1 block">
-                          Esfuerzo de razonamiento
-                        </Label>
-                        <Select
-                          value={entry.reasoningEffort ?? DEFAULT_REASONING_EFFORT}
-                          onValueChange={(v) => handleModelEffortChange(modelName, v)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {effortOptions.map((level) => (
-                              <SelectItem key={level} value={level}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {isOpenAI && (
-                        <div>
-                          <Label className="text-xs text-gray-600 mb-1 block">
-                            Verbosidad
-                          </Label>
-                          <Select
-                            value={entry.verbosity ?? DEFAULT_VERBOSITY}
-                            onValueChange={(v) => handleModelVerbosityChange(modelName, v)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {VERBOSITY_LEVELS.map((level) => (
-                                <SelectItem key={level} value={level}>
-                                  {level}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Longitud y detalle de la respuesta (solo OpenAI).
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-gray-500">No hay modelos disponibles</p>
-          )}
-        </div>
-        {selectedModels.length === 0 && availableModels.length > 0 && (
-          <p className="text-xs text-red-500 mt-1">
-            Seleccione al menos un modelo para continuar
-          </p>
-        )}
-      </div>
-
-      {/* <div>
-        <Label
-          htmlFor="temperature"
-          className="text-sm font-medium text-gray-700 mb-1 block"
-        >
-          Temperatura: {temperature.toFixed(1)}
-        </Label>
-        <Slider
-          id="temperature"
-          min={0}
-          max={1}
-          step={0.1}
-          value={[temperature]}
-          onValueChange={(values) =>
-            onTemperatureChange && onTemperatureChange(values[0])
-          }
-          className="w-full [&>span[data-orientation=horizontal]]:bg-gray-300 [&>span[data-orientation=horizontal]>span]:bg-blue-500"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Controla la aleatoriedad de las respuestas. Valores más bajos generan
-          respuestas más predecibles.
+        <label className="mb-1 block text-sm font-medium text-gray-700">Proveedores</label>
+        <p className="text-xs text-gray-500">
+          El primero encendido es el que corre por defecto. Usa las flechas para ordenarlos.
         </p>
       </div>
 
-      <div>
-        <Label
-          htmlFor="top-p"
-          className="text-sm font-medium text-gray-700 mb-1 block"
-        >
-          Top P: {topP.toFixed(1)}
-        </Label>
-        <Slider
-          id="top-p"
-          min={0}
-          max={1}
-          step={0.1}
-          value={[topP]}
-          onValueChange={(values) => onTopPChange && onTopPChange(values[0])}
-          className="w-full [&>span[data-orientation=horizontal]]:bg-gray-300 [&>span[data-orientation=horizontal]>span]:bg-blue-500"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Controla la diversidad de las respuestas. Valores más bajos generan
-          respuestas más enfocadas.
+      {!hayEncendidos && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Sin proveedores encendidos la herramienta queda apagada: sus usuarios verán un aviso para pedir la
+          configuración.
         </p>
-      </div> */}
+      )}
+      {errorGuardado && !errorGuardado.proveedor && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{errorGuardado.mensaje}</p>
+      )}
 
-      {/* <div>
-        <Label className="text-sm font-medium text-gray-700 mb-1 block">
-          Formato de Respuesta
-        </Label>
-        <ResponseFormat jsonSchema={schema} />
-      </div> */}
+      <Accordion type="single" collapsible value={abierto} onValueChange={setAbierto} className="space-y-2">
+        {proveedores.map((estado, indice) => (
+          <ProveedorAcordeon
+            key={estado.proveedor}
+            estado={estado}
+            esPrimero={indice === 0}
+            esUltimo={indice === proveedores.length - 1}
+            esPorDefecto={estado.proveedor === primeroEncendido}
+            sugerencias={sugerencias[estado.proveedor] ?? []}
+            error={errorGuardado?.proveedor === estado.proveedor ? errorGuardado.mensaje : null}
+            onCambiar={(cambios) => {
+              if (cambios.claveNueva !== undefined) cambiarClave(estado.proveedor, cambios.claveNueva);
+              else actualizar(estado.proveedor, cambios);
+            }}
+            onSubir={() => mover(indice, -1)}
+            onBajar={() => mover(indice, 1)}
+            onCambiarClave={() => actualizar(estado.proveedor, { reemplazandoClave: true, modelosDisponibles: null, errorModelos: null })}
+            onApagar={() => apagar(estado.proveedor)}
+          />
+        ))}
+      </Accordion>
     </div>
   );
 }

@@ -1,9 +1,7 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { ToolLoopAgent, hasToolCall, stepCountIs, type LanguageModel } from "ai";
+import { ToolLoopAgent, hasToolCall, stepCountIs } from "ai";
 
-import { DEFAULT_MODELS } from "@/lib/utils";
+import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import type { ProveedorEnUso } from "@/lib/proveedores/configuracion";
 
 import { COLUMNAS_CHATS_NEW } from "@/lib/preguntas-chatbot/db";
 import {
@@ -17,32 +15,6 @@ import {
   herramientaReportarResultado,
   type RegistrarConsulta,
 } from "@/lib/preguntas-chatbot/tools";
-
-/**
- * Proveedor y modelo de la herramienta.
- *
- * La interfaz ya no tiene selector: la herramienta corre siempre con esto.
- * Se quitó porque el turno se rompía con algunos proveedores y no vale la
- * pena exponer la elección mientras eso no esté resuelto — es preferible un
- * camino que funcione que tres entre los que elegir a ciegas.
- *
- * El servidor sigue sabiendo instanciar los tres proveedores y respeta lo
- * que le manden en el cuerpo, así que devolver el selector es volver a
- * pintarlo; no hay que deshacer nada de aquí.
- */
-export const MODELO_PREGUNTAS_CHATBOT = DEFAULT_MODELS.OPENAI;
-export const PROVEEDOR_PREGUNTAS_CHATBOT = "openai";
-
-/** Proveedores que sabemos instanciar. Coincide con los de api_key_table. */
-export const PROVEEDORES_SOPORTADOS = ["anthropic", "openai", "google"] as const;
-export type ProveedorSoportado = (typeof PROVEEDORES_SOPORTADOS)[number];
-
-export function esProveedorSoportado(valor: unknown): valor is ProveedorSoportado {
-  return (
-    typeof valor === "string" &&
-    (PROVEEDORES_SOPORTADOS as readonly string[]).includes(valor.toLowerCase())
-  );
-}
 
 /**
  * Fecha de hoy en Bogotá, ej. "2026-09-28 (lunes)". Va en el prompt porque
@@ -100,33 +72,18 @@ function instrucciones(pestanas?: PestanaPrompt[]): string {
  */
 const MAX_OUTPUT_TOKENS = 16000;
 
-/**
- * Instancia el modelo del proveedor elegido con la clave de la organización.
- * Mismo reparto que hace el Detector en app/api/detector/route.ts.
- */
-function crearModelo(proveedor: ProveedorSoportado, modelo: string, apiKey: string): LanguageModel {
-  switch (proveedor) {
-    case "openai":
-      return createOpenAI({ apiKey })(modelo);
-    case "google":
-      return createGoogleGenerativeAI({ apiKey })(modelo);
-    case "anthropic":
-      return createAnthropic({ apiKey })(modelo);
-  }
-}
-
 export function crearAgentePreguntasChatbot(opts: {
-  apiKey: string;
-  proveedor: ProveedorSoportado;
-  modelo: string;
+  configuracion: ProveedorEnUso;
   registrarConsulta: RegistrarConsulta;
   /** Pestañas del prompt guardadas en Ajustes > Herramientas; ver `instrucciones` */
   pestanasPrompt?: PestanaPrompt[];
 }) {
+  const { model, providerOptions } = crearModeloConfigurado(opts.configuracion);
   return new ToolLoopAgent({
-    model: crearModelo(opts.proveedor, opts.modelo, opts.apiKey),
+    model,
     instructions: instrucciones(opts.pestanasPrompt),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
+    providerOptions,
     tools: {
       consultarPreguntasChatbot: crearHerramientaConsulta(opts.registrarConsulta),
       reportarResultado: herramientaReportarResultado,

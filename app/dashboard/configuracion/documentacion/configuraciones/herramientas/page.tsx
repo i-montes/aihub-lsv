@@ -162,11 +162,14 @@ export default function HerramientasPage() {
             </div>
 
             <div>
-              <h3 className="font-semibold">2. Selección de Modelo</h3>
+              <h3 className="font-semibold">2. Proveedores y modelos</h3>
               <ul className="list-disc list-inside text-sm text-gray-700 ml-4">
-                <li><strong>Proveedor:</strong> Elige entre las integraciones configuradas (OpenAI, Claude, etc.)</li>
-                <li><strong>Modelo:</strong> Selecciona el modelo específico (GPT-4, Claude-3, etc.)</li>
-                <li><strong>Versión:</strong> Elige la versión del modelo si hay múltiples disponibles</li>
+                <li><strong>Proveedores propios:</strong> Cada herramienta tiene sus propios proveedores (OpenAI, Anthropic, Google), cada uno en su acordeón.</li>
+                <li><strong>Clave de API:</strong> Pegar la clave enciende el proveedor. Cada herramienta lleva una clave distinta: la misma clave no puede estar en dos herramientas.</li>
+                <li><strong>Modelo:</strong> Elígelo de la lista que devuelve el proveedor con esa clave, o escríbelo a mano si la lista no carga.</li>
+                <li><strong>Orden:</strong> Usa las flechas para ordenar los proveedores; el primero encendido es el que corre por defecto.</li>
+                <li><strong>Esfuerzo y verbosidad:</strong> Son opcionales. &quot;Por defecto del modelo&quot; no envía nada; elige otro valor sólo si el modelo tiene razonamiento configurable.</li>
+                <li><strong>Sin proveedores:</strong> Si no hay ninguno encendido, la herramienta queda apagada y sus usuarios ven un aviso para pedir la configuración.</li>
               </ul>
             </div>
 

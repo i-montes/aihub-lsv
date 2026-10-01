@@ -5,10 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, Info, Loader2 } from "lucide-react";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
+import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
 
 // Importar módulos creados
 import { formSchema, type FormSchema, defaultFormValues } from "./constants";
-import { useApiKeyStatus } from "./hooks/useApiKeyStatus";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { useAuth } from "@/hooks/use-auth";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { FormHeader } from "./components/FormHeader";
 import { MainInfoSection } from "./components/MainInfoSection";
@@ -54,7 +56,13 @@ export default function LieDetectorPage() {
   // console.log(getValues())
 
   // Hooks personalizados para lógica de negocio
-  const apiKeyStatus = useApiKeyStatus();
+  const { profile } = useAuth();
+  const { proveedores, cargando, error: errorProveedores, recargar: recargarProveedores } = useProveedoresActivos("detector");
+  const apiKeyStatus = {
+    isLoading: cargando,
+    hasApiKey: proveedores.length > 0,
+    isAdmin: profile?.role === "OWNER" || profile?.role === "ADMIN",
+  };
   const {
     isAnalyzing,
     analysisResult,
@@ -79,8 +87,17 @@ export default function LieDetectorPage() {
     );
   }
 
+  // Un fallo de carga no es falta de proveedor: se avisa y se ofrece reintentar.
+  if (errorProveedores) {
+    return (
+      <div className="p-6">
+        <AvisoErrorProveedores error={errorProveedores} onReintentar={recargarProveedores} />
+      </div>
+    );
+  }
+
   if (!apiKeyStatus.hasApiKey) {
-    return <ApiKeyRequiredModal isOpen={true} isAdmin={apiKeyStatus.isAdmin} />;
+    return <ApiKeyRequiredModal isOpen={true} isAdmin={apiKeyStatus.isAdmin} herramienta="el Detector" />;
   }
 
   return (

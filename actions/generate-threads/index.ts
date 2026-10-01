@@ -1,10 +1,7 @@
 'use server'
 
 import { DebugLogger, DebugLogTypes } from "@/lib/logger";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateObject, generateText } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 import { ExamplesTesis } from "./examples/tesis";
 import { ExamplesInvestigacion } from "./examples/investigacion";
@@ -12,6 +9,8 @@ import { ExamplesLista } from "./examples/lista";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsGeneradorHilosService} from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
+import { obtenerProveedorDeHerramienta, ProveedorNoConfiguradoError } from "@/lib/proveedores/configuracion";
+import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -21,7 +20,7 @@ export async function threadsGenerator(
   title: string,
   text: string,
   format: "tesis" | "investigacion" | "lista",
-  selectedModel: { model: string; provider: string },
+  selectedModelElegido: { model: string; provider: string },
   link: string
 ): Promise<{
   success: boolean;
@@ -30,6 +29,7 @@ export async function threadsGenerator(
   logs: DebugLogTypes[];
  analitics_id?: string | number;
 }> {
+  let selectedModel = selectedModelElegido;
   const debugLogger = new DebugLogger({
     toolIdentity: "thread-generator",
     source: "generate-threads-action"
@@ -96,44 +96,17 @@ export async function threadsGenerator(
     // Update logger context
     debugLogger.updateContext({ userId: user.id, organizationId });
 
-    // 2. Obtener la API key para el proveedor seleccionado
-    await debugLogger.logApiKey("Fetching API key", "fetching", { provider: selectedModel.provider as any, status: "fetching", hasValue: false });
-    const { data: apiKeyData, error: apiKeyError } = await supabase
-      .from("api_key_table")
-      .select("key, provider")
-      .eq("organizationId", organizationId)
-      .eq("provider", selectedModel.provider)
-      .eq("status", "ACTIVE")
-      .single();
-
-    if (apiKeyError || !apiKeyData) {
-      await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, {
-        message: "No se pudo obtener la API key para este proveedor",
-        code: "API_KEY_NOT_FOUND",
-        context: { apiKeyError }
-      });
-      await debugLogger.finalize("failed", { error: { message: "No se pudo obtener la API key para este proveedor", code: "API_KEY_NOT_FOUND" } });
-      return {
-        success: false,
-        error: "No se pudo obtener la API key para este proveedor",
-        threads: [],
-        logs: debugLogger.getSerializableLogs(),
-      };
+    // 2. Clave, modelo y ajustes del proveedor elegido, desde Ajustes > Herramientas
+    let configuracion;
+    try {
+      configuracion = await obtenerProveedorDeHerramienta(organizationId, "threads_generator", selectedModel.provider);
+    } catch (error) {
+      const mensaje = error instanceof ProveedorNoConfiguradoError ? error.message : "No se pudo obtener la configuración del proveedor";
+      await debugLogger.logApiKey("API key not found", "not_found", { provider: selectedModel.provider as any, status: "not_found", hasValue: false }, { message: mensaje, code: "API_KEY_NOT_FOUND" });
+      await debugLogger.finalize("failed", { error: { message: mensaje, code: "API_KEY_NOT_FOUND" } });
+      return { success: false, error: mensaje, threads: [], logs: debugLogger.getSerializableLogs() };
     }
-
-    // Verificar que la clave API no esté vacía
-    if (!apiKeyData.key || apiKeyData.key.trim() === "") {
-      await debugLogger.logApiKey("API key is empty or invalid", "empty", { provider: selectedModel.provider as any, status: "empty", hasValue: false });
-      await debugLogger.finalize("failed", { error: { message: "La API key está vacía o no es válida", code: "API_KEY_EMPTY" } });
-      return {
-        success: false,
-        error: "La API key está vacía o no es válida",
-        threads: [],
-        logs: debugLogger.getSerializableLogs(),
-      };
-    }
-
-    await debugLogger.logApiKey("API key retrieved successfully", "found", { provider: selectedModel.provider as any, status: "active", hasValue: true });
+    selectedModel = { provider: configuracion.proveedor, model: configuracion.modelo };
 
     // 3. Obtener la configuración de la herramienta "threads_generator"
     await debugLogger.logToolConfig("Fetching tool configuration", "fetching", { identity: "thread-generator", isCustom: false, promptsCount: 0 });
@@ -223,10 +196,8 @@ INSTRUCCIONES ADICIONALES:
 `;
 
     // 5. Crear la conexión con el proveedor adecuado
-    let result;
     const temperature = tool.temperature;
     const top_p = tool.top_p;
-    const apiKey = apiKeyData.key;
 
     debugLogger.info(
       `Iniciando generación con modelo: ${selectedModel.model} (${selectedModel.provider})`
@@ -237,52 +208,14 @@ INSTRUCCIONES ADICIONALES:
 
     debugLogger.info(combinedPrompt);
 
-    switch (selectedModel.provider.toLowerCase()) {
-      case "openai":
-        debugLogger.info("Configurando conexión con OpenAI");
-        // Crear una instancia de OpenAI con la API key
-        const openai = createOpenAI({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: openai(selectedModel.model),
-          prompt: combinedPrompt,
-          schema: ThreadsSchema
-        });
-        break;
-      case "anthropic":
-        debugLogger.info("Configurando conexión con Anthropic");
-        // Crear una instancia de Anthropic con la API key
-        const anthropic = createAnthropic({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: anthropic(selectedModel.model),
-          prompt: combinedPrompt,
-          schema: ThreadsSchema,
-        });
-        break;
-      case "google":
-        debugLogger.info("Configurando conexión con Google");
-        // Crear una instancia de Google con la API key
-        const google = createGoogleGenerativeAI({
-          apiKey: apiKey,
-        });
-
-        result = await generateObject({
-          model: google(selectedModel.model),
-          prompt: combinedPrompt,
-          schema: ThreadsSchema,
-          temperature,
-          topP: top_p,
-        });
-        break;
-      default:
-        await debugLogger.finalize("failed", { error: { message: `Proveedor no soportado: ${selectedModel.provider}`, code: "UNSUPPORTED_PROVIDER" } });
-        throw new Error(`Proveedor no soportado: ${selectedModel.provider}`);
-    }
+    const { model, providerOptions } = crearModeloConfigurado(configuracion);
+    const result = await generateObject({
+      model,
+      prompt: combinedPrompt,
+      schema: ThreadsSchema,
+      providerOptions,
+      ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
+    });
 
     await debugLogger.finalize("completed", {
       model: { provider: selectedModel.provider as any, model: selectedModel.model, temperature: tool.temperature, topP: tool.top_p },

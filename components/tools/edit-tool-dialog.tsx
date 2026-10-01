@@ -10,15 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { BarChart2, Edit2, AlertCircle, Copy, Check } from "lucide-react";
 import { ToolEditor } from "@/components/tools/tool-editor";
-import { ToolConfig } from "@/components/tools/tool-config";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DEFAULT_REASONING_EFFORT,
-  DEFAULT_VERBOSITY,
-  type Tool,
-} from "@/types/tool";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import { ApiKeyRequiredModal } from "../proofreader/api-key-required-modal";
+  ToolConfig,
+  proveedoresDesdeConfiguracion,
+  proveedorVacio,
+  type ProveedorEnEdicion,
+} from "@/components/tools/tool-config";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type Tool } from "@/types/tool";
+import { NOMBRE_PROVEEDOR, PROVEEDORES, type Proveedor } from "@/lib/proveedores/tipos";
 
 interface PromptItem {
   title: string;
@@ -29,7 +29,9 @@ interface EditToolDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   tool: Tool | null;
-  onSave: (tool: Tool) => void;
+  onSave: (tool: Tool) => Promise<boolean>;
+  /** Se llama al cerrar el diálogo si el prompt quedó guardado (con o sin proveedores), para recargar la lista. */
+  onSaved?: () => void;
 }
 
 /**
@@ -40,20 +42,21 @@ export function EditToolDialog({
   onOpenChange,
   tool,
   onSave,
+  onSaved,
 }: EditToolDialogProps) {
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
   const [activePromptIndex, setActivePromptIndex] = useState(0);
   const [toolSchema, setToolSchema] = useState<any>(null);
   const [toolTemperature, setToolTemperature] = useState<number | null>(0.7);
   const [toolTopP, setToolTopP] = useState<number>(1);
-  const [toolModels, setToolModels] = useState<
-    { provider: string; model: string; reasoningEffort?: string; verbosity?: string }[]
-  >([]);
-  const [toolReasoningEffort, setToolReasoningEffort] = useState<string>(
-    DEFAULT_REASONING_EFFORT
-  );
-  const [toolVerbosity, setToolVerbosity] =
-    useState<string>(DEFAULT_VERBOSITY);
+  const [proveedores, setProveedores] = useState<ProveedorEnEdicion[]>(PROVEEDORES.map(proveedorVacio));
+  const [sugerencias, setSugerencias] = useState<Record<Proveedor, string[]>>({ OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
+  const [cargandoProveedores, setCargandoProveedores] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [errorGuardado, setErrorGuardado] = useState<{ mensaje: string; proveedor?: Proveedor } | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  /** El prompt ya se guardó en este intento; si el PUT de proveedores falla, un reintento no lo vuelve a guardar. */
+  const [promptGuardado, setPromptGuardado] = useState(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string>("");
 
@@ -98,19 +101,43 @@ export function EditToolDialog({
       setToolSchema(tool.schema || {});
       setToolTemperature(tool.temperature as number);
       setToolTopP(tool.topP as number);
-      setToolReasoningEffort(tool.reasoningEffort || DEFAULT_REASONING_EFFORT);
-      setToolVerbosity(tool.verbosity || DEFAULT_VERBOSITY);
 
-      console.log("Tool models:", tool.models);
-      
-      // Initialize models from tool data
-      if (tool.models && Array.isArray(tool.models)) {
-        setToolModels(tool.models);
-      } else {
-        setToolModels([]);
+      setErrorGuardado(null);
+      setErrorCarga(null);
+      setPromptGuardado(false);
+      // Se resetea antes de pedir la configuración: si la organización cambió
+      // de herramienta mientras la anterior seguía cargando, o si la consulta
+      // falla, nunca queda en pantalla (ni se puede guardar) la configuración
+      // de otra herramienta.
+      setProveedores(PROVEEDORES.map(proveedorVacio));
+      setSugerencias({ OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
+
+      if (tool.identity && isOpen) {
+        let cancelado = false;
+        setCargandoProveedores(true);
+        fetch(`/api/herramientas/${tool.identity}/proveedores`, { cache: "no-store" })
+          .then(async (r) => {
+            const datos = await r.json().catch(() => null);
+            if (!r.ok) throw new Error(datos?.error ?? "No se pudo cargar la configuración");
+            if (cancelado) return;
+            setProveedores(proveedoresDesdeConfiguracion(datos.proveedores ?? []));
+            setSugerencias(datos.sugerencias ?? { OPENAI: [], ANTHROPIC: [], GOOGLE: [] });
+          })
+          .catch((e: Error) => {
+            if (!cancelado) {
+              setProveedores(PROVEEDORES.map(proveedorVacio));
+              setErrorCarga(e.message);
+            }
+          })
+          .finally(() => {
+            if (!cancelado) setCargandoProveedores(false);
+          });
+        return () => {
+          cancelado = true;
+        };
       }
     }
-  }, [tool]);
+  }, [tool, isOpen]);
 
   // Track changes
   useEffect(() => {
@@ -160,6 +187,19 @@ export function EditToolDialog({
     setPrompts(newPrompts);
   };
 
+  /**
+   * Cierra el diálogo por cualquier vía. Si el prompt ya se guardó (por
+   * ejemplo, se insertó la copia de una predeterminada y luego falló el PUT
+   * de proveedores), avisa a la página para que recargue la lista: si no, al
+   * reabrir se vería aún la predeterminada y se insertaría una segunda copia.
+   * `guardadoAhora` cubre el cierre tras éxito, cuando `promptGuardado` aún
+   * no refleja el guardado recién hecho.
+   */
+  const cerrar = (guardadoAhora = false) => {
+    if (promptGuardado || guardadoAhora) onSaved?.();
+    onOpenChange(false);
+  };
+
   const handleCopyPrompt = async () => {
     if (prompts[activePromptIndex]) {
       try {
@@ -171,32 +211,75 @@ export function EditToolDialog({
     }
   };
 
-  const handleSave = () => {
-    // Validate that at least one model is selected
-    if (!toolModels || toolModels.length === 0) {
-      setSaveError("Debe seleccionar al menos un modelo antes de guardar");
+  // Cero proveedores encendidos es válido: la herramienta queda apagada.
+  // Cada proveedor encendido sí necesita modelo.
+  const encendidos = proveedores.filter((p) => p.encendido);
+  const sinModelo = encendidos.find((p) => p.modelo.trim() === "");
+  const puedeGuardar = !guardando && !cargandoProveedores && !errorCarga && !sinModelo;
+
+  const handleSave = async () => {
+    if (!tool || !puedeGuardar) return;
+    if (!tool.identity) {
+      setSaveError("Esta herramienta no tiene identidad; no se pueden guardar proveedores.");
       return;
     }
-
-    // Clear any previous error
     setSaveError("");
+    setErrorGuardado(null);
+    setGuardando(true);
+    try {
+      // Primero el prompt y el formato en `tools`, como siempre; después los
+      // proveedores en su tabla. Si lo segundo falla, lo primero queda
+      // guardado y el diálogo lo dice; un reintento no vuelve a guardar el
+      // prompt, va directo al PUT de proveedores.
+      if (!promptGuardado) {
+        const guardado = await onSave({
+          ...tool,
+          prompts,
+          schema: toolSchema,
+          temperature: toolTemperature as number,
+          topP: toolTopP,
+        });
+        if (!guardado) {
+          setSaveError("No se pudo guardar el prompt. Los proveedores no se tocaron.");
+          return;
+        }
+        setPromptGuardado(true);
+      }
 
-    if (tool) {
-      onSave({
-        ...tool,
-        prompts: prompts,
-        schema: toolSchema,
-        temperature: toolTemperature as number,
-        topP: toolTopP as number,
-        reasoningEffort: toolReasoningEffort,
-        verbosity: toolVerbosity,
-        models: toolModels,
-      });
+      try {
+        const respuesta = await fetch(`/api/herramientas/${tool.identity}/proveedores`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            proveedores: encendidos.map((p) => ({
+              proveedor: p.proveedor,
+              modelo: p.modelo.trim(),
+              reasoningEffort: p.reasoningEffort,
+              verbosity: p.proveedor === "OPENAI" ? p.verbosity : null,
+              ...(p.claveNueva.trim() ? { apiKey: p.claveNueva.trim() } : { conservarClave: true }),
+            })),
+          }),
+        });
+        const datos = await respuesta.json().catch(() => null);
+        if (!respuesta.ok) {
+          setErrorGuardado({ mensaje: datos?.error ?? "No se pudieron guardar los proveedores", proveedor: datos?.proveedor });
+          setSaveError("El prompt se guardó, pero los proveedores no. Revisa el error en el proveedor marcado.");
+          return;
+        }
+      } catch {
+        setErrorGuardado({ mensaje: "No se pudo conectar para guardar los proveedores" });
+        setSaveError("El prompt se guardó, pero los proveedores no. Revisa la conexión e inténtalo de nuevo.");
+        return;
+      }
+
+      cerrar(true);
+    } finally {
+      setGuardando(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(abierto) => (abierto ? onOpenChange(true) : cerrar())}>
       
       <DialogContent className="sm:max-w-[900px] lg:max-w-[1000px] w-[95vw] max-h-[90vh] h-full overflow-hidden p-0 flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
@@ -303,20 +386,28 @@ export function EditToolDialog({
               <h3 className="text-md font-medium mb-3 text-gray-700">
                 Configuración:
               </h3>
-              <ToolConfig
-                schema={toolSchema}
-                onSchemaChange={(schema) => setToolSchema(schema)}
-                temperature={toolTemperature as number}
-                onTemperatureChange={(temp) => setToolTemperature(temp)}
-                topP={toolTopP}
-                onTopPChange={(topP) => setToolTopP(topP)}
-                models={toolModels}
-                onModelsChange={(models) => setToolModels(models)}
-                reasoningEffort={toolReasoningEffort}
-                onReasoningEffortChange={setToolReasoningEffort}
-                verbosity={toolVerbosity}
-                onVerbosityChange={setToolVerbosity}
-              />
+              {cargandoProveedores ? (
+                <p className="text-sm text-gray-500">Cargando proveedores…</p>
+              ) : errorCarga ? (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {errorCarga}
+                </p>
+              ) : (
+                <>
+                  <ToolConfig
+                    herramienta={tool.identity ?? ""}
+                    proveedores={proveedores}
+                    onProveedoresChange={setProveedores}
+                    sugerencias={sugerencias}
+                    errorGuardado={errorGuardado}
+                  />
+                  {sinModelo && (
+                    <p className="mt-2 text-xs text-red-700">
+                      Falta el modelo de {NOMBRE_PROVEEDOR[sinModelo.proveedor]}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -329,15 +420,15 @@ export function EditToolDialog({
               </p>
             </div>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => cerrar()}>
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
-            disabled={!toolModels || toolModels.length === 0}
-            className={`${(!toolModels || toolModels.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!puedeGuardar}
+            className={`${!puedeGuardar ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {tool.isDefault ? "Crear copia personalizada" : "Guardar cambios"}
+            {guardando ? "Guardando…" : tool.isDefault ? "Crear copia personalizada" : "Guardar cambios"}
           </Button>
         </div>
       </DialogContent>

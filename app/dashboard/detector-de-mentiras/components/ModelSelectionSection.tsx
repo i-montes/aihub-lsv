@@ -5,6 +5,7 @@ import {
   Controller,
   UseFormSetValue,
   UseFormGetValues,
+  useWatch,
 } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -19,10 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { FormMessage } from "@/components/ui/form";
 import { type FormSchema } from "../constants";
 import { Bot, HelpCircle, GitCompare } from "lucide-react";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { toast } from "sonner";
-import { MODELS } from "@/lib/utils";
+import { useProveedoresActivos } from "@/hooks/use-proveedores-activos";
+import { NOMBRE_PROVEEDOR } from "@/lib/proveedores/tipos";
 
 /**
  * Interface para modelos disponibles
@@ -52,111 +51,23 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
   setValue,
   getValues,
 }) => {
-  const { profile } = useAuth();
-  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { proveedores, cargando: isLoading } = useProveedoresActivos("detector");
+  const availableModels: ModelInfo[] = proveedores.map((p) => ({ provider: p.proveedor.toLowerCase(), model: p.modelo }));
+
+  useEffect(() => {
+    if (availableModels.length > 0 && !getValues("selectedModel")?.model) {
+      setValue("selectedModel", availableModels[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proveedores]);
+
+  // Se observa el principal para que el filtro del selector de comparación
+  // se recalcule al cambiarlo (getValues no provoca un nuevo render).
+  const modeloPrincipal = useWatch({ control, name: "selectedModel" });
+
   const [compareEnabled, setCompareEnabled] = useState(
     getValues("compare") || false
   );
-
-  /**
-   * Función para obtener el nombre de display del proveedor
-   */
-  const getProviderDisplayName = (provider: string): string => {
-    switch (provider.toLowerCase()) {
-      case "openai":
-        return "OpenAI";
-      case "anthropic":
-        return "Anthropic";
-      case "google":
-        return "Google";
-      default:
-        return provider;
-    }
-  };
-
-  /**
-   * Carga los modelos disponibles cruzando las API keys activas con los modelos
-   * que el admin habilitó en la configuración del prompt del detector.
-   *
-   * Si no hay configuración de herramienta para esta organización, se muestran
-   * todos los modelos de las API keys (comportamiento anterior).
-   */
-  const loadAvailableModels = async () => {
-    try {
-      setIsLoading(true);
-      const supabase = getSupabaseClient();
-
-      const [apiKeysResult, toolResult] = await Promise.all([
-        supabase
-          .from("api_key_table")
-          .select("models, provider")
-          .eq("organizationId", profile?.organizationId)
-          .eq("status", "ACTIVE"),
-        supabase
-          .from("tools")
-          .select("models")
-          .eq("organization_id", profile?.organizationId)
-          .eq("identity", "detector")
-          .maybeSingle(),
-      ]);
-
-      if (apiKeysResult.error) {
-        console.error("Error al cargar modelos:", apiKeysResult.error);
-        toast.error("Error al cargar modelos disponibles");
-        return;
-      }
-
-      // Todos los modelos con API key activa
-      const allModels: ModelInfo[] = [];
-      apiKeysResult.data?.forEach((apiKey: any) => {
-        if (apiKey.models && Array.isArray(apiKey.models)) {
-          apiKey.models.forEach((model: string) => {
-            allModels.push({
-              provider: apiKey.provider.toLowerCase(),
-              model,
-            });
-          });
-        }
-      });
-
-      // Modelos activos según la configuración del prompt del detector
-      const toolModels: { provider: string; model: string }[] | null =
-        Array.isArray(toolResult.data?.models) &&
-        toolResult.data.models.length > 0
-          ? (toolResult.data.models as { provider: string; model: string }[])
-          : null;
-
-      const models =
-        toolModels
-          ? allModels.filter((m) =>
-              toolModels.some(
-                (tm) =>
-                  tm.model === m.model &&
-                  tm.provider.toLowerCase() === m.provider.toLowerCase()
-              )
-            )
-          : allModels;
-
-      setAvailableModels(models);
-
-      if (models.length > 0) {
-        setValue("selectedModel", models[0]);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Error al cargar modelos");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Cargar modelos al montar el componente
-  useEffect(() => {
-    if (profile?.organizationId) {
-      loadAvailableModels();
-    }
-  }, [profile?.organizationId]);
 
   // Manejar cambio en el switch de comparación
   const handleCompareToggle = (enabled: boolean) => {
@@ -264,10 +175,10 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {getProviderDisplayName(modelInfo.provider)}
+                          {NOMBRE_PROVEEDOR[modelInfo.provider.toUpperCase() as keyof typeof NOMBRE_PROVEEDOR]}
                         </span>
                         <span>
-                          {MODELS[modelInfo.model as keyof typeof MODELS]}
+                          {modelInfo.model}
                         </span>
                       </div>
                     </SelectItem>
@@ -321,16 +232,18 @@ export const ModelSelectionSection: React.FC<ModelSelectionSectionProps> = ({
                     <SelectValue placeholder="Seleccionar modelo para comparar" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableModels.map((modelInfo) => (
+                    {availableModels
+                      .filter((m) => m.provider !== modeloPrincipal?.provider)
+                      .map((modelInfo) => (
                       <SelectItem
                         key={`compare-${modelInfo.provider}|${modelInfo.model}`}
                         value={`${modelInfo.provider}|${modelInfo.model}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                            {getProviderDisplayName(modelInfo.provider)}
+                            {NOMBRE_PROVEEDOR[modelInfo.provider.toUpperCase() as keyof typeof NOMBRE_PROVEEDOR]}
                           </span>
-                          <span>{MODELS[modelInfo.model as keyof typeof MODELS]}</span>
+                          <span>{modelInfo.model}</span>
                         </div>
                       </SelectItem>
                     ))}

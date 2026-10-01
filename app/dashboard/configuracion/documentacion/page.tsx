@@ -4,9 +4,8 @@ import React from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Settings, 
-  Plug,
+import {
+  Settings,
   Wrench,
   Globe,
   Users,
@@ -39,7 +38,7 @@ export default function DocumentacionPage() {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-4 sm:mt-6 px-2 sm:px-0">
           <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
-          <span className="text-sm text-gray-600 text-center leading-relaxed">Comienza configurando las integraciones para usar todas las herramientas</span>
+          <span className="text-sm text-gray-600 text-center leading-relaxed">Comienza configurando tus herramientas para usar todo KIT.AI</span>
         </div>
       </div>
 
@@ -56,13 +55,13 @@ export default function DocumentacionPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex flex-col gap-4">
-            <Link href="/dashboard/configuracion/documentacion/configuraciones/integraciones" className="group">
+            <Link href="/dashboard/configuracion/documentacion/configuraciones/herramientas" className="group">
               <div className="p-3 sm:p-4 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[80px] sm:min-h-[90px]">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
-                  <span className="font-semibold group-hover:text-primary-600 text-sm sm:text-base leading-tight">Configurar Integraciones</span>
+                  <span className="font-semibold group-hover:text-primary-600 text-sm sm:text-base leading-tight">Configurar Herramientas</span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">Conecta OpenAI, Anthropic o Gemini</p>
+                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">Enciende un proveedor de IA con su clave y elige el modelo en cada herramienta</p>
               </div>
             </Link>
             <Link href="/dashboard/configuracion/documentacion/configuraciones/herramientas" className="group">
@@ -97,21 +96,10 @@ export default function DocumentacionPage() {
               Configuraciones
             </CardTitle>
             <CardDescription>
-              Configura integraciones, herramientas y ajustes de la plataforma
+              Configura herramientas, WordPress y ajustes de la plataforma
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            <Link href="/dashboard/configuracion/documentacion/configuraciones/integraciones" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Plug className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
-                <div>
-                  <p className="font-medium group-hover:text-green-600 text-sm sm:text-base leading-tight">Integraciones</p>
-                  <p className="text-xs sm:text-sm text-gray-600 leading-tight">OpenAI, Anthropic, Gemini</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 group-hover:text-green-600 flex-shrink-0" />
-            </Link>
-
             <Link href="/dashboard/configuracion/documentacion/configuraciones/herramientas" className="group flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border hover:shadow-md transition-shadow min-h-[60px] sm:min-h-auto">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />

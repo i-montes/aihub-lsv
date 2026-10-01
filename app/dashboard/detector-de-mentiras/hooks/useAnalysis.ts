@@ -3,7 +3,6 @@ import { UseFormGetValues } from "react-hook-form";
 import { toast } from "sonner";
 import { FormSchema } from "../constants";
 import { extractUrlsFromText } from "../utils";
-import { MODELS } from "@/lib/utils";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
@@ -20,9 +19,8 @@ const formatModelName = (
 
   const provider =
     PROVIDER_LABELS[model.provider.toLowerCase()] ?? model.provider;
-  const name = MODELS[model.model as keyof typeof MODELS] ?? model.model;
 
-  return `${provider} · ${name}`;
+  return `${provider} · ${model.model}`;
 };
 
 /**

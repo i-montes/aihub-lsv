@@ -69,9 +69,10 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
  * Tabla de precios por (proveedor, modelo).
  *
  * La clave es el string exacto que guarda la columna de modelo de cada tabla
- * de analytics (== lo que configura la organización en `api_key_table`). Un
- * modelo que no esté aquí no rompe nada: `calcularCosto` devuelve `null` y la
- * fila queda con el costo en NULL, visible para agregarlo.
+ * de analytics (== lo que configura la organización en `herramienta_proveedores`
+ * desde Ajustes > Herramientas). Un modelo que no esté aquí no rompe nada:
+ * `calcularCosto` devuelve `null` y la fila queda con el costo en NULL,
+ * visible para agregarlo.
  */
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {

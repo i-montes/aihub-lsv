@@ -15,14 +15,12 @@ import {
   ChevronRight,
   Building,
   Globe,
-  Sparkles,
   PenToolIcon as Tool,
   BookAIcon,
   Settings,
   ChevronLeft,
   ChevronDown,
   ChevronUp,
-  Plug,
   Wrench,
   BookOpen,
   FileCheck,
@@ -117,13 +115,6 @@ function DocumentationSidebar({ expandedGroups, toggleGroup, pathname }: {
             isOpen={expandedGroups.configuraciones}
             onToggle={() => toggleGroup('configuraciones')}
           >
-            <DocNavItem
-              icon={<Plug className="size-4" />}
-              label="Integraciones"
-              href="/dashboard/configuracion/documentacion/configuraciones/integraciones"
-              isActive={pathname.includes('/documentacion/configuraciones/integraciones')}
-              isSubItem={true}
-            />
             <DocNavItem
               icon={<Wrench className="size-4" />}
               label="Herramientas"
@@ -345,13 +336,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         title="User List"
                         active={pathname === "/dashboard/configuracion/lista-usuarios"}
                         onClick={() => handleMenuItemClick("/dashboard/configuracion/lista-usuarios")}
-                        indented
-                      />
-                      <SettingsMenuItem
-                        icon={<Sparkles size={18} />}
-                        title="Integrations"
-                        active={pathname === "/dashboard/configuracion/integraciones"}
-                        onClick={() => handleMenuItemClick("/dashboard/configuracion/integraciones")}
                         indented
                       />
                       <SettingsMenuItem

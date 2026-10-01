@@ -2,20 +2,13 @@ import { createApiHandler, errorResponse, successResponse } from "@/app/api/base
 import { getSupabaseRouteHandler } from "@/lib/supabase/server"
 import type { NextRequest } from "next/server"
 import { v4 as uuidv4 } from "uuid"
-import { DEFAULT_MODELS } from "@/lib/utils"
 export const POST = createApiHandler(async (req: NextRequest) => {
   try {
-    const { organization_name, email, name, lastname, role = 'OWNER', api_key, provider } = await req.json()
+    const { organization_name, email, name, lastname, role = 'OWNER' } = await req.json()
 
     // Validar campos obligatorios
-    if (!organization_name || !email || !name || !lastname || !api_key || !provider) {
-      return errorResponse("Nombre de organización, email, nombre, apellido, API key y proveedor son requeridos", 400)
-    }
-
-    // Validar proveedor
-    const validProviders = ['OPENAI', 'GOOGLE', 'ANTHROPIC']
-    if (!validProviders.includes(provider)) {
-      return errorResponse("Proveedor debe ser uno de: OPENAI, GOOGLE, ANTHROPIC", 400)
+    if (!organization_name || !email || !name || !lastname) {
+      return errorResponse("Nombre de organización, email, nombre y apellido son requeridos", 400)
     }
 
     // Validar formato de email
@@ -133,36 +126,6 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       }
     }
 
-    // 4. Crear API key
-    const providerModels = {
-      OPENAI: [DEFAULT_MODELS.OPENAI],
-      GOOGLE: [DEFAULT_MODELS.GOOGLE],
-      ANTHROPIC: [DEFAULT_MODELS.ANTHROPIC]
-    }
-
-    const { error: apiKeyError } = await supabase
-      .from("api_key_table")
-      .insert({
-        id: uuidv4(),
-        organizationId: organizationId,
-        provider: provider,
-        key: api_key,
-        models: providerModels[provider as keyof typeof providerModels],
-        status: "ACTIVE",
-        createdAt: currentDate,
-        updatedAt: currentDate
-      })
-
-     if (apiKeyError) {
-      console.error("Error creating API key:", apiKeyError)
-      // Rollback: eliminar organización y usuario
-      await supabase.from("organization").delete().eq("id", organizationId)
-      if (invitedUser?.user) {
-        await supabase.auth.admin.deleteUser(invitedUser.user.id)
-      }
-      return errorResponse("Error al crear la API key", 500)
-    }
-
     const { error: UsefulLinksError } = await supabase
       .from("useful_links")
       .insert([
@@ -201,7 +164,6 @@ export const POST = createApiHandler(async (req: NextRequest) => {
       console.error("Error fetching default tools:", defaultToolsError)
       // Rollback: eliminar organización, usuario y API key
       await supabase.from("organization").delete().eq("id", organizationId)
-      await supabase.from("api_key_table").delete().eq("organization_id", organizationId)
       if (invitedUser?.user) {
         await supabase.auth.admin.deleteUser(invitedUser.user.id)
       }
@@ -217,10 +179,6 @@ export const POST = createApiHandler(async (req: NextRequest) => {
         organization_id: organizationId,
         identity: tool.identity,
         schema: {},
-        models: [{
-          model: providerModels[provider as keyof typeof providerModels][0],
-          provider: provider
-        }],
         created_at: currentDate,
         updated_at: currentDate
       }))
@@ -233,7 +191,6 @@ export const POST = createApiHandler(async (req: NextRequest) => {
         console.error("Error creating tools:", toolsError)
         // Rollback: eliminar organización, usuario y API key
         await supabase.from("organization").delete().eq("id", organizationId)
-        await supabase.from("api_key_table").delete().eq("organization_id", organizationId)
         if (invitedUser?.user) {
           await supabase.auth.admin.deleteUser(invitedUser.user.id)
         }

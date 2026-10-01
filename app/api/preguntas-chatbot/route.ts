@@ -2,19 +2,19 @@ import { after, NextRequest } from "next/server";
 import { createAgentUIStreamResponse } from "ai";
 
 import { verificarAccesoPreguntasChatbot } from "@/lib/preguntas-chatbot/acceso";
-import {
-  crearAgentePreguntasChatbot,
-  esProveedorSoportado,
-  MODELO_PREGUNTAS_CHATBOT,
-  PROVEEDOR_PREGUNTAS_CHATBOT,
-  type ProveedorSoportado,
-} from "@/lib/preguntas-chatbot/agente";
+import { crearAgentePreguntasChatbot } from "@/lib/preguntas-chatbot/agente";
 import { sanearHistorial } from "@/lib/preguntas-chatbot/mensajes";
 import { normalizarResultado } from "@/lib/preguntas-chatbot/tipos";
 import { AnalyticsPreguntasChatbotService } from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { getSupabaseRouteHandler } from "@/lib/supabase/server";
-import { leerConfiguracionDeOrganizacion } from "@/lib/organizaciones/prompt-herramienta";
+import { leerPromptDeOrganizacionCompleto } from "@/lib/organizaciones/prompt-herramienta";
+import {
+  listarProveedoresActivos,
+  obtenerProveedorDeHerramienta,
+  ProveedorNoConfiguradoError,
+} from "@/lib/proveedores/configuracion";
+import { normalizarProveedor } from "@/lib/proveedores/tipos";
 
 /**
  * El agente puede llamar la tool de SQL varias veces antes de responder, y un
@@ -32,47 +32,6 @@ function jsonError(mensaje: string, status: number): Response {
   });
 }
 
-/**
- * Clave activa de ese proveedor para la organización, y la lista de modelos
- * que el admin le habilitó en Ajustes. Los modelos sirven para rechazar un
- * modelo que no esté configurado: el selector de la UI sale de esa misma
- * lista, así que un modelo ajeno sólo llega por una petición armada a mano.
- */
-async function obtenerApiKey(
-  organizationId: string,
-  proveedor: ProveedorSoportado
-): Promise<{ key: string; modelos: string[] } | null> {
-  const supabase = await getSupabaseRouteHandler();
-  const { data } = await supabase
-    .from("api_key_table")
-    .select("key, models")
-    .eq("organizationId", organizationId)
-    .eq("provider", COLUMNA_PROVEEDOR[proveedor])
-    .eq("status", "ACTIVE")
-    .maybeSingle();
-
-  const key = data?.key?.trim();
-  if (!key) return null;
-  const modelos = Array.isArray(data?.models)
-    ? (data.models as unknown[]).filter((m): m is string => typeof m === "string")
-    : [];
-  return { key, modelos };
-}
-
-/** Nombre legible del proveedor para los mensajes de error */
-const NOMBRE_PROVEEDOR: Record<ProveedorSoportado, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-};
-
-/** Cómo se guarda el proveedor en api_key_table.provider */
-const COLUMNA_PROVEEDOR = {
-  anthropic: "ANTHROPIC",
-  openai: "OPENAI",
-  google: "GOOGLE",
-} as const satisfies Record<ProveedorSoportado, string>;
-
 function textoDeMensaje(mensaje: any): string {
   if (!Array.isArray(mensaje?.parts)) return "";
   return mensaje.parts
@@ -87,44 +46,24 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
 
-  // Prompt y modelo que la organización guardó en Ajustes > Herramientas.
-  // Sin fila propia, el agente corre con el prompt base (ver prompt-base.ts).
-  const configuracion = await leerConfiguracionDeOrganizacion(
-    await getSupabaseRouteHandler(),
-    organizationId,
-    "preguntas-chatbot"
-  );
-
-  // Orden de preferencia para el modelo: lo que mande el cuerpo (hoy la
-  // interfaz no manda nada), luego el primer modelo guardado en Ajustes, y si
-  // no hay ninguno el de siempre, para que un cliente viejo siga funcionando.
-  const modeloDeAjustes = configuracion.modelos.find((m) => esProveedorSoportado(m.provider));
-  const proveedor: ProveedorSoportado = esProveedorSoportado(body?.proveedor)
-    ? (body.proveedor.toLowerCase() as ProveedorSoportado)
-    : modeloDeAjustes
-      ? (modeloDeAjustes.provider.toLowerCase() as ProveedorSoportado)
-      : PROVEEDOR_PREGUNTAS_CHATBOT;
-  const modelo: string =
-    typeof body?.modelo === "string" && body.modelo.trim()
-      ? body.modelo.trim()
-      : modeloDeAjustes
-        ? modeloDeAjustes.model
-        : MODELO_PREGUNTAS_CHATBOT;
-
-  const credencial = await obtenerApiKey(organizationId, proveedor);
-  if (!credencial) {
-    return jsonError(
-      `La organización no tiene una clave activa de ${NOMBRE_PROVEEDOR[proveedor]}. Configúrala en Ajustes.`,
-      400
-    );
+  // Sin selector en la interfaz: corre con el primer proveedor del orden de
+  // Ajustes > Herramientas, salvo que el cuerpo pida otro que también esté encendido.
+  const activos = await listarProveedoresActivos(organizationId, "preguntas-chatbot");
+  if (activos.length === 0) {
+    return jsonError("Preguntas a SillaIA no tiene ningún proveedor configurado. Configúralo en Ajustes > Herramientas.", 400);
   }
-  if (credencial.modelos.length > 0 && !credencial.modelos.includes(modelo)) {
-    return jsonError(
-      `El modelo ${modelo} no está habilitado para ${NOMBRE_PROVEEDOR[proveedor]} en Ajustes.`,
-      400
-    );
+  const pedido = normalizarProveedor(body?.proveedor);
+  const proveedorElegido = pedido && activos.some((a) => a.proveedor === pedido) ? pedido : activos[0].proveedor;
+
+  let configuracion;
+  try {
+    configuracion = await obtenerProveedorDeHerramienta(organizationId, "preguntas-chatbot", proveedorElegido);
+  } catch (error) {
+    return jsonError(error instanceof ProveedorNoConfiguradoError ? error.message : "No se pudo obtener la configuración del proveedor", 400);
   }
-  const apiKey = credencial.key;
+  const proveedor = configuracion.proveedor.toLowerCase();
+  const modelo = configuracion.modelo;
+  const pestanasPrompt = await leerPromptDeOrganizacionCompleto(await getSupabaseRouteHandler(), organizationId, "preguntas-chatbot");
   // Se sanea antes de usarlo: un turno que quedó a medias (el usuario detuvo
   // al agente) deja una llamada a tool sin resultado, y el proveedor rechaza
   // todo el hilo con un 400 a partir de ahí. Ver lib/preguntas-chatbot/mensajes.ts.
@@ -148,11 +87,9 @@ export async function POST(request: NextRequest) {
   let errorDelTurno: string | null = null;
 
   const agent = crearAgentePreguntasChatbot({
-    apiKey,
-    proveedor,
-    modelo,
+    configuracion,
     registrarConsulta: (info) => consultas.push(info),
-    pestanasPrompt: configuracion.prompts,
+    pestanasPrompt,
   });
 
   const response = await createAgentUIStreamResponse({

@@ -68,6 +68,8 @@ Valores de esfuerzo por proveedor:
 | Anthropic | `low`, `medium`, `high` | no |
 | Google | `minimal`, `low`, `medium`, `high` | no |
 
+`null` en `reasoning_effort` o `verbosity` significa 'por defecto del modelo': no se envía la opción.
+
 Google no tiene verbosidad. Su esfuerzo se aplica como `thinkingLevel` del proveedor `@ai-sdk/google`, que ya expone esa opción en la versión instalada.
 
 `tools.models`, `tools.reasoning_effort`, `tools.verbosity` y sus equivalentes en `default_tools` dejan de leerse y escribirse. Se retiran en la segunda migración (ver "Orden de salida").
@@ -86,7 +88,6 @@ Recibe la lista ordenada de proveedores. Para cada uno: proveedor, modelo, esfue
 
 Validaciones, con mensaje claro en cada caso:
 
-- Al menos un proveedor con clave y modelo.
 - Esfuerzo y verbosidad dentro de los valores del proveedor.
 - `conservarClave` sólo vale si ya hay fila para ese proveedor.
 - Ninguna clave nueva puede estar en otra herramienta de la organización. El mensaje nombra la herramienta que la tiene. El índice único respalda la validación por si dos guardados compiten.
@@ -120,7 +121,7 @@ Para cualquier miembro con sesión de la organización. Devuelve sólo proveedor
 - Al escribir o pegar una clave, el diálogo consulta la ruta de modelos con un retardo corto para no consultar en cada tecla. Mientras carga, un indicador. Si responde, un selector con la lista; si falla, el mensaje del error y un campo de texto para escribir el modelo. Con clave guardada y sin cambiar, la consulta usa la clave guardada.
 - Sugerencias: encima del selector o del campo, chips con los modelos que ya usan las otras herramientas de la organización para ese proveedor. Un clic selecciona el modelo.
 - Esfuerzo con los valores del proveedor. Verbosidad sólo en OpenAI.
-- Guardar exige al menos un proveedor encendido con modelo. Si el servidor rechaza una clave repetida, el error aparece dentro del acordeón de ese proveedor.
+- Guardar admite cero proveedores (la herramienta queda apagada); cada proveedor encendido necesita modelo. Si el servidor rechaza una clave repetida, el error aparece dentro del acordeón de ese proveedor.
 
 El guardado del prompt y del formato sigue yendo a `tools` como hoy; el de proveedores va a la ruta nueva. Se hacen en ese orden y, si el segundo falla, el diálogo lo dice y deja el primero guardado.
 

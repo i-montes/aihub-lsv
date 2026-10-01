@@ -83,7 +83,7 @@ export default function WordPressPage() {
             <div>
               <h3 className="font-semibold mb-2">1. Acceder a la Configuración</h3>
               <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
-                <li>Ve a <strong>Configuración → Integraciones</strong></li>
+                <li>Ve a <strong>Configuración → WordPress</strong></li>
                 <li>Busca la sección <strong>"WordPress"</strong></li>
                 <li>Haz clic en <strong>"Configurar"</strong> o <strong>"Añadir Sitio"</strong></li>
               </ol>
@@ -92,7 +92,7 @@ export default function WordPressPage() {
             <div className="bg-gray-100 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-2"><strong>[Imagen Captura]</strong></p>
               <p className="text-sm text-gray-600">
-                Captura de pantalla mostrando la ubicación de la configuración WordPress en la página de integraciones
+                Captura de pantalla mostrando la ubicación de la configuración WordPress en la página de WordPress
               </p>
             </div>
 

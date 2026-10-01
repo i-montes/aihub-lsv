@@ -41,7 +41,7 @@ export default function SupportPage() {
     },
     {
       question: "¿Puedo integrar mis cuentas de WordPress?",
-      answer: "Sí, puedes conectar múltiples sitios de WordPress para importar contenido directamente. Ve a Configuración > Integraciones para configurar tus conexiones de WordPress."
+      answer: "Sí, puedes conectar múltiples sitios de WordPress para importar contenido directamente. Ve a Configuración > WordPress para configurar tus conexiones."
     },
     {
       question: "¿Hay límites en el uso de las herramientas?",
