@@ -308,57 +308,67 @@ export async function analyzeText(
     // con las reglas sospechosas en vez del manual entero. Si no hay
     // `TYPESAFE_API_KEY` o el tamiz se cae, se sigue por el flujo de siempre.
     //
+    // Está apagado por defecto: el flujo clásico de una sola llamada es el
+    // normal y Jev sólo entra con CORRECTOR_CON_JEV=true.
+    //
     // Las frases marcadas se corrigen con un modelo propio, rápido y barato,
     // porque son muchas llamadas cortas en paralelo y no una grande. El
     // paso por frase usa el modelo fijo de OpenAI si el Corrector tiene
     // OpenAI encendido; si no, el proveedor elegido.
-    let corrector: { modelo: { provider: string; model: string }; apiKey: string };
-    try {
-      const openai = await obtenerProveedorDeHerramienta(organizationId, "proofreader", "OPENAI");
-      corrector = { modelo: MODELO_CORRECTOR, apiKey: openai.apiKey };
-    } catch (error) {
-      if (!(error instanceof ProveedorNoConfiguradoError)) throw error;
-      corrector = { modelo: selectedModel, apiKey };
-      debugLogger.warn(`Sin OpenAI en el Corrector: las frases se corrigen con ${selectedModel.model}`);
-      console.error(`[corrector] sin OpenAI en el Corrector; se usa ${selectedModel.model}`);
-    }
+    const conJev = process.env.CORRECTOR_CON_JEV === "true";
 
-    debugLogger.info("Intentando análisis por frase con Jev", {
-      modeloCorrector: corrector.modelo.model,
-    });
-
+    // Con Jev apagado no se usa, pero las analíticas lo leen si hubo porFrase.
+    let corrector: { modelo: { provider: string; model: string }; apiKey: string } = { modelo: selectedModel, apiKey };
     let porFrase = null;
-    try {
-      porFrase = await analizarPorFrase(text, {
-        modeloElegido: corrector.modelo,
-        apiKey: corrector.apiKey,
-        promptPrincipal: principalPrompt,
-        guiaDeEstilo: styleGuidePrompt,
-        // MODELO_CORRECTOR es a propósito rápido: se deja con los valores por
-        // defecto del modelo (null, no se envían). Con el proveedor elegido sí
-        // se respeta lo configurado.
-        reasoningEffort: corrector.modelo === selectedModel ? configuracion.reasoningEffort : null,
-        verbosity: corrector.modelo === selectedModel ? configuracion.verbosity : null,
-      });
+    if (!conJev) {
+      debugLogger.info("Tamiz con Jev apagado (CORRECTOR_CON_JEV): flujo de una sola llamada");
+    } else {
+      try {
+        try {
+          const openai = await obtenerProveedorDeHerramienta(organizationId, "proofreader", "OPENAI");
+          corrector = { modelo: MODELO_CORRECTOR, apiKey: openai.apiKey };
+        } catch (error) {
+          if (!(error instanceof ProveedorNoConfiguradoError)) throw error;
+          corrector = { modelo: selectedModel, apiKey };
+          debugLogger.warn(`Sin OpenAI en el Corrector: las frases se corrigen con ${selectedModel.model}`);
+          console.error(`[corrector] sin OpenAI en el Corrector; se usa ${selectedModel.model}`);
+        }
 
-      if (!porFrase) {
-        debugLogger.warn(
-          "Sin TYPESAFE_API_KEY: se usa el flujo de una sola llamada",
+        debugLogger.info("Intentando análisis por frase con Jev", {
+          modeloCorrector: corrector.modelo.model,
+        });
+
+        porFrase = await analizarPorFrase(text, {
+          modeloElegido: corrector.modelo,
+          apiKey: corrector.apiKey,
+          promptPrincipal: principalPrompt,
+          guiaDeEstilo: styleGuidePrompt,
+          // MODELO_CORRECTOR es a propósito rápido: se deja con los valores por
+          // defecto del modelo (null, no se envían). Con el proveedor elegido sí
+          // se respeta lo configurado.
+          reasoningEffort: corrector.modelo === selectedModel ? configuracion.reasoningEffort : null,
+          verbosity: corrector.modelo === selectedModel ? configuracion.verbosity : null,
+        });
+
+        if (!porFrase) {
+          debugLogger.warn(
+            "Sin TYPESAFE_API_KEY: se usa el flujo de una sola llamada",
+          );
+          // A la consola además del logger: los mensajes del logger sólo viajan
+          // al cliente, y quedarse sin camino rápido en silencio fue justo lo
+          // que costó media tarde de diagnóstico.
+          console.error("[corrector] ⚠️  TYPESAFE_API_KEY vacía → flujo clásico");
+        } else {
+          debugLogger.info("Análisis por frase completado", porFrase.detalle);
+          console.log("[corrector] ✅ tamiz por frase:", porFrase.detalle);
+        }
+      } catch (error) {
+        debugLogger.error(
+          "El análisis por frase falló; se cae al flujo de una sola llamada",
+          error,
         );
-        // A la consola además del logger: los mensajes del logger sólo viajan
-        // al cliente, y quedarse sin camino rápido en silencio fue justo lo
-        // que costó media tarde de diagnóstico.
-        console.error("[corrector] ⚠️  TYPESAFE_API_KEY vacía → flujo clásico");
-      } else {
-        debugLogger.info("Análisis por frase completado", porFrase.detalle);
-        console.log("[corrector] ✅ tamiz por frase:", porFrase.detalle);
+        console.error("[corrector] ❌ el tamiz falló → flujo clásico:", error);
       }
-    } catch (error) {
-      debugLogger.error(
-        "El análisis por frase falló; se cae al flujo de una sola llamada",
-        error,
-      );
-      console.error("[corrector] ❌ el tamiz falló → flujo clásico:", error);
     }
 
     let correcciones: CorreccionPlana[];
@@ -497,6 +507,7 @@ export async function analyzeText(
         ejemploPeticion,
         peticionesTamiz,
         ejemploCorreccion,
+        conJev,
         analitics_id,
       };
     } catch (error) {

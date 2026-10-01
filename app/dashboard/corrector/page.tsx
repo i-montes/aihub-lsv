@@ -366,10 +366,11 @@ export default function ProofreaderPage() {
         setPeticionJev(result.ejemploPeticion ?? null);
         setPeticionesJev(result.peticionesTamiz ?? []);
         setPromptCorrector(result.ejemploCorreccion ?? null);
-      } else if (result.success) {
-        // Sin traza, el análisis se fue por el camino viejo de una sola
-        // llamada. Antes eso pasaba en silencio y la única pista era que el
-        // botón "Ver proceso" no aparecía, que es imposible de notar.
+      } else if (result.success && result.conJev) {
+        // Jev estaba encendido pero no hubo traza: el análisis se cayó al
+        // camino de una sola llamada. Antes eso pasaba en silencio y la única
+        // pista era que el botón "Ver proceso" no aparecía. Con Jev apagado
+        // (lo normal) el flujo clásico es el esperado y no se avisa.
         toast.info("Se analizó con el flujo clásico", {
           description:
             "El tamiz por frase no se usó. Suele ser que falta TYPESAFE_API_KEY o que la petición falló; míralo en el debug.",
