@@ -88,7 +88,10 @@ export function crearAgentePreguntasChatbot(opts: {
       consultarPreguntasChatbot: crearHerramientaConsulta(opts.registrarConsulta),
       reportarResultado: herramientaReportarResultado,
     },
-    toolChoice: "required",
+    // "required" llega a Anthropic como tool_choice "any", que sus modelos
+    // nuevos rechazan con un 400. Ahí va "auto" y el prompt ya obliga a cerrar
+    // con "reportarResultado".
+    toolChoice: opts.configuracion.proveedor === "ANTHROPIC" ? "auto" : "required",
     // El turno termina cuando el modelo llama "reportarResultado". Se corta
     // por condición de parada y no por dejar esa tool sin `execute`, porque
     // una tool sin resultado deja el historial inválido para el proveedor y

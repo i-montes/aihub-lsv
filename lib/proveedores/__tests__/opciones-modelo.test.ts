@@ -18,14 +18,23 @@ describe("opcionesDeProveedor", () => {
     expect(opcionesDeProveedor("OPENAI", null, null)).toEqual({ openai: { store: false } });
   });
 
-  it("Anthropic y Google: por defecto del modelo no envían nada", () => {
-    expect(opcionesDeProveedor("ANTHROPIC", null, null)).toEqual({});
+  it("Google: por defecto del modelo no envía nada", () => {
     expect(opcionesDeProveedor("GOOGLE", null, null)).toEqual({});
   });
 
-  it("Anthropic: sólo effort, y xhigh se recorta a high", () => {
-    expect(opcionesDeProveedor("ANTHROPIC", "low", null)).toEqual({ anthropic: { effort: "low" } });
-    expect(opcionesDeProveedor("ANTHROPIC", "xhigh", "high")).toEqual({ anthropic: { effort: "high" } });
+  it("Anthropic: por defecto del modelo sólo fija la salida estructurada nativa", () => {
+    expect(opcionesDeProveedor("ANTHROPIC", null, null)).toEqual({
+      anthropic: { structuredOutputMode: "outputFormat" },
+    });
+  });
+
+  it("Anthropic: effort, y xhigh se recorta a high", () => {
+    expect(opcionesDeProveedor("ANTHROPIC", "low", null)).toEqual({
+      anthropic: { effort: "low", structuredOutputMode: "outputFormat" },
+    });
+    expect(opcionesDeProveedor("ANTHROPIC", "xhigh", "high")).toEqual({
+      anthropic: { effort: "high", structuredOutputMode: "outputFormat" },
+    });
   });
 
   it("Google: thinkingLevel, y xhigh se recorta a high", () => {

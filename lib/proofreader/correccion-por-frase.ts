@@ -5,6 +5,7 @@ import { TypeSafeClient, choice, noul } from "@typesafe-ai/sdk";
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import { cacheOpenAI, systemCacheado } from "@/lib/prompt-cache";
+import { ANTHROPIC_SALIDA_ESTRUCTURADA, type ProviderOptions } from "@/lib/proveedores/opciones-modelo";
 import type { SuggestionType } from "@/types/proofreader";
 
 /**
@@ -1035,7 +1036,10 @@ function crearModelo(
  * `null` en el esfuerzo o la verbosidad significa "por defecto del modelo":
  * no se envía la opción, porque hay modelos que la rechazan.
  */
-function opcionesDeProveedor(provider: string, reasoningEffort: string | null = null, verbosity: string | null = null) {
+function opcionesDeProveedor(provider: string, reasoningEffort: string | null = null, verbosity: string | null = null): ProviderOptions | undefined {
+  // Sin esto generateObject fuerza tool_choice con los modelos que el SDK no
+  // conoce y Anthropic lo rechaza (ver ANTHROPIC_SALIDA_ESTRUCTURADA).
+  if (provider.toLowerCase() === "anthropic") return { anthropic: ANTHROPIC_SALIDA_ESTRUCTURADA };
   if (provider.toLowerCase() !== "openai") return undefined;
 
   return {

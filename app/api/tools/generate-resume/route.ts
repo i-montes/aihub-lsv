@@ -12,7 +12,7 @@ import {
   ProveedorNoConfiguradoError,
   type ProveedorEnUso,
 } from "@/lib/proveedores/configuracion";
-import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { ANTHROPIC_SALIDA_ESTRUCTURADA, crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
 import type { Proveedor } from "@/lib/proveedores/tipos";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
@@ -311,7 +311,15 @@ const selectImportantNews = async (
       verbosity: proveedorMini === "OPENAI" ? "low" : null,
     };
     const { model: modelo } = crearModeloConfigurado({ ...configuracionMini, modelo: model });
-    const result = await generateObject({ model: modelo, prompt, schema, maxRetries: 5 });
+    // Sólo la salida estructurada de Anthropic (ver ANTHROPIC_SALIDA_ESTRUCTURADA):
+    // las opciones de OpenAI llevan esfuerzo y gpt-4o-mini lo rechaza.
+    const result = await generateObject({
+      model: modelo,
+      prompt,
+      schema,
+      maxRetries: 5,
+      providerOptions: { anthropic: ANTHROPIC_SALIDA_ESTRUCTURADA },
+    });
 
     debugLogger.info("Selección de noticias completada", {
       duration: Date.now() - startTime,
