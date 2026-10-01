@@ -67,7 +67,7 @@ export function ProveedorAcordeon({
             )}
           </div>
         </AccordionTrigger>
-        <div className="flex flex-col">
+        <div className="flex items-center gap-0.5">
           <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={esPrimero} onClick={onSubir} title="Subir">
             <ArrowUp className="h-3.5 w-3.5" />
           </Button>
