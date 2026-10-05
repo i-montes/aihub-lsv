@@ -40,28 +40,69 @@ const PALABRAS_PROHIBIDAS =
  */
 const TABLAS_PERMITIDAS = ["chats_new"];
 
+/**
+ * La consulta con cada texto entrecomillado vaciado, para que las
+ * comprobaciones de abajo miren lo que Postgres va a ejecutar como código y
+ * no lo que va a tratar como dato. El modelo arma expresiones regulares como
+ * `'^\s*([0-9]+\s*[,;]?\s*)+$'` para descartar saludos y números sueltos, y
+ * el `;` de adentro hacía rechazar la consulta como si fueran dos.
+ *
+ * Se entienden todas las formas de citar de Postgres, porque con una sola el
+ * resto sirve para esconder código entre dos "textos" que el limpiador cierra
+ * en otro sitio que Postgres: una comilla dentro de un identificador (`"a'"`),
+ * un `$$'$$`, o la comilla escapada de `E'\''`.
+ *
+ * - `'...'` ('' escapa la comilla) → `''`.
+ * - `E'...'` (además `\'` escapa la comilla; sólo si la E no es el final de
+ *   un identificador) → `''`.
+ * - `$tag$...$tag$` (sólo si el `$` no es parte de un identificador: en
+ *   Postgres `x$a$` es un nombre de columna) → `''`.
+ * - `"..."` ("" escapa la comilla) → el nombre tal cual si es una tabla
+ *   permitida, y `__identificador__` si no. Así `from "chats_new"` pasa,
+ *   `from "profiles"` se rechaza igual que sin comillas, y un alias como
+ *   `"Comment"` no choca con PALABRAS_PROHIBIDAS (entre comillas nunca es
+ *   palabra clave).
+ *
+ * Un texto sin cerrar se deja visible: queda más a la vista, nunca menos. Y
+ * la transacción READ ONLY sigue de segunda capa.
+ */
+const TEXTOS_ENTRECOMILLADOS =
+  /(?<![\w$])[eE]'(?:[^'\\]|\\[\s\S]|'')*'|'(?:[^']|'')*'|(?<![\w$])\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$|"((?:[^"]|"")*)"/g;
+
+function sinTextosEntreComillas(sql: string): string {
+  return sql.replace(
+    TEXTOS_ENTRECOMILLADOS,
+    (_, _tag: string | undefined, identificador: string | undefined) => {
+      if (identificador === undefined) return "''";
+      return TABLAS_PERMITIDAS.includes(identificador) ? identificador : "__identificador__";
+    }
+  );
+}
+
 function validarSoloLectura(sql: string): string {
   const limpio = sql.trim();
 
   if (!limpio) {
     throw new SqlNoPermitidoError("La consulta está vacía");
   }
-  if (limpio.includes("--") || limpio.includes("/*") || limpio.includes("*/")) {
+  // Se tolera un único ; final (el modelo suele agregarlo por costumbre).
+  const sinPuntoYComaFinal = limpio.replace(/;\s*$/, "");
+  const codigo = sinTextosEntreComillas(sinPuntoYComaFinal);
+
+  if (codigo.includes("--") || codigo.includes("/*") || codigo.includes("*/")) {
     throw new SqlNoPermitidoError(
       "No se permiten comentarios en la consulta"
     );
   }
-  // Se tolera un único ; final (el modelo suele agregarlo por costumbre).
-  const sinPuntoYComaFinal = limpio.replace(/;\s*$/, "");
-  if (sinPuntoYComaFinal.includes(";")) {
+  if (codigo.includes(";")) {
     throw new SqlNoPermitidoError(
       "Sólo se permite una consulta a la vez (nada de punto y coma en medio)"
     );
   }
-  if (!/^(select|with)\b/i.test(sinPuntoYComaFinal)) {
+  if (!/^(select|with)\b/i.test(codigo)) {
     throw new SqlNoPermitidoError("Sólo se permiten consultas SELECT");
   }
-  if (PALABRAS_PROHIBIDAS.test(sinPuntoYComaFinal)) {
+  if (PALABRAS_PROHIBIDAS.test(codigo)) {
     throw new SqlNoPermitidoError(
       "La consulta contiene una palabra no permitida (sólo lectura)"
     );
@@ -72,12 +113,12 @@ function validarSoloLectura(sql: string): string {
   // en el SELECT interno, no una tabla nueva de verdad. Sin esto, cualquier
   // SQL con su propia CTE (algo normal al comparar dos periodos) se rechazaba
   // igual que si hubiera intentado leer otra tabla.
-  const nombresCte = [...sinPuntoYComaFinal.matchAll(/\b(\w+)\s+as\s*\(/gi)].map((m) =>
+  const nombresCte = [...codigo.matchAll(/\b(\w+)\s+as\s*\(/gi)].map((m) =>
     m[1].toLowerCase()
   );
 
   const tablasReferenciadas = [
-    ...sinPuntoYComaFinal.matchAll(/\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gi),
+    ...codigo.matchAll(/\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gi),
   ].map((m) => m[1].replace(/^public\./i, "").toLowerCase());
 
   const tablaNoPermitida = tablasReferenciadas.find(
