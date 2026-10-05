@@ -47,27 +47,34 @@ const TABLAS_PERMITIDAS = ["chats_new"];
  * `'^\s*([0-9]+\s*[,;]?\s*)+$'` para descartar saludos y números sueltos, y
  * el `;` de adentro hacía rechazar la consulta como si fueran dos.
  *
- * Se entienden las tres formas de citar de Postgres, porque con una sola el
- * resto sirve para esconder código: una comilla simple dentro de un
- * identificador `"a'"` abría un "texto" que tapaba todo hasta el siguiente, y
- * `$$'$$` hacía lo mismo.
+ * Se entienden todas las formas de citar de Postgres, porque con una sola el
+ * resto sirve para esconder código entre dos "textos" que el limpiador cierra
+ * en otro sitio que Postgres: una comilla dentro de un identificador (`"a'"`),
+ * un `$$'$$`, o la comilla escapada de `E'\''`.
  *
  * - `'...'` ('' escapa la comilla) → `''`.
- * - `$tag$...$tag$` → `''`.
- * - `"..."` ("" escapa la comilla) → el nombre tal cual si es una palabra
- *   simple, y `__identificador__` si no. Así `from "profiles"` sigue
- *   pasando por la lista de tablas en vez de volverse invisible.
+ * - `E'...'` (además `\'` escapa la comilla; sólo si la E no es el final de
+ *   un identificador) → `''`.
+ * - `$tag$...$tag$` (sólo si el `$` no es parte de un identificador: en
+ *   Postgres `x$a$` es un nombre de columna) → `''`.
+ * - `"..."` ("" escapa la comilla) → el nombre tal cual si es una tabla
+ *   permitida, y `__identificador__` si no. Así `from "chats_new"` pasa,
+ *   `from "profiles"` se rechaza igual que sin comillas, y un alias como
+ *   `"Comment"` no choca con PALABRAS_PROHIBIDAS (entre comillas nunca es
+ *   palabra clave).
  *
- * Un texto sin cerrar se deja visible, y en un E'\'' de escape el texto se da
- * por cerrado antes que Postgres: en los dos casos queda más a la vista, nunca
- * menos. Y la transacción READ ONLY sigue de segunda capa.
+ * Un texto sin cerrar se deja visible: queda más a la vista, nunca menos. Y
+ * la transacción READ ONLY sigue de segunda capa.
  */
+const TEXTOS_ENTRECOMILLADOS =
+  /(?<![\w$])[eE]'(?:[^'\\]|\\[\s\S]|'')*'|'(?:[^']|'')*'|(?<![\w$])\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$|"((?:[^"]|"")*)"/g;
+
 function sinTextosEntreComillas(sql: string): string {
   return sql.replace(
-    /'(?:[^']|'')*'|\$(\w*)\$[\s\S]*?\$\1\$|"((?:[^"]|"")*)"/g,
+    TEXTOS_ENTRECOMILLADOS,
     (_, _tag: string | undefined, identificador: string | undefined) => {
       if (identificador === undefined) return "''";
-      return /^\w+$/.test(identificador) ? identificador : "__identificador__";
+      return TABLAS_PERMITIDAS.includes(identificador) ? identificador : "__identificador__";
     }
   );
 }
