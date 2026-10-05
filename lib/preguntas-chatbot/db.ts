@@ -40,28 +40,45 @@ const PALABRAS_PROHIBIDAS =
  */
 const TABLAS_PERMITIDAS = ["chats_new"];
 
+/**
+ * La consulta con el contenido de cada texto entre comillas simples vaciado
+ * ('' escapa una comilla, como en Postgres). Las comprobaciones de abajo miran
+ * esto y no la consulta tal cual: el modelo arma expresiones regulares como
+ * `'^\s*([0-9]+\s*[,;]?\s*)+$'` para descartar saludos y números sueltos, y el
+ * `;` de adentro hacía rechazar la consulta como si fueran dos.
+ *
+ * Un texto sin cerrar se deja visible, y en un E'\'' de escape el texto se da
+ * por cerrado antes que Postgres: en los dos casos queda más a la vista, nunca
+ * menos. Y la transacción READ ONLY sigue de segunda capa.
+ */
+function sinTextosEntreComillas(sql: string): string {
+  return sql.replace(/'(?:[^']|'')*'/g, "''");
+}
+
 function validarSoloLectura(sql: string): string {
   const limpio = sql.trim();
 
   if (!limpio) {
     throw new SqlNoPermitidoError("La consulta está vacía");
   }
-  if (limpio.includes("--") || limpio.includes("/*") || limpio.includes("*/")) {
+  // Se tolera un único ; final (el modelo suele agregarlo por costumbre).
+  const sinPuntoYComaFinal = limpio.replace(/;\s*$/, "");
+  const codigo = sinTextosEntreComillas(sinPuntoYComaFinal);
+
+  if (codigo.includes("--") || codigo.includes("/*") || codigo.includes("*/")) {
     throw new SqlNoPermitidoError(
       "No se permiten comentarios en la consulta"
     );
   }
-  // Se tolera un único ; final (el modelo suele agregarlo por costumbre).
-  const sinPuntoYComaFinal = limpio.replace(/;\s*$/, "");
-  if (sinPuntoYComaFinal.includes(";")) {
+  if (codigo.includes(";")) {
     throw new SqlNoPermitidoError(
       "Sólo se permite una consulta a la vez (nada de punto y coma en medio)"
     );
   }
-  if (!/^(select|with)\b/i.test(sinPuntoYComaFinal)) {
+  if (!/^(select|with)\b/i.test(codigo)) {
     throw new SqlNoPermitidoError("Sólo se permiten consultas SELECT");
   }
-  if (PALABRAS_PROHIBIDAS.test(sinPuntoYComaFinal)) {
+  if (PALABRAS_PROHIBIDAS.test(codigo)) {
     throw new SqlNoPermitidoError(
       "La consulta contiene una palabra no permitida (sólo lectura)"
     );
@@ -72,12 +89,12 @@ function validarSoloLectura(sql: string): string {
   // en el SELECT interno, no una tabla nueva de verdad. Sin esto, cualquier
   // SQL con su propia CTE (algo normal al comparar dos periodos) se rechazaba
   // igual que si hubiera intentado leer otra tabla.
-  const nombresCte = [...sinPuntoYComaFinal.matchAll(/\b(\w+)\s+as\s*\(/gi)].map((m) =>
+  const nombresCte = [...codigo.matchAll(/\b(\w+)\s+as\s*\(/gi)].map((m) =>
     m[1].toLowerCase()
   );
 
   const tablasReferenciadas = [
-    ...sinPuntoYComaFinal.matchAll(/\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gi),
+    ...codigo.matchAll(/\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/gi),
   ].map((m) => m[1].replace(/^public\./i, "").toLowerCase());
 
   const tablaNoPermitida = tablasReferenciadas.find(

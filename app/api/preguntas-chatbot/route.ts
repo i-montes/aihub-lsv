@@ -162,10 +162,14 @@ export async function POST(request: NextRequest) {
         cache_write_tokens: sumar((u) => u?.inputTokenDetails?.cacheWriteTokens),
         costo,
         tiempo_procesamiento: (Date.now() - inicio) / 1000,
+        // Sólo si el turno falló. Un SQL rechazado que el agente corrigió y
+        // volvió a correr no es un error del turno: antes quedaba aquí aunque
+        // la respuesta hubiera salido bien.
         error_mensaje:
           errorDelTurno ??
-          consultas.find((c) => c.error)?.error ??
-          (resultadoFinal ? null : "El agente no llegó a reportarResultado"),
+          (resultadoFinal
+            ? null
+            : consultas.findLast((c) => c.error)?.error ?? "El agente no llegó a reportarResultado"),
         created_at: new Date(),
       });
       await analytics.save();
