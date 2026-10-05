@@ -164,12 +164,13 @@ export async function POST(request: NextRequest) {
         tiempo_procesamiento: (Date.now() - inicio) / 1000,
         // Sólo si el turno falló. Un SQL rechazado que el agente corrigió y
         // volvió a correr no es un error del turno: antes quedaba aquí aunque
-        // la respuesta hubiera salido bien.
+        // la respuesta hubiera salido bien. Y si falló, sólo cuenta el error
+        // de la última consulta: uno anterior ya corregido tampoco es la causa.
         error_mensaje:
           errorDelTurno ??
           (resultadoFinal
             ? null
-            : consultas.findLast((c) => c.error)?.error ?? "El agente no llegó a reportarResultado"),
+            : consultas.at(-1)?.error ?? "El agente no llegó a reportarResultado"),
         created_at: new Date(),
       });
       await analytics.save();

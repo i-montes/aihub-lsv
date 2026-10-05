@@ -41,18 +41,35 @@ const PALABRAS_PROHIBIDAS =
 const TABLAS_PERMITIDAS = ["chats_new"];
 
 /**
- * La consulta con el contenido de cada texto entre comillas simples vaciado
- * ('' escapa una comilla, como en Postgres). Las comprobaciones de abajo miran
- * esto y no la consulta tal cual: el modelo arma expresiones regulares como
- * `'^\s*([0-9]+\s*[,;]?\s*)+$'` para descartar saludos y números sueltos, y el
- * `;` de adentro hacía rechazar la consulta como si fueran dos.
+ * La consulta con cada texto entrecomillado vaciado, para que las
+ * comprobaciones de abajo miren lo que Postgres va a ejecutar como código y
+ * no lo que va a tratar como dato. El modelo arma expresiones regulares como
+ * `'^\s*([0-9]+\s*[,;]?\s*)+$'` para descartar saludos y números sueltos, y
+ * el `;` de adentro hacía rechazar la consulta como si fueran dos.
+ *
+ * Se entienden las tres formas de citar de Postgres, porque con una sola el
+ * resto sirve para esconder código: una comilla simple dentro de un
+ * identificador `"a'"` abría un "texto" que tapaba todo hasta el siguiente, y
+ * `$$'$$` hacía lo mismo.
+ *
+ * - `'...'` ('' escapa la comilla) → `''`.
+ * - `$tag$...$tag$` → `''`.
+ * - `"..."` ("" escapa la comilla) → el nombre tal cual si es una palabra
+ *   simple, y `__identificador__` si no. Así `from "profiles"` sigue
+ *   pasando por la lista de tablas en vez de volverse invisible.
  *
  * Un texto sin cerrar se deja visible, y en un E'\'' de escape el texto se da
  * por cerrado antes que Postgres: en los dos casos queda más a la vista, nunca
  * menos. Y la transacción READ ONLY sigue de segunda capa.
  */
 function sinTextosEntreComillas(sql: string): string {
-  return sql.replace(/'(?:[^']|'')*'/g, "''");
+  return sql.replace(
+    /'(?:[^']|'')*'|\$(\w*)\$[\s\S]*?\$\1\$|"((?:[^"]|"")*)"/g,
+    (_, _tag: string | undefined, identificador: string | undefined) => {
+      if (identificador === undefined) return "''";
+      return /^\w+$/.test(identificador) ? identificador : "__identificador__";
+    }
+  );
 }
 
 function validarSoloLectura(sql: string): string {

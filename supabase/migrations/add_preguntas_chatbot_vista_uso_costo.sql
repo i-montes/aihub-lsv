@@ -14,9 +14,11 @@
 -- vista y no hay que tocarla.
 --
 -- Una fila del chatbot es un turno (una pregunta), no una conversación. Se
--- marca 'fallido' cuando el agente no entregó respuesta (comentario_agente
--- nulo); un error_mensaje con respuesta suele ser un SQL que el agente
--- corrigió en el mismo turno, y ese turno sí sirvió.
+-- marca 'fallido' cuando quedó un error_mensaje y además el agente no entregó
+-- respuesta (comentario_agente nulo). Las dos condiciones a la vez porque las
+-- filas de antes de este cambio guardaban como error un SQL que el agente
+-- corrigió en el mismo turno, y ese turno sí sirvió; y un comentario vacío
+-- sin error tampoco es un fallo.
 
 create or replace view public.vista_analytics_generaciones as
 select
@@ -93,7 +95,7 @@ select
   organization_id::text,
   user_id::text,
   costo,
-  case when comentario_agente is null then 'fallido' else 'completado' end as estado
+  case when error_mensaje is not null and comentario_agente is null then 'fallido' else 'completado' end as estado
 from public.analytics_preguntas_chatbot;
 
 comment on view public.vista_analytics_generaciones is
