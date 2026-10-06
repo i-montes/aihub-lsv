@@ -924,7 +924,7 @@ export async function POST(request: NextRequest) {
         itemsProcessed: selectedNews.length,
       },
       template: undefined,
-      inputSources: ["wordpress_api"],
+      inputSources: ["wordpress_post"],
     });
 
     // Retornar respuesta JSON
