@@ -17,6 +17,17 @@ export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["pr
  * rechazan con un 400 ("tool_choice: type 'tool' and 'any' are not supported
  * for this model"). Todos los modelos que se ofrecen soportan la nativa.
  */
+/**
+ * Tope de salida para toda llamada al modelo que no tenga uno propio más
+ * corto. Sin él cada proveedor aplica el suyo: @ai-sdk/anthropic manda
+ * max_tokens 4096 a los modelos que no conoce (Sonnet 5.5...) y el
+ * razonamiento se lo gasta entero, así que la respuesta llega cortada o
+ * vacía ("No object generated: the model did not return a response" en
+ * hilos); en OpenAI el máximo por defecto también es bajo y el JSON se
+ * corta a la mitad.
+ */
+export const MAX_OUTPUT_TOKENS = 16000;
+
 export const ANTHROPIC_SALIDA_ESTRUCTURADA = { structuredOutputMode: "outputFormat" } as const;
 
 /**

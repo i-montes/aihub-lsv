@@ -12,7 +12,7 @@ import {
   ProveedorNoConfiguradoError,
   type ProveedorEnUso,
 } from "@/lib/proveedores/configuracion";
-import { ANTHROPIC_SALIDA_ESTRUCTURADA, crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { ANTHROPIC_SALIDA_ESTRUCTURADA, crearModeloConfigurado, MAX_OUTPUT_TOKENS } from "@/lib/proveedores/opciones-modelo";
 import type { Proveedor } from "@/lib/proveedores/tipos";
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
@@ -318,6 +318,7 @@ const selectImportantNews = async (
       prompt,
       schema,
       maxRetries: 5,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       providerOptions: { anthropic: ANTHROPIC_SALIDA_ESTRUCTURADA },
     });
 
@@ -377,6 +378,7 @@ ${selectedNews
   return generateText({
     model,
     prompt: combinedPrompt,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     providerOptions,
     ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
   });
