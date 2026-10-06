@@ -19,7 +19,7 @@ import {
   ProveedorNoConfiguradoError,
   type ProveedorEnUso,
 } from "@/lib/proveedores/configuracion";
-import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { crearModeloConfigurado, MAX_OUTPUT_TOKENS } from "@/lib/proveedores/opciones-modelo";
 import type { FormSchema } from "@/app/dashboard/detector-de-mentiras/constants";
 import {
   formSchema,
@@ -412,6 +412,7 @@ async function generateAnalysis(
     model,
     system: systemPrompt,
     messages,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     providerOptions,
     ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
   });

@@ -10,6 +10,17 @@ import type { Proveedor } from "@/lib/proveedores/tipos";
 export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
 
 /**
+ * Tope de salida para toda llamada al modelo que no tenga uno propio más
+ * corto. Sin él cada proveedor aplica el suyo: @ai-sdk/anthropic manda
+ * max_tokens 4096 a los modelos que no conoce (Sonnet 5.5...) y el
+ * razonamiento se lo gasta entero, así que la respuesta llega cortada o
+ * vacía ("No object generated: the model did not return a response" en
+ * hilos); en OpenAI el máximo por defecto también es bajo y el JSON se
+ * corta a la mitad.
+ */
+export const MAX_OUTPUT_TOKENS = 16000;
+
+/**
  * Cómo saca JSON `generateObject` con Anthropic. En modo "auto" el SDK sólo
  * usa la salida estructurada nativa (`output_format`) con los modelos que
  * conoce (hasta los 4.5); con cualquier otro —Sonnet 5, Opus 4.8...— cae a

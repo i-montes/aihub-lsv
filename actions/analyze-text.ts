@@ -13,13 +13,9 @@ import {
   type PasoDeFrase,
 } from "@/lib/proofreader/correccion-por-frase";
 import { obtenerProveedorDeHerramienta, ProveedorNoConfiguradoError, type ProveedorEnUso } from "@/lib/proveedores/configuracion";
-import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { crearModeloConfigurado, MAX_OUTPUT_TOKENS } from "@/lib/proveedores/opciones-modelo";
 
 // Schema para la respuesta del modelo
-// Artículos largos truncaban el JSON a la mitad y el usuario recibía
-// "Error al procesar la respuesta del modelo" sin ninguna corrección.
-const MAX_OUTPUT_TOKENS = 16000;
-
 const ProofreaderResponseSchema = z.object({
   correcciones: z.array(
     z.object({
@@ -618,6 +614,8 @@ Debes responder con un objeto JSON que contenga un array de correcciones con el 
     model,
     schema: ProofreaderResponseSchema,
     prompt: combinedPrompt,
+    // Sin tope, los artículos largos truncaban el JSON a la mitad y el usuario
+    // recibía "Error al procesar la respuesta del modelo" sin ninguna corrección.
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     providerOptions,
   });

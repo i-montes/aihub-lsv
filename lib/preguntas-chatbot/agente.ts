@@ -1,6 +1,6 @@
 import { ToolLoopAgent, hasToolCall, stepCountIs } from "ai";
 
-import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { crearModeloConfigurado, MAX_OUTPUT_TOKENS } from "@/lib/proveedores/opciones-modelo";
 import type { ProveedorEnUso } from "@/lib/proveedores/configuracion";
 
 import { COLUMNAS_CHATS_NEW } from "@/lib/preguntas-chatbot/db";
@@ -63,15 +63,6 @@ function instrucciones(pestanas?: PestanaPrompt[]): string {
     .replaceAll(MARCADOR_COLUMNAS, columnasParaElPrompt());
 }
 
-/**
- * Tope de salida del turno. Sin él, el proveedor aplica su propio máximo (en
- * OpenAI, bajo) y el JSON de "reportarResultado" se corta a la mitad: la
- * respuesta se ve llegar en pantalla y al terminar revienta el turno entero.
- * Es el mismo problema —y el mismo remedio— que MAX_OUTPUT_TOKENS en
- * actions/analyze-text.ts.
- */
-const MAX_OUTPUT_TOKENS = 16000;
-
 export function crearAgentePreguntasChatbot(opts: {
   configuracion: ProveedorEnUso;
   registrarConsulta: RegistrarConsulta;
@@ -82,6 +73,8 @@ export function crearAgentePreguntasChatbot(opts: {
   return new ToolLoopAgent({
     model,
     instructions: instrucciones(opts.pestanasPrompt),
+    // Sin tope, el JSON de "reportarResultado" se corta a la mitad: la
+    // respuesta se ve llegar en pantalla y al terminar revienta el turno.
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     providerOptions,
     tools: {

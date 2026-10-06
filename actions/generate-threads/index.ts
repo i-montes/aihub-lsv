@@ -10,7 +10,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { AnalyticsGeneradorHilosService} from "@/lib/analytics";
 import { calcularCosto } from "@/lib/costos";
 import { obtenerProveedorDeHerramienta, ProveedorNoConfiguradoError } from "@/lib/proveedores/configuracion";
-import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
+import { crearModeloConfigurado, MAX_OUTPUT_TOKENS } from "@/lib/proveedores/opciones-modelo";
 
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
@@ -213,6 +213,7 @@ INSTRUCCIONES ADICIONALES:
       model,
       prompt: combinedPrompt,
       schema: ThreadsSchema,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       providerOptions,
       ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
     });
