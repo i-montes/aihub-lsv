@@ -12,6 +12,14 @@ import { calcularCosto } from "@/lib/costos";
 import { obtenerProveedorDeHerramienta, ProveedorNoConfiguradoError } from "@/lib/proveedores/configuracion";
 import { crearModeloConfigurado } from "@/lib/proveedores/opciones-modelo";
 
+/**
+ * Tope de salida. Sin él, @ai-sdk/anthropic manda max_tokens 4096 a los
+ * modelos que no conoce (Sonnet 5.5...), el razonamiento se lo come entero y
+ * generateObject falla con "the model did not return a response". Mismo
+ * remedio que MAX_OUTPUT_TOKENS en actions/analyze-text.ts.
+ */
+const MAX_OUTPUT_TOKENS = 16000;
+
 const ThreadsSchema = z.object({
   threads: z.array(z.string().describe("Contenido del hilo")),
 });
@@ -213,6 +221,7 @@ INSTRUCCIONES ADICIONALES:
       model,
       prompt: combinedPrompt,
       schema: ThreadsSchema,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       providerOptions,
       ...(configuracion.proveedor === "GOOGLE" ? { temperature, topP: top_p } : {}),
     });
