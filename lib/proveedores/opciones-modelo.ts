@@ -10,14 +10,6 @@ import type { Proveedor } from "@/lib/proveedores/tipos";
 export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
 
 /**
- * Cómo saca JSON `generateObject` con Anthropic. En modo "auto" el SDK sólo
- * usa la salida estructurada nativa (`output_format`) con los modelos que
- * conoce (hasta los 4.5); con cualquier otro —Sonnet 5, Opus 4.8...— cae a
- * una tool "json" forzada con `tool_choice: "tool"`, que esos modelos
- * rechazan con un 400 ("tool_choice: type 'tool' and 'any' are not supported
- * for this model"). Todos los modelos que se ofrecen soportan la nativa.
- */
-/**
  * Tope de salida para toda llamada al modelo que no tenga uno propio más
  * corto. Sin él cada proveedor aplica el suyo: @ai-sdk/anthropic manda
  * max_tokens 4096 a los modelos que no conoce (Sonnet 5.5...) y el
@@ -28,6 +20,14 @@ export type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["pr
  */
 export const MAX_OUTPUT_TOKENS = 16000;
 
+/**
+ * Cómo saca JSON `generateObject` con Anthropic. En modo "auto" el SDK sólo
+ * usa la salida estructurada nativa (`output_format`) con los modelos que
+ * conoce (hasta los 4.5); con cualquier otro —Sonnet 5, Opus 4.8...— cae a
+ * una tool "json" forzada con `tool_choice: "tool"`, que esos modelos
+ * rechazan con un 400 ("tool_choice: type 'tool' and 'any' are not supported
+ * for this model"). Todos los modelos que se ofrecen soportan la nativa.
+ */
 export const ANTHROPIC_SALIDA_ESTRUCTURADA = { structuredOutputMode: "outputFormat" } as const;
 
 /**
