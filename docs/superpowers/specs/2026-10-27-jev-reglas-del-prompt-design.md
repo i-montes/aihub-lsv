@@ -70,8 +70,10 @@ En la primera vuelta una frase del Jev nuevo no se pudo corregir por un error de
 
 `tsc --noEmit` no reporta errores en `correccion-por-frase.ts`.
 
-## Lo que hay que decidir al revisar
+## Decisión
 
-El Jev nuevo es más fiel al manual, más rápido y más barato, pero encuentra menos cosas, porque ya no tiene las reglas de redacción. Si se quieren de vuelta las correcciones de redundancias y extranjerismos, la salida es agregarlas al manual en Ajustes, donde el tamiz las toma solo, o devolverlas a `REGLAS_GENERALES`.
+Se queda el Jev nuevo, aunque encuentre menos cosas. Decidido el 27 de octubre de 2026.
 
-La comparación es de una sola nota. Antes de sacar conclusiones fuertes hay que probarlo con más textos.
+Que el tamiz no corrija redundancias, extranjerismos ni verbos comodín está bien: el Corrector aplica el manual de La Silla, y esas reglas no están en él. No se devuelven a `REGLAS_GENERALES`. Si algún día se quieren, se agregan al manual en Ajustes y el tamiz las toma sin tocar código.
+
+La comparación es de una sola nota. Conviene mirar las primeras correcciones en producción para confirmar que el nuevo no deja pasar errores del manual.
