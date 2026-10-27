@@ -9,7 +9,8 @@
  * puntual. La única manera de tener un costo exacto por fila es
  * tokens × precio, con una tabla mantenida a mano.
  *
- * Precios verificados el 2026-09-07 contra:
+ * Precios verificados el 2026-09-07 contra (gpt-6-luna, gpt-5.6-luna y
+ * claude-sonnet-5-5, el 2026-10-27):
  *   - OpenAI:    https://developers.openai.com/api/docs/pricing
  *   - Anthropic: https://claude.com/pricing
  *   - Google:    https://ai.google.dev/gemini-api/docs/pricing
@@ -66,6 +67,21 @@ const usd = (porMillon: number): number => porMillon / POR_MILLON;
 const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
 
 /**
+ * Tarifa escalonada de OpenAI: por encima de 272,000 tokens de input el prompt
+ * COMPLETO se cobra con la tarifa larga. OpenAI publica las dos (en los
+ * modelos de hoy, 2x input / 1.5x output — a diferencia de Gemini, que dobla
+ * input y output por igual). No cobra por escribir a caché: es automático y
+ * gratis crearla.
+ */
+const tarifaOpenAI = (
+  corto: { input: number; cacheRead: number; output: number },
+  largo: { input: number; cacheRead: number; output: number },
+): TarifaModelo => (inputTokensTotal) => {
+  const t = inputTokensTotal > 272_000 ? largo : corto;
+  return { input: usd(t.input), cacheRead: usd(t.cacheRead), cacheWrite: null, output: usd(t.output) };
+};
+
+/**
  * Tabla de precios por (proveedor, modelo).
  *
  * La clave es el string exacto que guarda la columna de modelo de cada tabla
@@ -77,20 +93,22 @@ const tarifaFija = (t: TarifaPorToken): TarifaModelo => () => t;
 const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
   openai: {
     // gpt-5.6-terra: DEFAULT_MODELS.OPENAI en lib/utils.ts.
-    // Tarifa escalonada: por encima de 272,000 tokens de input el prompt
-    // COMPLETO se cobra a 2x input / 1.5x output — a diferencia de Gemini
-    // (que dobla input y output por igual), acá el multiplicador es distinto
-    // para cada lado.
-    "gpt-5.6-terra": (inputTokensTotal) => {
-      const promptLargo = inputTokensTotal > 272_000;
-      return {
-        input: usd(promptLargo ? 4.0 : 2.0),
-        cacheRead: usd(promptLargo ? 0.4 : 0.2),
-        // OpenAI no cobra por escribir a caché: es automático y gratis crearla.
-        cacheWrite: null,
-        output: usd(promptLargo ? 18.0 : 12.0),
-      };
-    },
+    "gpt-5.6-terra": tarifaOpenAI(
+      { input: 2.0, cacheRead: 0.2, output: 12.0 },
+      { input: 4.0, cacheRead: 0.4, output: 18.0 },
+    ),
+    // gpt-6-luna: el modelo de OpenAI configurado en las herramientas desde
+    // Ajustes > Herramientas.
+    "gpt-6-luna": tarifaOpenAI(
+      { input: 0.1, cacheRead: 0.01, output: 0.5 },
+      { input: 0.2, cacheRead: 0.02, output: 0.75 },
+    ),
+    // gpt-5.6-luna: MODELO_CORRECTOR, el que corrige las frases que marca Jev
+    // (lib/proofreader/correccion-por-frase.ts).
+    "gpt-5.6-luna": tarifaOpenAI(
+      { input: 0.2, cacheRead: 0.02, output: 1.2 },
+      { input: 0.4, cacheRead: 0.04, output: 1.8 },
+    ),
     // gpt-4o-mini-2024-07-18: MINI_MODELS.OPENAI, usado en pasos baratos
     "gpt-4o-mini-2024-07-18": tarifaFija({
       input: usd(0.15),
@@ -114,6 +132,15 @@ const TARIFAS: Record<string, Record<string, TarifaModelo>> = {
       input: usd(2.0),
       cacheRead: usd(0.2),
       // Cache write (TTL de 5 min): 1.25x el input, mismo patrón que Opus 4.8.
+      cacheWrite: usd(2.5),
+      output: usd(10.0),
+    }),
+    // claude-sonnet-5-5: el modelo de Anthropic configurado en las
+    // herramientas. Mismo precio que Sonnet 5 salvo la lectura de caché, que
+    // en Sonnet 5.5 es 0.05x el input (la mitad). Sin recargo por contexto largo.
+    "claude-sonnet-5-5": tarifaFija({
+      input: usd(2.0),
+      cacheRead: usd(0.1),
       cacheWrite: usd(2.5),
       output: usd(10.0),
     }),
