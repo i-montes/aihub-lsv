@@ -304,20 +304,20 @@ export async function analyzeText(
     // con las reglas sospechosas en vez del manual entero. Si no hay
     // `TYPESAFE_API_KEY` o el tamiz se cae, se sigue por el flujo de siempre.
     //
-    // Está apagado por defecto: el flujo clásico de una sola llamada es el
-    // normal y Jev sólo entra con CORRECTOR_CON_JEV=true.
+    // Está encendido por defecto. CORRECTOR_CON_JEV=false lo apaga y deja el
+    // flujo clásico de una sola llamada, sin tocar código.
     //
     // Las frases marcadas se corrigen con un modelo propio, rápido y barato,
     // porque son muchas llamadas cortas en paralelo y no una grande. El
     // paso por frase usa el modelo fijo de OpenAI si el Corrector tiene
     // OpenAI encendido; si no, el proveedor elegido.
-    const conJev = process.env.CORRECTOR_CON_JEV === "true";
+    const conJev = process.env.CORRECTOR_CON_JEV !== "false";
 
     // Con Jev apagado no se usa, pero las analíticas lo leen si hubo porFrase.
     let corrector: { modelo: { provider: string; model: string }; apiKey: string } = { modelo: selectedModel, apiKey };
     let porFrase = null;
     if (!conJev) {
-      debugLogger.info("Tamiz con Jev apagado (CORRECTOR_CON_JEV): flujo de una sola llamada");
+      debugLogger.info("Tamiz con Jev apagado (CORRECTOR_CON_JEV=false): flujo de una sola llamada");
     } else {
       try {
         try {

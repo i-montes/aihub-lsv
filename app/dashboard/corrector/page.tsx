@@ -370,7 +370,7 @@ export default function ProofreaderPage() {
         // Jev estaba encendido pero no hubo traza: el análisis se cayó al
         // camino de una sola llamada. Antes eso pasaba en silencio y la única
         // pista era que el botón "Ver proceso" no aparecía. Con Jev apagado
-        // (lo normal) el flujo clásico es el esperado y no se avisa.
+        // (CORRECTOR_CON_JEV=false) el flujo clásico es el esperado y no se avisa.
         toast.info("Se analizó con el flujo clásico", {
           description:
             "El tamiz por frase no se usó. Suele ser que falta TYPESAFE_API_KEY o que la petición falló; míralo en el debug.",
