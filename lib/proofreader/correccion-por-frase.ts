@@ -222,110 +222,111 @@ export type ResultadoPorFrase = {
 // ---------------------------------------------------------------------------
 
 /**
- * Las reglas del manual, escritas a mano.
- *
- * Antes se sacaban del prompt guardado en Supabase con expresiones regulares.
- * No funcionó: el manual real es un Markdown de 23.000 caracteres con viñetas
- * anidadas, ejemplos marcados con ✅/❌ y secciones numeradas, y el parser
- * devolvía 169 "reglas" que en su mayoría eran ejemplos sueltos ("✅ Verde
- * Oxígeno"), fragmentos a media frase o instrucciones del formato de salida.
- * Con 169 opciones el Choice reparte la probabilidad tan fina que las reglas
- * de verdad —la de siglas, por ejemplo— no llegaban ni al umbral mínimo.
- *
- * Aquí están una por una, atómicas y autocontenidas. El manual completo sigue
- * yendo al modelo corrector en la segunda etapa, así que lo que esta lista
- * necesita no es reproducirlo entero sino nombrar cada cosa que se puede
- * incumplir, con los ejemplos justos para no confundirla con su vecina.
- *
- * Al final van las reglas generales de ortografía y gramática, que el manual
- * da por sabidas porque no las escribe: sin ellas una tilde comida no tendría
- * ninguna opción a la que asignarse.
- *
- * Cuando el manual del Hub cambie, esta lista hay que tocarla a mano. Es el
- * precio de que el tamiz sea predecible.
+ * Las reglas que el manual da por sabidas porque no las escribe: sin ellas una
+ * tilde comida o una concordancia rota no tendrían ninguna opción a la que
+ * asignarse. Son las únicas escritas a mano; todo lo demás sale del manual.
  */
-const CATALOGO: Array<Omit<Regla, "id">> = [
-  // --- Donde La Silla se aparta de la RAE (máxima prioridad) ---------------
-  { categoria: "Gobierno", tipo: "spelling", texto: "«gobierno» va SIEMPRE en minúscula, incluso en «gobierno Petro» o «gobierno Santos». La única excepción es al inicio de oración. Si ya está en minúscula, está correcto." },
-  { categoria: "Siglas", tipo: "style", texto: "Las siglas de 3 letras o menos van en mayúsculas sostenidas y sin puntos: ONU, JEP, ELN, ONG, PIB, IVA, CNE, DNP, FBI. Es error escribir O.N.U. o F.B.I." },
-  { categoria: "Siglas", tipo: "style", texto: "CUALQUIER sigla de 4 letras o más va sólo con la primera letra en mayúscula, aunque la grafía oficial use mayúscula sostenida. La regla vale para toda sigla, esté o no en estos ejemplos: Farc, Otan, Unicef, Dane, Sena, Icbf, Invima, Conpes, Fecode. Es error escribir FARC, OTAN, UNICEF, DANE, ICBF." },
-  { categoria: "Siglas", tipo: "style", texto: "Las siglas no se pluralizan con «s»: se escribe «las ONG» y «las Farc», nunca «las ONGs» ni «las Farcs»." },
-  { categoria: "Siglas", tipo: "spelling", texto: "Los acrónimos pronunciables llevan tilde cuando la acentuación lo exige, porque se tratan como palabras comunes: Sisbén, Dijín. Es error escribir Sisben o Dijin." },
-  { categoria: "Siglas", tipo: "style", texto: "Excepciones que NO se tocan: EE.UU. conserva sus puntos; las abreviaturas de ministerios con mayúscula interna (MinHacienda, MinTIC, MinSalud) son nombres propios y no siglas; los partidos enumerados en el manual conservan su grafía aunque contradiga el conteo de letras, como ALMA." },
-  { categoria: "Siglas", tipo: "style", texto: "No se cambian los guiones de una sigla ni se unen o separan las combinaciones de sigla y número, que conservan su grafía oficial: M-19 con guion, COP30 unido." },
-
-  // --- Cifras con mil y millones -------------------------------------------
-  { categoria: "Cifras", tipo: "style", texto: "Los separadores son punto para los miles y coma para los decimales: 1.245.557,88." },
-  { categoria: "Cifras", tipo: "style", texto: "El numeral que acompaña a «mil» o «millones» va siempre en cifras, aunque esté entre 1 y 10: «5 millones», «3 mil». Es error «cinco millones» o «tres mil»." },
-  { categoria: "Cifras", tipo: "style", texto: "Una cantidad se escribe con «mil» o «millones» sólo si cabe en un solo numeral, con un decimal como máximo para «millones» y ninguno para «mil»: 13 mil, 574 mil, 5 millones, 2,5 millones. Si no cabe, va la cifra completa y no hay corrección: 1.750.000, 23.400, 13.092. Es error componer «1 millón 750 mil» o «23,4 mil»." },
-
-  // --- Grafías editoriales obligatorias ------------------------------------
-  { categoria: "Grafías", tipo: "style", texto: "Las cabeceras propias se escriben así: La Silla Vacía (o La Silla), La Silla Llena, La Silla Académica, La Silla Datos, Detector de Mentiras, Huevos Revueltos con Política." },
-  { categoria: "Grafías", tipo: "style", texto: "«paz total» va en minúscula. Es error «Paz Total» o «Paz total»." },
-  { categoria: "Grafías", tipo: "spelling", texto: "Se escriben en una sola palabra, sin guion ni espacio: posacuerdo, posconflicto, centroderecha, centroizquierda." },
-  { categoria: "Grafías", tipo: "style", texto: "Los cargos en femenino se escriben en femenino: vicepresidenta, alcaldesa, concejala, lideresa, jueza." },
-  { categoria: "Grafías", tipo: "spelling", texto: "«pódcast» lleva tilde, en singular y en plural." },
-  { categoria: "Grafías", tipo: "style", texto: "Se escribe «noticias clave», nunca «noticias claves»." },
-  { categoria: "Grafías", tipo: "style", texto: "Se escribe «Lista Clinton» con mayúscula inicial en las dos palabras, nunca «lista Clinton»." },
-  { categoria: "Grafías", tipo: "style", texto: "Se escribe «Acuerdo de Paz», tanto el de las Farc como el del ELN. Es error «acuerdo de Paz»." },
-  { categoria: "Grafías", tipo: "style", texto: "Se escribe «Revista Semana» con mayúscula. No se extiende a otras revistas que el manual no enumera." },
-  { categoria: "Grafías", tipo: "style", texto: "El apellido «de la Espriella» lleva la partícula en minúscula cuando va inmediatamente después del nombre de pila («Abelardo de la Espriella») y en mayúscula cuando no («De la Espriella dijo», «amigo de De la Espriella»). El «la» va siempre en minúscula: «De La Espriella» es error." },
-  { categoria: "Grafías", tipo: "style", texto: "Los partidos conservan su grafía oficial: Pacto Histórico, Centro Democrático, Cambio Radical, ALMA, Partido Liberal, Partido Conservador, Verde, ASI, Colombia Renaciente, Fuerza de la Paz, Nuevo Liberalismo, Dignidad, Mira, Fuerza Ciudadana, Comunes, Verde Oxígeno, Creemos, Partido de La U, Salvación Nacional, Mais, Aico, En Marcha. Se mantienen los guiones de las coaliciones." },
-
-  // --- Puntuación -----------------------------------------------------------
-  { categoria: "Puntuación", tipo: "punctuation", texto: "Nunca va coma separando directamente el sujeto del verbo principal: «El presidente, firmó el decreto» es error. Sí es válida cuando entre los dos hay un inciso o un complemento: «El presidente, en su primer año, firmó el decreto». También va coma cuando la lista de sujetos termina en «etc.»." },
-  { categoria: "Puntuación", tipo: "punctuation", texto: "Van coma obligatoria: antes de «ya que», «pues», «puesto que» y «dado que»; después del vocativo («Buenas tardes, fiscal»); y después de las expresiones de enlace («De hecho,», «Sin embargo,»)." },
-  { categoria: "Puntuación", tipo: "punctuation", texto: "Va coma antes de «pero», salvo en dos casos: cuando «pero» precede a una pregunta («Pero ¿por qué llegaron tarde?») y cuando contrapone cualidades («La ciudad es linda pero insegura»)." },
-  { categoria: "Puntuación", tipo: "punctuation", texto: "Los incisos se abren y se cierran con el mismo signo, sea coma, raya o paréntesis: «Juan, presidente del comité, llegó»." },
-
-  // --- Comillas y citas -----------------------------------------------------
-  { categoria: "Comillas", tipo: "punctuation", texto: "Las comillas dobles se usan para citas directas, alias y títulos; las sencillas, dentro de las dobles o para el sentido aproximado." },
-  { categoria: "Comillas", tipo: "punctuation", texto: "La cita directa va después de dos puntos y empieza con mayúscula. La cita indirecta va sin comillas y sin dos puntos." },
-  { categoria: "Comillas", tipo: "punctuation", texto: "El punto va siempre después de las comillas, las rayas o los paréntesis: «Dijo: \"No es cierto\".» Es error «Dijo: \"No es cierto.\"»." },
-  { categoria: "Comillas", tipo: "style", texto: "Dentro de una cita textual se aplica la grafía del manual y se corrigen los errores evidentes, pero nunca se reformula ni se cambian las palabras." },
-
-  // --- Concordancias --------------------------------------------------------
-  { categoria: "Concordancia", tipo: "grammar", texto: "El verbo «haber» existencial va siempre en singular: «Habrá muchas personas», nunca «Habrán muchas personas»." },
-  { categoria: "Concordancia", tipo: "grammar", texto: "Las construcciones partitivas llevan el verbo en plural: «La mayoría de votantes eligieron»." },
-  { categoria: "Concordancia", tipo: "grammar", texto: "«le» y «les» concuerdan en número con el objeto indirecto al que se refieren." },
-  { categoria: "Concordancia", tipo: "grammar", texto: "Los eventos «se inician», no «inician»." },
-
-  // --- Prefijos -------------------------------------------------------------
-  { categoria: "Prefijos", tipo: "spelling", texto: "Los prefijos (ex, anti, vice, pro, pre) se escriben unidos cuando la base es una sola palabra: preelectoral, anticuerpo, exministro, vicepresidente, antivacuna. Es error «ex ministro», «anti-cuerpo» o «vice-presidente»." },
-  { categoria: "Prefijos", tipo: "spelling", texto: "Cuando el prefijo afecta a una expresión de varias palabras va separado por un espacio y sin guion: «ex primer ministro», «ex ministro del Interior», «pro Unión Europea». Es error «exprimer ministro» o «pro-Unión Europea»." },
-  { categoria: "Prefijos", tipo: "spelling", texto: "El prefijo va con guion cuando le sigue un número, una sigla o un nombre propio: sub-17, anti-ONG, pro-Biden, ex-Farc." },
-
-  // --- Tildes ---------------------------------------------------------------
-  { categoria: "Tildes", tipo: "spelling", texto: "Las mayúsculas llevan tilde: Álvaro, África." },
-  { categoria: "Tildes", tipo: "spelling", texto: "«este» y «esta» van sin tilde, salvo ambigüedad real." },
-  { categoria: "Tildes", tipo: "spelling", texto: "«solo» va sin tilde por defecto, signifique «solamente» o «sin compañía». Sólo se tilda cuando sin la tilde la frase quedaría genuinamente ambigua." },
-
-  // --- Números y fechas -----------------------------------------------------
-  { categoria: "Números y fechas", tipo: "style", texto: "Las fechas van en cifras: «1 de febrero de 2021». Es error «primero de febrero de 2021»." },
-  { categoria: "Números y fechas", tipo: "style", texto: "Las horas van en cifras, en formato de 12 horas y con «de la mañana», «de la tarde» o «de la noche»: «3 de la tarde». Es error «15:00» y también «tres de la tarde»." },
-  { categoria: "Números y fechas", tipo: "style", texto: "Los porcentajes van en cifra con el símbolo %: «15%», «3%». Es error «quince por ciento» o «3 por ciento»." },
-  { categoria: "Números y fechas", tipo: "style", texto: "Un número entero entre 1 y 10 escrito en cifras va en letras cuando cuantifica directamente a un sustantivo que le sigue y no hay unidad de medida ni identificador: «3 personas» debe ser «tres personas». No aplica a fechas, horas, gráficas, carreras, decimales ni rangos con unidad." },
-  { categoria: "Números y fechas", tipo: "style", texto: "Un número mayor de 10 escrito en letras va en cifras, salvo que abra la oración o sea una expresión lexicalizada: «treinta días» debe ser «30 días», pero «Treinta días después» y «las mil y una noches» son correctos." },
-
-  // --- Mayúsculas y minúsculas ---------------------------------------------
-  { categoria: "Mayúsculas", tipo: "spelling", texto: "Los nombres de cargos van en minúscula: «el presidente Petro», «la ministra», «el fiscal general». Sólo van en mayúscula si forman parte del nombre oficial de una institución." },
-  { categoria: "Mayúsculas", tipo: "spelling", texto: "Van en minúscula los meses, los días, las estaciones, los gentilicios, las etnias y las ideologías (uribismo, neoliberalismo)." },
-
-  // --- Estilo editorial -----------------------------------------------------
-  { categoria: "Estilo", tipo: "style", texto: "Las frases buscan un máximo de 18 palabras de promedio. Sólo se marcan los casos extremos en que la longitud daña claramente la comprensión." },
-  { categoria: "Estilo", tipo: "style", texto: "Se evitan los verbos comodín cuando existe uno más preciso: «permitir», «generar», «presentar». Sólo se corrige cuando el verbo preciso es claramente mejor en contexto." },
-
-  // --- Las generales, que el manual da por sabidas --------------------------
+const REGLAS_GENERALES: Array<Omit<Regla, "id">> = [
   { categoria: "Ortografía", tipo: "spelling", texto: "Las palabras están bien escritas y bien acentuadas según la ortografía del español: sin letras cambiadas, sin tildes comidas ni sobrantes." },
   { categoria: "Gramática", tipo: "grammar", texto: "Hay concordancia de género y número entre el sustantivo y sus determinantes y adjetivos, y entre el sujeto y su verbo." },
   { categoria: "Gramática", tipo: "grammar", texto: "El régimen preposicional y los tiempos verbales son los que corresponden; no hay dequeísmo, queísmo ni cambios de tiempo injustificados." },
-  { categoria: "Redacción", tipo: "style", texto: "No hay redundancias, pleonasmos ni muletillas que sobren en una frase periodística." },
-  { categoria: "Redacción", tipo: "style", texto: "No hay extranjerismos evitables cuando existe una palabra equivalente en español." },
 ];
 
-/** El catálogo con su id, que es lo que viaja como opción del Choice. */
-export function reglasDelManual(): Regla[] {
-  return CATALOGO.map((regla, i) => ({ ...regla, id: `r${i}` }));
+/** Un título de numeral: "0.2 Siglas…", "7. NÚMEROS Y FECHAS". */
+const NUMERAL = /^\d+(\.\d+)*\.?\s/;
+
+/** "0.3 Excepciones a la regla de siglas": no es una regla, completa la anterior. */
+const DE_EXCEPCIONES = /^\d+(\.\d+)*\.?\s+excepci/i;
+
+type Seccion = { nivel: number; titulo: string; cuerpo: string[] };
+
+/** Corta el Markdown por títulos; lo que va antes del primero se descarta. */
+function partirEnSecciones(manual: string): Seccion[] {
+  const secciones: Seccion[] = [];
+  let actual: Seccion | null = null;
+  let enBloqueDeCodigo = false;
+
+  for (const linea of manual.replace(/\r\n/g, "\n").split("\n")) {
+    if (linea.trim().startsWith("```")) enBloqueDeCodigo = !enBloqueDeCodigo;
+    const titulo = enBloqueDeCodigo ? null : /^(#{1,6})\s+(.+)$/.exec(linea);
+    if (titulo) {
+      actual = { nivel: titulo[1].length, titulo: titulo[2].trim(), cuerpo: [] };
+      secciones.push(actual);
+    } else {
+      actual?.cuerpo.push(linea);
+    }
+  }
+  return secciones;
+}
+
+/** El tipo con que la UI pinta la sugerencia, deducido del título del numeral. */
+function tipoDeSeccion(titulo: string): SuggestionType {
+  const t = titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/puntuacion|coma|comilla|cita|inciso/.test(t)) return "punctuation";
+  if (/concordancia|gramatica/.test(t)) return "grammar";
+  if (/tilde|ortografia|prefijo|mayuscula|gobierno/.test(t)) return "spelling";
+  return "style";
+}
+
+/**
+ * Las reglas del manual, una por numeral y con su texto exacto.
+ *
+ * Se leen de la guía de estilo guardada en Ajustes > Herramientas, así que un
+ * cambio en el manual llega al tamiz sin tocar código. Cada numeral con título
+ * propio ("### 0.2 Siglas…", "## 4. CONCORDANCIAS VERBALES") es una regla, y
+ * los subtítulos sin número ("### Coma Criminal", "### Partidos…") se quedan
+ * dentro del numeral al que pertenecen. Un numeral de excepciones ("0.3
+ * Excepciones a la regla de siglas") no dice nada que se pueda incumplir, así
+ * que se une al numeral anterior. Un numeral que sólo agrupa a otros (el
+ * "## 0." de las reglas que contradicen a la RAE) no es una regla: su
+ * introducción no dice nada que se pueda incumplir.
+ *
+ * Antes las reglas se escribían a mano resumiendo el manual, y el resumen se
+ * apartaba del original. Antes de eso se sacaban con expresiones regulares
+ * viñeta por viñeta, y salían 169 "reglas" que eran sobre todo ejemplos
+ * sueltos: con tantas opciones el Choice repartía la probabilidad tan fina que
+ * las reglas de verdad no llegaban al umbral. Por numeral quedan unas veinte.
+ *
+ * Si el manual no tiene numerales, cada título es una regla; si no tiene
+ * títulos, el manual entero es una sola.
+ */
+export function reglasDelManual(manual: string): Regla[] {
+  const secciones = partirEnSecciones(manual);
+  const conNumerales = secciones.some((s) => NUMERAL.test(s.titulo));
+
+  const unidades: Seccion[] = [];
+  for (const seccion of secciones) {
+    const esExcepcion = DE_EXCEPCIONES.test(seccion.titulo);
+    if ((!conNumerales || NUMERAL.test(seccion.titulo)) && !(esExcepcion && unidades.length > 0)) {
+      unidades.push({ ...seccion, cuerpo: [...seccion.cuerpo] });
+    } else if (unidades.length > 0) {
+      // Subtítulo sin número, o numeral de excepciones: sigue siendo parte del
+      // numeral anterior, para que el corrector nunca reciba una regla sin sus
+      // excepciones.
+      unidades[unidades.length - 1].cuerpo.push(`${"#".repeat(seccion.nivel)} ${seccion.titulo}`, ...seccion.cuerpo);
+    }
+  }
+
+  const delManual = unidades
+    .filter((u, i) => {
+      // Fuera los numerales que sólo agrupan: el siguiente es un hijo suyo.
+      const siguiente = unidades[i + 1];
+      return !(siguiente && siguiente.nivel > u.nivel);
+    })
+    .map((u) => ({
+      categoria: u.titulo,
+      tipo: tipoDeSeccion(u.titulo),
+      // Sin los separadores "---" del Markdown, que no son parte de la regla.
+      texto: u.cuerpo.filter((l) => l.trim() !== "---").join("\n").trim(),
+    }))
+    .filter((r) => r.texto !== "");
+
+  const reglas =
+    delManual.length > 0 || manual.trim() === ""
+      ? delManual
+      : [{ categoria: "Manual de estilo", tipo: "style" as const, texto: manual.trim() }];
+
+  return [...reglas, ...REGLAS_GENERALES].map((regla, i) => ({ ...regla, id: `r${i}` }));
 }
 
 // ---------------------------------------------------------------------------
@@ -394,13 +395,14 @@ const LOTE_FRASES = Number(process.env.PROOFREADER_LOTE_FRASES ?? 20);
 /**
  * Cuántas reglas candidatas se le pasan al corrector por frase.
  *
- * Sin corte por probabilidad, y a propósito. El Choice reparte 1 entre las 53
- * reglas, así que la que acierta puede quedarse en 0,08 y aun así ser la
+ * Sin corte por probabilidad, y a propósito. El Choice reparte 1 entre todas
+ * las reglas, así que la que acierta puede quedarse en 0,08 y aun así ser la
  * buena: con un mínimo de 0,1 se perdían casos reales —una frase con ESAP y
  * EAFIT se marcaba como rota pero la regla de siglas no llegaba a pasar—.
  *
- * Quince en vez de tres cuestan unos 700 tokens más por frase marcada, que al
- * lado de lo que cuesta la llamada no es nada. Y el riesgo es bajo: al
+ * Cinco y no quince porque cada regla es un numeral entero del manual, de 300
+ * a 2.600 caracteres, y el manual tiene una docena: quince candidatas serían
+ * el manual completo en cada llamada. Y el riesgo es bajo: al
  * corrector se le dice que son sospechas y que devuelva lista vacía si la
  * frase está bien.
  *
@@ -408,7 +410,7 @@ const LOTE_FRASES = Number(process.env.PROOFREADER_LOTE_FRASES ?? 20);
  * cada una llega con casi todo el reparto encima, así que subir el corte de
  * arriba no puede costar una regla abajo.
  */
-const CANDIDATAS_MAX = Number(process.env.PROOFREADER_CANDIDATAS ?? 15);
+const CANDIDATAS_MAX = Number(process.env.PROOFREADER_CANDIDATAS ?? 5);
 
 /** Se guardan más de las que se envían, para poder ver dónde cae el corte. */
 const CANDIDATAS_EN_TRAZA = 20;
@@ -756,8 +758,12 @@ async function corregir(
     const prompt = [
       `REGLAS SOSPECHOSAS EN ESTA FRASE (el filtro le da ${marcada.rompe.toFixed(2)} de 1 a que haya algo roto):`,
       ...marcada.incumple.map(
+        // Cada regla es un numeral entero del manual, con viñetas y ejemplos:
+        // va en su propio bloque para que no se confunda con la siguiente.
         ({ regla, probabilidad }) =>
-          `- [${regla.id}] (${regla.categoria}, ${probabilidad.toFixed(2)}) ${regla.texto}`,
+          `
+### [${regla.id}] ${regla.categoria} (${probabilidad.toFixed(2)})
+${regla.texto}`,
       ),
       "",
       `FRASE ANTERIOR (sólo contexto): ${contexto.anterior ?? "—"}`,
@@ -838,8 +844,10 @@ async function corregir(
       }
 
       return propuestas.flatMap(({ descartada, ...c }) => (descartada ? [] : [c]));
-    } catch {
-      // Vale más entregar el resto de correcciones que tumbar el análisis.
+    } catch (error) {
+      // Vale más entregar el resto de correcciones que tumbar el análisis,
+      // pero sin decir por qué no hay forma de saber qué ajustar.
+      console.error(`[corrector] ❌ frase ${marcada.frase.indice} no se pudo corregir:`, error);
       conError++;
       const paso = opciones.traza.get(marcada.frase.indice);
       if (paso) {
@@ -893,7 +901,7 @@ export async function analizarPorFrase(
     timeout: 30_000,
   });
 
-  const reglas = reglasDelManual();
+  const reglas = reglasDelManual(opciones.guiaDeEstilo);
   const frases = partirEnFrases(texto);
 
   const vacio: ResultadoPorFrase = {
