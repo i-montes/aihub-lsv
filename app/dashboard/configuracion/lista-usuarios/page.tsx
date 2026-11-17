@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { api } from "@/lib/api-client"
-import { Trash2, Edit } from "lucide-react"
+import { Trash2, Edit, KeyRound, Copy } from "lucide-react"
 
 export default function UserListSettingsPage() {
   const { profile: currentUserProfile } = useAuth()
@@ -41,6 +41,37 @@ export default function UserListSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const [userToReset, setUserToReset] = useState<Profile | null>(null)
+  const [newPassword, setNewPassword] = useState("")
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
+
+  const closeResetDialog = () => {
+    setUserToReset(null)
+    setNewPassword("")
+    setGeneratedPassword(null)
+  }
+
+  // Sin contraseña, el servidor genera una y la devuelve una sola vez.
+  const handleResetPassword = async (password?: string) => {
+    if (!userToReset) return
+    try {
+      setIsResetting(true)
+      const res = await api.post(`/organization/members/${userToReset.id}/password`, password ? { password } : {})
+      if (res.data?.password) {
+        setGeneratedPassword(res.data.password)
+        toast.success("Contraseña generada. Cópiala y compártela con el usuario.")
+      } else {
+        toast.success("Contraseña restablecida")
+        closeResetDialog()
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al restablecer la contraseña")
+    } finally {
+      setIsResetting(false)
+    }
+  }
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -327,6 +358,16 @@ export default function UserListSettingsPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="p-2"
+                        title="Restablecer contraseña"
+                        aria-label="Restablecer contraseña"
+                        onClick={() => setUserToReset(member)}
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="p-2 text-red-500 hover:text-red-700"
                         onClick={() => {
                           setUserToDelete(member)
@@ -429,6 +470,78 @@ export default function UserListSettingsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!userToReset} onOpenChange={(open) => !open && !isResetting && closeResetDialog()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Restablecer contraseña</DialogTitle>
+            <DialogDescription>
+              Establece una contraseña nueva para {userToReset?.email} o genera una aleatoria.
+            </DialogDescription>
+          </DialogHeader>
+          {generatedPassword ? (
+            <div className="space-y-2 py-4">
+              <Label htmlFor="generated-password">Contraseña generada</Label>
+              <div className="flex gap-2">
+                <Input id="generated-password" value={generatedPassword} readOnly className="font-mono" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label="Copiar contraseña"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedPassword)
+                    toast.success("Contraseña copiada")
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">No se volverá a mostrar. Compártela con el usuario por un canal seguro.</p>
+            </div>
+          ) : (
+            <form
+              id="reset-password-form"
+              className="space-y-2 py-4"
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleResetPassword(newPassword)
+              }}
+            >
+              <Label htmlFor="new-password">Nueva contraseña</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">Mínimo 8 caracteres.</p>
+            </form>
+          )}
+          <DialogFooter>
+            {generatedPassword ? (
+              <Button onClick={closeResetDialog}>Listo</Button>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => handleResetPassword()} disabled={isResetting}>
+                  Generar contraseña
+                </Button>
+                <Button
+                  type="submit"
+                  form="reset-password-form"
+                  className="bg-sidebar text-white hover:bg-sidebar/90"
+                  disabled={isResetting}
+                >
+                  {isResetting ? "Guardando..." : "Establecer"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
