@@ -11,6 +11,7 @@ import {
 import { WordPressSearchDialog } from "@/components/shared/wordpress-search-dialog";
 import { SelectedContentModal } from "@/components/shared/selected-content-modal";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileText, Edit3, Eye, Copy } from "lucide-react";
 import { ApiKeyRequiredModal } from "@/components/proofreader/api-key-required-modal";
 import { AvisoErrorProveedores } from "@/components/tools/aviso-error-proveedores";
@@ -42,6 +43,13 @@ export type WordPressPost = {
   link: string;
   date: string;
 };
+
+// IDs de categoría en WordPress de La Silla Vacía.
+const CATEGORIAS = [
+  { id: "4932", nombre: "En Vivo" },
+  { id: "4924", nombre: "Nacional" },
+  { id: "137184", nombre: "Silla Amazonía" },
+];
 
 export default function GeneradorResumenes() {
   // Get today's date in YYYY-MM-DD format
@@ -99,7 +107,16 @@ export default function GeneradorResumenes() {
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const allowedCategories = ["4932", "4924", "137184"];
+  const [allowedCategories, setAllowedCategories] = useState<string[]>(["4932"]);
+
+  const toggleCategory = (id: string, checked: boolean) =>
+    setAllowedCategories((prev) =>
+      checked
+        ? [...prev, id]
+        : prev.length > 1 // siempre debe quedar al menos una categoría
+          ? prev.filter((c) => c !== id)
+          : prev
+    );
 
   // Function to fetch WordPress content with pagination
   const fetchWordPressContent = async (
@@ -493,6 +510,29 @@ export default function GeneradorResumenes() {
                 </SelectContent>
               </Select>
             </div>
+
+            {selectionMode && (
+              <fieldset>
+                <legend className="block text-sm font-medium text-gray-700 mb-1">
+                  Categorías
+                </legend>
+                <div className="flex flex-wrap gap-4">
+                  {CATEGORIAS.map(({ id, nombre }) => {
+                    const checked = allowedCategories.includes(id);
+                    return (
+                      <label key={id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <Checkbox
+                          checked={checked}
+                          disabled={checked && allowedCategories.length === 1}
+                          onCheckedChange={(v) => toggleCategory(id, v === true)}
+                        />
+                        {nombre}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
 
             {/* WordPress Content Selection */}
             {selectionMode === "wordpress" && (
