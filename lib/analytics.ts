@@ -619,4 +619,50 @@ class AnalyticsPreguntasChatbotService extends Analytics<AnalyticsPreguntasChatb
   }
 }
 
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService };
+/**
+ * Analytics de "En Vivo": de una nota a la pieza para Facebook. Una fila por pieza; los cambios,
+ * la publicación y la descarga actualizan la misma fila (ver app/api/en-vivo/*).
+ */
+export type AnalyticsEnVivo = {
+  id?: number | string;
+  session_id?: string;
+  user_id?: string | null;
+  organization_id?: string | null;
+
+  url_nota?: string | null;
+  titular?: string | null;
+  personas?: string[] | null;
+  /** "plantilla" (armada en el servidor) o "canva" (plan B con service app) */
+  motor?: string | null;
+  /** Autofills en Canva: cada uno gasta 10 créditos de la API de Canva */
+  autofills_canva?: number | null;
+  cambios_pedidos?: number | null;
+  publicada?: boolean | null;
+  permalink?: string | null;
+  publicada_instagram?: boolean | null;
+  permalink_instagram?: string | null;
+  descargada?: boolean | null;
+
+  modelo_utilizado?: string | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  cache_write_tokens?: number | null;
+  /** USD de las llamadas al modelo, con lib/costos.ts. No incluye los créditos de Canva. */
+  costo?: number | null;
+  tiempo_procesamiento?: number | null;
+  error_mensaje?: string | null;
+
+  created_at?: Date | null;
+  updated_at?: Date | null;
+};
+
+class AnalyticsEnVivoService extends Analytics<AnalyticsEnVivo> {
+  constructor(schema: AnalyticsEnVivo = {} as AnalyticsEnVivo, existingId?: string | number) {
+    super('en_vivo', schema, existingId);
+  }
+}
+
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService, AnalyticsEnVivoService };

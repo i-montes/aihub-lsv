@@ -7,6 +7,13 @@ const nextConfig = {
     unoptimized: true,
   },
 
+  // En Vivo arma la pieza en el servidor con la capa, el recuadro y las
+  // fuentes de lib/en-vivo/plantilla, que se leen del disco: hay que incluirlas
+  // en las funciones de Vercel.
+  outputFileTracingIncludes: {
+    "/api/en-vivo/**": ["./lib/en-vivo/plantilla/**"],
+  },
+
   // Next bloquea las Server Actions cuando `x-forwarded-host` no coincide con
   // `origin`, que es su defensa contra CSRF. Al abrir la app por el túnel de
   // puertos de VS Code (`*.devtunnels.ms`) eso pasa siempre, y el corrector

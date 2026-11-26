@@ -55,9 +55,8 @@ export async function getWordPressConnection(
       query = query.eq("id", connectionId);
     }
     
+    // No se imprime la fila: trae la contraseña y los tokens de WordPress en claro.
     const { data: connections, error } = await query.single();
-    console.log("connections: ", connections);
-    console.log("error: ", error);
 
     if (error || !connections) {
       return {

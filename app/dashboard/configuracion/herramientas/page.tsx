@@ -13,6 +13,7 @@ import { getSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import type { Tool } from "@/types/tool"
 import { PROMPTS_BASE_PREGUNTAS_CHATBOT } from "@/lib/preguntas-chatbot/prompt-base"
+import { PROMPTS_BASE_EN_VIVO } from "@/lib/en-vivo/prompt-base"
 import type { ProveedorActivo } from "@/lib/proveedores/tipos"
 
 /**
@@ -226,6 +227,28 @@ export default function ToolsSettingsPage() {
           identity: "preguntas-chatbot",
           schema: {},
           prompts: PROMPTS_BASE_PREGUNTAS_CHATBOT.map((p) => ({ ...p })),
+          temperature: 0.7,
+          topP: 1,
+        })
+      }
+
+      // En Vivo tampoco vive en default_tools: sus prompts base están en el código
+      // (lib/en-vivo/prompt-base.ts). Las conexiones con Canva y Facebook se
+      // configuran dentro del mismo diálogo.
+      if (!toolsFiltradas.some((t) => t.identity === "en-vivo")) {
+        toolsFiltradas.push({
+          id: "en-vivo-default",
+          title: "Post redes",
+          description:
+            "De una nota de La Silla a la pieza En Vivo para Facebook e Instagram: lee la nota, arma la imagen con la plantilla de la casa y las etiquetas de nombre, y la publica.",
+          tags: ["Redes", "Facebook"],
+          favorite: false,
+          usageCount: 0,
+          lastUsed: "Nunca",
+          isDefault: true,
+          identity: "en-vivo",
+          schema: {},
+          prompts: PROMPTS_BASE_EN_VIVO.map((p) => ({ ...p })),
           temperature: 0.7,
           topP: 1,
         })
