@@ -3,8 +3,12 @@
 -- Una fila por pieza. Los cambios pedidos, la publicación y la descarga
 -- actualizan la misma fila (ver app/api/en-vivo/*).
 --
--- Sin RLS, con GRANT explícito a los dos roles, como analytics_preguntas_chatbot:
--- AnalyticsEnVivoService escribe con la sesión del usuario (authenticated).
+-- Sólo el rol de servicio la lee y escribe, como herramienta_conexiones: RLS
+-- activado, sin políticas para anon ni authenticated, y sin permisos para esos
+-- dos roles. Así ningún usuario con sesión (de La Silla ni de otra organización,
+-- como Orza) la lee o la cambia directo por PostgREST. AnalyticsEnVivoService
+-- escribe con el cliente de servicio, y las rutas sólo tocan filas de la
+-- organización y el usuario de la sesión (analyticsPropia en lib/analytics.ts).
 
 create table if not exists public.analytics_en_vivo (
   id text primary key,
@@ -42,8 +46,20 @@ create table if not exists public.analytics_en_vivo (
   updated_at timestamptz not null default now()
 );
 
+alter table public.analytics_en_vivo enable row level security;
+
+-- Supabase da permisos por defecto a anon y authenticated en las tablas nuevas
+-- de public: se quitan.
+revoke all on public.analytics_en_vivo from anon, authenticated;
 grant select, insert, update, delete on public.analytics_en_vivo to service_role;
-grant select, insert, update, delete on public.analytics_en_vivo to authenticated;
+
+drop policy if exists "service_role_todo" on public.analytics_en_vivo;
+create policy "service_role_todo"
+  on public.analytics_en_vivo
+  for all
+  to service_role
+  using (true)
+  with check (true);
 
 -- La vista de uso/costo: la definición completa de
 -- add_preguntas_chatbot_vista_uso_costo.sql más la rama de En Vivo.
