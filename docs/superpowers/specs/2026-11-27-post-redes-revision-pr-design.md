@@ -2,7 +2,7 @@
 
 Fecha: 27 de noviembre de 2026. Rama: `feat/post-redes` (PR #27).
 
-La revisión del PR encontró ocho puntos. Esta spec dice qué se cambia en cada uno y cómo se probó. El 8 queda pendiente de decisión.
+La revisión del PR encontró ocho puntos. Esta spec dice qué se cambia en cada uno y cómo se probó.
 
 ## 1. El mismo post podía salir dos veces
 
@@ -91,9 +91,16 @@ La revisión del PR encontró ocho puntos. Esta spec dice qué se cambia en cada
 - Sólo se aceptan respuestas `image/*`.
 - El tope es 25 MB: se deja de leer apenas lo pasa, aunque el servidor no mande `Content-Length`.
 
-## 8. Cualquier miembro puede publicar
+## 8. Quién puede publicar y conectar
 
-Por ahora cualquier miembro de La Silla con acceso a Post redes puede publicar. Sólo conectar Facebook está limitado a administradores. Está pendiente de decisión: si se limita, `publicar` tiene que exigir `esAdministrador(role)`, y la pantalla tiene que esconder el botón a quien no lo es.
+**Decisión (Pablo, 27 de noviembre de 2026):** todos los miembros con acceso a Post redes pueden publicar y conectar Facebook, no sólo los administradores. El acceso sigue limitado a las organizaciones que tienen la herramienta (hoy La Silla Vacía).
+
+**Cambio.**
+- `facebook/login` y `facebook/callback` ya no exigen `esAdministrador`.
+- La sección de conexiones (Ajustes > Herramientas > Post redes) muestra el botón de Facebook a todos.
+- Ajustes sólo lo ven los administradores. Por eso la pantalla de Post redes tiene su propio botón "Conectar con Facebook" o "Reconectar Facebook".
+- El mensaje de "Facebook no conectado" ya no manda a buscar un administrador.
+- Canva sigue siendo sólo para administradores: es el plan B y pide pegar un secreto de la app de Canva.
 
 ## Cómo se probó
 

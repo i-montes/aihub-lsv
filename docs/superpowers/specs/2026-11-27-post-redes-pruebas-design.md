@@ -4,7 +4,7 @@ Fecha: 27 de noviembre de 2026. Rama: `feat/post-redes` (PR #27).
 
 ## Qué se hizo
 
-Se agregaron 124 pruebas con vitest para Post redes. Cubren cómo funciona la herramienta y los arreglos de la revisión del PR (ver `2026-11-27-post-redes-revision-pr-design.md`). Corren con `pnpm test`, junto con las que ya había, y no llaman a la red, a Supabase ni a Meta:
+Se agregaron 130 pruebas con vitest para Post redes. Cubren cómo funciona la herramienta y los arreglos de la revisión del PR (ver `2026-11-27-post-redes-revision-pr-design.md`). Corren con `pnpm test`, junto con las que ya había, y no llaman a la red, a Supabase ni a Meta:
 - **Supabase:** el almacén, `herramienta_conexiones` y `analytics_en_vivo` se simulan en memoria o en una carpeta temporal.
 - **Meta y la red:** se simulan `fetch` y las llamadas a Graph.
 
@@ -24,11 +24,12 @@ Se agregaron 124 pruebas con vitest para Post redes. Cubren cómo funciona la he
 | `lib/en-vivo/__tests__/textos-y-links.test.ts` | Texto de Instagram (sin link, 2.200 caracteres, emojis). Links públicos firmados (otro archivo, firma falsa, vencido). Links de nota. Sólo La Silla Vacía ve Post redes; Orza no. |
 | `lib/en-vivo/__tests__/acceso-y-analytics.test.ts` | Acceso: La Silla entra, Orza no, sin sesión. Roles de administrador. Analíticas con el cliente de servicio; `analyticsPropia` rechaza filas de otra organización o de otro usuario, ids raros e ids que no existen. |
 | `app/api/en-vivo/publicar/__tests__/route.test.ts` | La ruta de publicar: acceso, una vez por red, dos clics a la vez, segunda foto en las dos redes, plazo de Instagram, una red falla y la otra no, token vencido, errores de pedido, analíticas sólo propias. |
-| `app/api/en-vivo/facebook/callback/__tests__/route.test.ts` | Elección de página con y sin `META_PAGE_ID`, en Vercel y en local. Sólo administradores. `state` inválido. Otra organización no llega a canjear el código. |
+| `app/api/en-vivo/facebook/login/__tests__/route.test.ts` | Cualquier miembro (USER, ADMIN, OWNER) va al diálogo de Facebook con un `state`. Otra organización no. |
+| `app/api/en-vivo/facebook/callback/__tests__/route.test.ts` | Elección de página con y sin `META_PAGE_ID`, en Vercel y en local. Cualquier miembro conecta, no sólo los administradores. `state` inválido. Otra organización no llega a canjear el código. |
 
 ## Cómo se probó que las pruebas sirven
 
-Se puso la versión anterior a los arreglos de `plantilla.ts`, `conexiones.ts`, `foto.ts`, `analytics.ts` y las rutas de publicar y de la vuelta de Facebook. Fallaron 26 pruebas, al menos una por cada problema de la revisión. Con los arreglos pasan todas: 165, contando las 41 que ya había.
+Se puso la versión anterior a los arreglos de `plantilla.ts`, `conexiones.ts`, `foto.ts`, `analytics.ts` y las rutas de publicar y de la vuelta de Facebook. Fallaron 26 pruebas, al menos una por cada problema de la revisión. Con los arreglos pasan todas: 171, contando las 41 que ya había.
 
 ## Fuera de alcance
 
