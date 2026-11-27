@@ -1,4 +1,5 @@
 import { getSupabaseServer, getSupabaseRouteHandler } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Tipos de datos para cada analytics
 export type AnalyticsCorrectorDeTextos = {
@@ -619,4 +620,68 @@ class AnalyticsPreguntasChatbotService extends Analytics<AnalyticsPreguntasChatb
   }
 }
 
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService };
+/**
+ * Analytics de "En Vivo": de una nota a la pieza para Facebook. Una fila por pieza; los cambios,
+ * la publicación y la descarga actualizan la misma fila (ver app/api/en-vivo/*).
+ */
+export type AnalyticsEnVivo = {
+  id?: number | string;
+  session_id?: string;
+  user_id?: string | null;
+  organization_id?: string | null;
+
+  url_nota?: string | null;
+  titular?: string | null;
+  personas?: string[] | null;
+  /** "plantilla" (armada en el servidor) o "canva" (plan B con service app) */
+  motor?: string | null;
+  /** Autofills en Canva: cada uno gasta 10 créditos de la API de Canva */
+  autofills_canva?: number | null;
+  cambios_pedidos?: number | null;
+  publicada?: boolean | null;
+  permalink?: string | null;
+  publicada_instagram?: boolean | null;
+  permalink_instagram?: string | null;
+  descargada?: boolean | null;
+
+  modelo_utilizado?: string | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  cache_write_tokens?: number | null;
+  /** USD de las llamadas al modelo, con lib/costos.ts. No incluye los créditos de Canva. */
+  costo?: number | null;
+  tiempo_procesamiento?: number | null;
+  error_mensaje?: string | null;
+
+  created_at?: Date | null;
+  updated_at?: Date | null;
+};
+
+/**
+ * analytics_en_vivo tiene RLS sin políticas para anon ni authenticated: sólo el rol de servicio la
+ * lee y escribe (create_analytics_en_vivo.sql). Por eso este servicio usa el cliente de servicio, y
+ * las rutas sólo actualizan filas que pasan por `analyticsPropia`.
+ */
+class AnalyticsEnVivoService extends Analytics<AnalyticsEnVivo> {
+  protected supabasePromise = Promise.resolve(getSupabaseAdmin()) as unknown as ReturnType<typeof getSupabaseRouteHandler>;
+
+  constructor(schema: AnalyticsEnVivo = {} as AnalyticsEnVivo, existingId?: string | number) {
+    super('en_vivo', schema, existingId);
+  }
+}
+
+/**
+ * La fila de analíticas de Post redes con ese id, sólo si es de esa organización y de ese usuario.
+ * El id lo manda el navegador: sin esta comprobación, cualquiera podría cambiar filas ajenas.
+ */
+async function analyticsPropia(id: unknown, organizationId: string, userId: string): Promise<AnalyticsEnVivoService | null> {
+  if ((typeof id !== "string" && typeof id !== "number") || id === "") return null;
+  const a = new AnalyticsEnVivoService({}, id);
+  await a.ensureLoaded();
+  return a.schema.organization_id === organizationId && a.schema.user_id === userId ? a : null;
+}
+
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService, AnalyticsEnVivoService, analyticsPropia };

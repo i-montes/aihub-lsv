@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Tool } from "@/types/tool";
 import { NOMBRE_PROVEEDOR, PROVEEDORES, type Proveedor } from "@/lib/proveedores/tipos";
+import { ConexionesEnVivo } from "@/components/en-vivo/conexiones-en-vivo";
 
 interface PromptItem {
   title: string;
@@ -408,6 +409,7 @@ export function EditToolDialog({
                   )}
                 </>
               )}
+              {tool.identity === "en-vivo" && <ConexionesEnVivo />}
             </div>
           </div>
         </div>

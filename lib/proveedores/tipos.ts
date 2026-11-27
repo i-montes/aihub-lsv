@@ -49,6 +49,7 @@ export const HERRAMIENTAS_CON_PROVEEDORES = [
   "detector",
   "quien-es-quien",
   "preguntas-chatbot",
+  "en-vivo",
 ] as const;
 export type HerramientaConProveedores = (typeof HERRAMIENTAS_CON_PROVEEDORES)[number];
 
@@ -59,6 +60,7 @@ export const NOMBRE_HERRAMIENTA: Record<HerramientaConProveedores, string> = {
   detector: "Detector",
   "quien-es-quien": "Quién es quién",
   "preguntas-chatbot": "Preguntas a SillaIA",
+  "en-vivo": "Post redes",
 };
 
 export function esHerramientaConProveedores(valor: unknown): valor is HerramientaConProveedores {

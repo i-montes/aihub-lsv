@@ -28,3 +28,6 @@ next-env.d.ts
 
 # credenciales de la service account de Google (Drive/Docs)
 info-drive
+
+# archivos locales de En Vivo (fotos y piezas) cuando no hay bucket
+.data/

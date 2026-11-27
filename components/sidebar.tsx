@@ -15,6 +15,7 @@ import {
   Search,
   UserSearch,
   MessageSquare,
+  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -155,6 +156,16 @@ export function Sidebar() {
                 label="Preguntas a SillaIA"
                 href="/dashboard/preguntas-chatbot"
                 isActive={pathname === "/dashboard/preguntas-chatbot"}
+                isExpanded={isExpanded}
+              />
+            )}
+
+            {seMuestraEnNavegacion(organization?.name, "en-vivo") && (
+              <NavItem
+                icon={<Radio className="size-5" />}
+                label="Post redes"
+                href="/dashboard/en-vivo"
+                isActive={pathname === "/dashboard/en-vivo"}
                 isExpanded={isExpanded}
               />
             )}

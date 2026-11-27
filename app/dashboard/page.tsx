@@ -28,6 +28,7 @@ import {
   Search,
   UserSearch,
   Bot,
+  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -268,6 +269,39 @@ export default function Dashboard() {
                     </p>
                     <div className="flex justify-between items-center mt-2">
                       <Link href="/dashboard/preguntas-chatbot">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-1"
+                        >
+                          Usar <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+          {/* Post redes (identidad en-vivo) */}
+          {seMuestraEnNavegacion(organization?.name, "en-vivo") && (
+              <Card className="bg-white rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+                        <Radio className="h-6 w-6 text-primary-600" />
+                      </div>
+                      <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                        Nuevo
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Post redes</h3>
+                    <p className="text-gray-500 mb-4 flex-grow">
+                      Pega el link de una nota y sale la pieza En Vivo, con las
+                      etiquetas de nombre, lista para Facebook e Instagram.
+                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                      <Link href="/dashboard/en-vivo">
                         <Button
                           variant="outline"
                           className="flex items-center gap-1"
