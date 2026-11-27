@@ -80,10 +80,11 @@ describe("GET /api/en-vivo/facebook/callback", () => {
     expect(guardarConexionFacebook).not.toHaveBeenCalled();
   });
 
-  it("sólo un administrador conecta", async () => {
-    acceso.mockResolvedValue({ negado: null, organizationId: "silla", userId: "u1", role: "USER" });
-    expect(await volver()).toMatch(/Sólo un administrador/);
-    expect(canjearCodigo).not.toHaveBeenCalled();
+  it.each(["USER", "ADMIN", "OWNER"])("un miembro con rol %s puede conectar", async (role) => {
+    vi.stubEnv("META_PAGE_ID", "111");
+    acceso.mockResolvedValue({ negado: null, organizationId: "silla", userId: "u1", role });
+    expect(await volver()).toMatch(/Página conectada: La Silla Vacía/);
+    expect(guardarConexionFacebook).toHaveBeenCalled();
   });
 
   it("rechaza un state que no coincide con la cookie", async () => {

@@ -281,6 +281,12 @@ function EnVivo() {
             {instagramListo && (
               <span className="rounded-full bg-pink-100 px-3 py-1 text-pink-800">Instagram: {estado?.instagram?.usuario}</span>
             )}
+            {/* Cualquiera puede conectar: Ajustes sólo lo ven los administradores, así que el botón va aquí. */}
+            {estado?.facebookLoginDisponible && (
+              <a href="/api/en-vivo/facebook/login" className="rounded-full bg-blue-50 px-3 py-1 text-blue-800 hover:bg-blue-100">
+                {facebookListo ? "Reconectar Facebook" : "Conectar con Facebook"}
+              </a>
+            )}
             {esAdmin && (
               <Link href="/dashboard/configuracion/herramientas" className="rounded-full bg-gray-100 px-3 py-1 text-gray-700 hover:bg-gray-200">
                 Configurar

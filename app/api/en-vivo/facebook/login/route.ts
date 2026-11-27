@@ -1,20 +1,22 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import { esAdministrador, verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
+import { verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
 import { COOKIE_STATE, origenPublico, redirectUri, urlDeLogin } from "@/lib/en-vivo/facebook";
 
 export const dynamic = "force-dynamic";
 
-/** Paso 1 de "Conectar con Facebook": sólo OWNER o ADMIN. Guarda un state y manda al diálogo de Facebook. */
+/**
+ * Paso 1 de "Conectar con Facebook": cualquier miembro con acceso a Post redes (decisión del 27 de
+ * noviembre de 2026). Guarda un state y manda al diálogo de Facebook.
+ */
 export async function GET(request: NextRequest) {
   const origen = origenPublico(request.headers, request.nextUrl.origin);
   const volver = (mensaje: string) =>
     NextResponse.redirect(`${origen}/dashboard/en-vivo?facebook=${encodeURIComponent(mensaje)}`);
 
-  const { negado, role } = await verificarAccesoEnVivo();
+  const { negado } = await verificarAccesoEnVivo();
   if (negado) return volver(negado.mensaje);
-  if (!esAdministrador(role)) return volver("Sólo un administrador puede conectar la página de Facebook.");
 
   let destino: string;
   try {

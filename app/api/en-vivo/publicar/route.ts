@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const fb = await conexionFacebook(organizationId);
   if (!fb || fb.estado !== "conectado") {
-    return jsonError("La página de Facebook no está conectada. Un administrador puede conectarla en Ajustes > Herramientas > Post redes.", 400);
+    return jsonError("La página de Facebook no está conectada: conéctala con «Conectar con Facebook», arriba en Post redes.", 400);
   }
   const png = await leerArchivo(imagen);
   if (!png) return jsonError("No encontré la imagen: vuelve a generar la pieza.", 404);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { esAdministrador, verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
+import { verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
 import { guardarConexionFacebook, guardarConexionInstagram } from "@/lib/en-vivo/conexiones";
 import { canjearCodigo, COOKIE_STATE, cuentaInstagram, origenPublico, redirectUri, verificarTokenDePagina } from "@/lib/en-vivo/facebook";
 
@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
     return r;
   };
 
-  const { negado, organizationId, userId, role } = await verificarAccesoEnVivo();
+  // Cualquier miembro con acceso a Post redes puede conectar (decisión del 27 de noviembre de 2026).
+  const { negado, organizationId, userId } = await verificarAccesoEnVivo();
   if (negado) return volver(negado.mensaje);
-  if (!esAdministrador(role)) return volver("Sólo un administrador puede conectar la página de Facebook.");
 
   const q = request.nextUrl.searchParams;
   if (q.get("error")) return volver(q.get("error_description") || "Se canceló la conexión con Facebook.");

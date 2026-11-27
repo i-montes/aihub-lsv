@@ -127,16 +127,13 @@ export function ConexionesEnVivo() {
           Instagram: {estado.instagram?.conectada ? estado.instagram.usuario : "sin conectar"}. Sale del mismo login: la cuenta profesional
           vinculada a la página. Si la conectaste antes de que existiera Instagram aquí, reconecta para aceptar sus permisos.
         </p>
-        {estado.esAdmin ? (
-          estado.facebookLoginDisponible ? (
-            <a href="/api/en-vivo/facebook/login">
-              <Button size="sm" variant="outline">{estado.facebook.conectada ? "Reconectar con Facebook" : "Conectar con Facebook"}</Button>
-            </a>
-          ) : (
-            <p className="text-xs text-amber-700">Faltan META_APP_ID y META_APP_SECRET en el servidor para conectar con Facebook.</p>
-          )
+        {/* Cualquier miembro con acceso a Post redes puede conectar, no sólo los administradores. */}
+        {estado.facebookLoginDisponible ? (
+          <a href="/api/en-vivo/facebook/login">
+            <Button size="sm" variant="outline">{estado.facebook.conectada ? "Reconectar con Facebook" : "Conectar con Facebook"}</Button>
+          </a>
         ) : (
-          <p className="text-xs text-gray-500">Sólo un administrador puede conectar la página.</p>
+          <p className="text-xs text-amber-700">Faltan META_APP_ID y META_APP_SECRET en el servidor para conectar con Facebook.</p>
         )}
       </section>
     </div>
