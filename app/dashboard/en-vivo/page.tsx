@@ -18,6 +18,9 @@ import type { Pieza } from "@/lib/en-vivo/tipos";
 import { textoInstagram } from "@/lib/en-vivo/texto-instagram";
 
 type FotoPropia = { datos: string; nombre: string };
+type Red = "facebook" | "instagram";
+const REDES: Red[] = ["facebook", "instagram"];
+const NOMBRE_RED: Record<Red, string> = { facebook: "Facebook", instagram: "Instagram" };
 
 /** Reduce la foto en el navegador antes de subirla: el cuerpo de una petición en Vercel no pasa de 4,5 MB. */
 async function reducirFoto(archivo: File): Promise<FotoPropia> {
@@ -88,7 +91,9 @@ function EnVivo() {
   const [editandoTexto, setEditandoTexto] = useState(false);
   const [pedidoCambios, setPedidoCambios] = useState("");
   const [notaCambios, setNotaCambios] = useState<string | null>(null);
-  const [publicado, setPublicado] = useState<{ red: string; link: string }[] | null>(null);
+  // Lo publicado de esta pieza, por red. Sólo se limpia con "Hacer otro"/"Descartar" o al generar
+  // otra nota: así la misma pieza no se puede volver a publicar en la misma red desde la pantalla.
+  const [publicadas, setPublicadas] = useState<Partial<Record<Red, string>>>({});
   // Instagram arranca apagado: publicar sale de inmediato y es mejor que el editor lo elija.
   const [redes, setRedes] = useState({ facebook: true, instagram: false });
   // Segunda foto (opcional): una foto de evidencia que va después de la pieza en las dos redes.
@@ -109,7 +114,8 @@ function EnVivo() {
     setTrabajando(true);
     setPasos([]);
     setNotaCambios(null);
-    setPublicado(null);
+    // "Cambiar foto" (con texto) sigue siendo la misma nota: lo publicado se queda.
+    if (textoActual === undefined) setPublicadas({});
     const anterior = pieza;
     try {
       const r = await fetch("/api/en-vivo/generar", {
@@ -163,7 +169,7 @@ function EnVivo() {
 
   const publicar = async () => {
     if (!pieza?.imagen) return;
-    const elegidas = (["facebook", "instagram"] as const).filter((r) => redes[r] && (r === "facebook" ? facebookListo : instagramListo));
+    const elegidas = REDES.filter((r) => redes[r] && listo[r] && !publicadas[r]);
     if (!elegidas.length) return;
     const destino = elegidas
       .map((r) => (r === "facebook" ? `Facebook${estado?.facebook.pagina ? ` («${estado.facebook.pagina}»)` : ""}` : `Instagram${estado?.instagram?.usuario ? ` (${estado.instagram.usuario})` : ""}`))
@@ -186,16 +192,19 @@ function EnVivo() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error);
-      const resultados: { red: string; ok: boolean; link?: string; error?: string }[] = j.resultados ?? [];
-      const nombreRed = (red: string) => (red === "facebook" ? "Facebook" : "Instagram");
+      const resultados: { red: Red; ok: boolean; link?: string; yaEstaba?: boolean; error?: string }[] = j.resultados ?? [];
       for (const x of resultados) {
-        if (x.ok) toast.success(`Publicado en ${nombreRed(x.red)}.`);
-        else toast.error(`${nombreRed(x.red)}: ${x.error}`);
+        if (x.ok) toast.success(x.yaEstaba ? `Ya estaba publicado en ${NOMBRE_RED[x.red]}: no se publicó otra vez.` : `Publicado en ${NOMBRE_RED[x.red]}.`);
+        else toast.error(`${NOMBRE_RED[x.red]}: ${x.error}`);
       }
-      const buenos = resultados.filter((x) => x.ok && x.link).map((x) => ({ red: nombreRed(x.red), link: x.link! }));
-      if (buenos.length) setPublicado(buenos);
+      const buenas = Object.fromEntries(resultados.filter((x) => x.ok && x.link).map((x) => [x.red, x.link!]));
+      setPublicadas((p) => ({ ...p, ...buenas }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo publicar.");
+      // Puede que la red sí haya publicado y la respuesta no llegara: el servidor no deja repetir,
+      // pero el editor tiene que revisar antes.
+      toast.error(
+        `${e instanceof Error ? e.message : "No se pudo publicar."} No sé si alcanzó a salir: revisa la página antes de volver a intentarlo.`,
+      );
     } finally {
       setTrabajando(false);
     }
@@ -207,7 +216,7 @@ function EnVivo() {
     setAnalyticsId(null);
     setPasos([]);
     setNotaCambios(null);
-    setPublicado(null);
+    setPublicadas({});
     setFoto(null);
     setEvidencia(null);
     setLinkEvidencia("");
@@ -225,7 +234,6 @@ function EnVivo() {
       if (!r.ok) throw new Error(j.error);
       setEvidencia(j.imagen);
       setLinkEvidencia("");
-      setPublicado(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo agregar la segunda foto.");
     } finally {
@@ -244,7 +252,11 @@ function EnVivo() {
 
   const facebookListo = !!estado?.facebook.conectada;
   const instagramListo = !!estado?.instagram?.conectada;
-  const algunaRed = (redes.facebook && facebookListo) || (redes.instagram && instagramListo);
+  const listo: Record<Red, boolean> = { facebook: facebookListo, instagram: instagramListo };
+  const algunaRed = REDES.some((r) => redes[r] && listo[r] && !publicadas[r]);
+  const publicadasLista = REDES.flatMap((r) => (publicadas[r] ? [[r, publicadas[r]!] as const] : []));
+  // Ya no queda ninguna red conectada por publicar: sólo se muestran los links.
+  const todoPublicado = publicadasLista.length > 0 && !REDES.some((r) => listo[r] && !publicadas[r]);
   const avisos = pieza ? [...pieza.avisos, ...pieza.avisosGeometria] : [];
 
   return (
@@ -421,24 +433,25 @@ function EnVivo() {
                 )}
                 {pieza && (
                   <div className="space-y-3 border-t p-4">
-                    {publicado ? (
+                    {publicadasLista.length > 0 && (
                       <div className="flex flex-wrap items-center gap-2">
-                        {publicado.map((p) => (
-                          <a key={p.red} href={p.link} target="_blank" rel="noreferrer">
-                            <Button size="sm"><ExternalLink className="mr-2 h-4 w-4" /> Ver en {p.red}</Button>
+                        {publicadasLista.map(([red, link]) => (
+                          <a key={red} href={link} target="_blank" rel="noreferrer">
+                            <Button size="sm"><ExternalLink className="mr-2 h-4 w-4" /> Ver en {NOMBRE_RED[red]}</Button>
                           </a>
                         ))}
                         <Button size="sm" variant="outline" onClick={descartar}>Hacer otro</Button>
                       </div>
-                    ) : (
+                    )}
+                    {!todoPublicado && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className={`flex items-center gap-1 text-sm ${facebookListo ? "" : "text-gray-400"}`}>
-                          <input type="checkbox" checked={redes.facebook && facebookListo} disabled={!facebookListo || trabajando} onChange={(e) => setRedes({ ...redes, facebook: e.target.checked })} />
-                          Facebook
+                        <label className={`flex items-center gap-1 text-sm ${facebookListo && !publicadas.facebook ? "" : "text-gray-400"}`}>
+                          <input type="checkbox" checked={!!publicadas.facebook || (redes.facebook && facebookListo)} disabled={!facebookListo || !!publicadas.facebook || trabajando} onChange={(e) => setRedes({ ...redes, facebook: e.target.checked })} />
+                          Facebook{publicadas.facebook ? " (publicado)" : ""}
                         </label>
-                        <label className={`flex items-center gap-1 text-sm ${instagramListo ? "" : "text-gray-400"}`} title={instagramListo ? "" : "Instagram no está conectado: reconecta Facebook en Ajustes y acepta los permisos de Instagram"}>
-                          <input type="checkbox" checked={redes.instagram && instagramListo} disabled={!instagramListo || trabajando} onChange={(e) => setRedes({ ...redes, instagram: e.target.checked })} />
-                          Instagram
+                        <label className={`flex items-center gap-1 text-sm ${instagramListo && !publicadas.instagram ? "" : "text-gray-400"}`} title={instagramListo ? "" : "Instagram no está conectado: reconecta Facebook en Ajustes y acepta los permisos de Instagram"}>
+                          <input type="checkbox" checked={!!publicadas.instagram || (redes.instagram && instagramListo)} disabled={!instagramListo || !!publicadas.instagram || trabajando} onChange={(e) => setRedes({ ...redes, instagram: e.target.checked })} />
+                          Instagram{publicadas.instagram ? " (publicado)" : ""}
                         </label>
                         <Button size="sm" onClick={publicar} disabled={trabajando || !algunaRed || !pieza.imagen}>
                           <Send className="mr-2 h-4 w-4" /> Publicar

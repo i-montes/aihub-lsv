@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 
-import { AnalyticsEnVivoService } from "@/lib/analytics";
+import { analyticsPropia } from "@/lib/analytics";
 import { verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
 import { aplicarCambios } from "@/lib/en-vivo/cambios";
 import { jsonError, respuestaPorPasos } from "@/lib/en-vivo/flujo";
 import { contextoModelo, SinProveedorError, totalUso } from "@/lib/en-vivo/modelo";
-import { armar } from "@/lib/en-vivo/pieza";
+import { armar, piezaConfiable } from "@/lib/en-vivo/pieza";
 import type { Pieza } from "@/lib/en-vivo/tipos";
 import { ProveedorNoConfiguradoError } from "@/lib/proveedores/configuracion";
 
@@ -19,7 +19,7 @@ function esPieza(p: unknown): p is Pieza {
 }
 
 export async function POST(request: NextRequest) {
-  const { negado, organizationId } = await verificarAccesoEnVivo();
+  const { negado, organizationId, userId } = await verificarAccesoEnVivo();
   if (negado) return jsonError(negado.mensaje, negado.status);
 
   const body = await request.json().catch(() => null);
@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
   }
 
   return respuestaPorPasos(async (enviar) => {
-    const anterior: Pieza = body.pieza;
+    // La pieza la manda el navegador: se acota y la foto se mide del archivo guardado.
+    const anterior: Pieza = await piezaConfiable(body.pieza);
     enviar({ tipo: "progreso", paso: "Entendiendo el cambio" });
     const { pieza: pedida, nota } = await aplicarCambios(anterior, instrucciones, ctx);
 
@@ -48,9 +49,8 @@ export async function POST(request: NextRequest) {
     const usoCanva = pieza.base?.huella !== anterior.base?.huella && pieza.motor === "canva";
 
     const uso = totalUso(ctx);
-    if (body.analyticsId != null) {
-      const a = new AnalyticsEnVivoService({}, body.analyticsId);
-      await a.ensureLoaded();
+    const a = await analyticsPropia(body.analyticsId, organizationId, userId).catch(() => null);
+    if (a) {
       const previo = a.schema;
       await a.updateSchema({
         cambios_pedidos: (previo.cambios_pedidos ?? 0) + 1,

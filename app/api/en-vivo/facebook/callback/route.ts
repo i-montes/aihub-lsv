@@ -7,10 +7,26 @@ import { canjearCodigo, COOKIE_STATE, cuentaInstagram, origenPublico, redirectUr
 export const dynamic = "force-dynamic";
 
 /**
- * Paso 2: Facebook vuelve con el código. Se canjea por un token largo, se elige la página (la de
- * META_PAGE_ID si está, si no la primera donde el admin puede crear contenido), se verifica que su
- * token no venza y se guarda.
+ * Paso 2: Facebook vuelve con el código. Se canjea por un token largo, se elige la página, se
+ * verifica que su token no venza y se guarda.
+ *
+ * La página es la de META_PAGE_ID, obligatoria en Vercel: quien conecta puede administrar otras
+ * páginas (la suya, la de otro medio) y no se debe adivinar. En local, sin la variable, sólo se
+ * acepta si administra una sola página.
  */
+function elegirPagina<P extends { id: string; name: string }>(paginas: P[]): { pagina: P } | { error: string } {
+  const esperada = process.env.META_PAGE_ID?.trim();
+  if (esperada) {
+    const pagina = paginas.find((p) => p.id === esperada);
+    return pagina ? { pagina } : { error: `Tu usuario no administra la página ${esperada} o no tiene permiso de crear contenido en ella.` };
+  }
+  if (process.env.VERCEL) return { error: "Falta META_PAGE_ID: define en Vercel el id de la página de Facebook que se va a conectar." };
+  if (paginas.length === 1) return { pagina: paginas[0] };
+  if (!paginas.length) return { error: "Tu usuario no administra ninguna página con permiso de crear contenido." };
+  const lista = paginas.map((p) => `${p.name} (${p.id})`).join(", ");
+  return { error: `Administras varias páginas: ${lista}. Define META_PAGE_ID con la que se va a conectar.` };
+}
+
 export async function GET(request: NextRequest) {
   const origen = origenPublico(request.headers, request.nextUrl.origin);
   const volver = (mensaje: string) => {
@@ -32,15 +48,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const { paginas, scopes } = await canjearCodigo(code, redirectUri(origen));
-    const esperada = process.env.META_PAGE_ID?.trim();
-    const pagina = (esperada && paginas.find((p) => p.id === esperada)) || paginas[0];
-    if (!pagina) {
-      return volver(
-        esperada
-          ? `Tu usuario no administra la página ${esperada} o no tiene permiso de crear contenido en ella.`
-          : "Tu usuario no administra ninguna página con permiso de crear contenido.",
-      );
-    }
+    const elegida = elegirPagina(paginas);
+    if ("error" in elegida) return volver(elegida.error);
+    const { pagina } = elegida;
     const token = await verificarTokenDePagina(pagina.access_token);
     if (!token.valido) return volver("Facebook dio un token de página que no es válido. Inténtalo de nuevo.");
 

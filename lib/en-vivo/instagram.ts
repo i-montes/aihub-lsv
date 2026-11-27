@@ -16,6 +16,8 @@ import { urlPublica } from "@/lib/en-vivo/publico";
  * 3. Una imagen: un contenedor, se espera a que quede FINISHED y se publica. Dos o más (la pieza y
  *    la segunda foto): un contenedor por imagen como ítem de carrusel, y un contenedor CAROUSEL con
  *    el texto que los junta en ese orden.
+ * 4. Todas las esperas comparten un plazo (`limite`) para que la ruta no se corte a mitad. Si se
+ *    acaba antes de `media_publish`, no sale nada en Instagram y se puede reintentar.
  */
 
 const ESPERA_MS = 2000;
@@ -23,15 +25,19 @@ const MAXIMO_MS = 120_000;
 
 export { textoInstagram } from "@/lib/en-vivo/texto-instagram";
 
-async function esperarListo(id: string, token: string, firma: Record<string, string>) {
-  const limite = Date.now() + MAXIMO_MS;
+export class PlazoInstagramError extends Error {}
+
+async function esperarListo(id: string, token: string, firma: Record<string, string>, plazo: number) {
+  const limite = Math.min(Date.now() + MAXIMO_MS, plazo);
   for (;;) {
     const { status_code } = await llamarGraph("GET", id, { fields: "status_code", access_token: token, ...firma });
     if (status_code === "FINISHED") return;
     if (status_code === "ERROR" || status_code === "EXPIRED") {
       throw new Error(`Instagram no pudo procesar la imagen (${status_code}). Revisa que el enlace público se pueda abrir desde internet.`);
     }
-    if (Date.now() > limite) throw new Error("Instagram tardó demasiado en procesar la imagen.");
+    if (Date.now() > limite) {
+      throw new PlazoInstagramError("Instagram tardó demasiado en procesar la imagen y no se publicó nada ahí. Inténtalo de nuevo en un rato.");
+    }
     await new Promise((ok) => setTimeout(ok, ESPERA_MS));
   }
 }
@@ -47,6 +53,8 @@ export async function publicarEnInstagram(
   pngs: Buffer[],
   caption: string,
   origenPublico: string,
+  /** Hora (ms) hasta la que se puede esperar a Instagram. */
+  plazo: number,
 ): Promise<{ mediaId: string; link: string }> {
   const token = fb.pageToken;
   const firma = pruebaAppSecret(token);
@@ -59,14 +67,14 @@ export async function publicarEnInstagram(
     const items: string[] = [];
     for (const image_url of urls) {
       const item = (await llamarGraph("POST", `${ig.igUserId}/media`, { image_url, is_carousel_item: "true", access_token: token, ...firma })).id;
-      await esperarListo(item, token, firma);
+      await esperarListo(item, token, firma, plazo);
       items.push(item);
     }
     contenedor = (
       await llamarGraph("POST", `${ig.igUserId}/media`, { media_type: "CAROUSEL", children: items.join(","), caption, access_token: token, ...firma })
     ).id;
   }
-  await esperarListo(contenedor, token, firma);
+  await esperarListo(contenedor, token, firma, plazo);
 
   const publicado = await llamarGraph("POST", `${ig.igUserId}/media_publish`, { creation_id: contenedor, access_token: token, ...firma });
   let link = `https://www.instagram.com/${ig.usuario.replace(/^@/, "")}/`;

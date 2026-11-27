@@ -87,3 +87,79 @@ async function limpiarViejos(): Promise<void> {
     console.error("[en-vivo] no se pudieron borrar los archivos viejos:", error);
   }
 }
+
+// --- Marcas ------------------------------------------------------------------
+
+/**
+ * Archivos JSON pequeños con nombre fijo (por ejemplo, la marca de una publicación). A diferencia
+ * de las imágenes, el nombre lo decide quien llama y `reservarMarca` falla si ya existe: es la
+ * forma atómica de "sólo uno a la vez".
+ */
+const MARCA = /^[a-z]+-[0-9a-f]{64}\.json$/;
+
+function validarMarca(nombre: string): void {
+  if (!MARCA.test(nombre)) throw new Error(`Nombre de marca no válido: ${nombre}`);
+}
+
+/** Crea la marca sólo si no existe. Devuelve falso si ya estaba. */
+export async function reservarMarca(nombre: string, contenido: unknown): Promise<boolean> {
+  validarMarca(nombre);
+  const datos = Buffer.from(JSON.stringify(contenido));
+  const b = bucket();
+  if (b) {
+    const { error } = await getSupabaseAdmin().storage.from(b).upload(nombre, datos, { contentType: "application/json", upsert: false });
+    if (!error) return true;
+    const e = error as { statusCode?: string; message?: string };
+    if (e.statusCode === "409" || /exist|duplicate/i.test(e.message ?? "")) return false;
+    throw new Error(`No se pudo guardar la marca: ${error.message}`);
+  }
+  if (process.env.VERCEL) sinAlmacen();
+  await mkdir(CARPETA, { recursive: true });
+  try {
+    await writeFile(path.join(CARPETA, nombre), datos, { flag: "wx" });
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw error;
+  }
+}
+
+/** Reemplaza la marca (exista o no). */
+export async function escribirMarca(nombre: string, contenido: unknown): Promise<void> {
+  validarMarca(nombre);
+  const datos = Buffer.from(JSON.stringify(contenido));
+  const b = bucket();
+  if (b) {
+    const { error } = await getSupabaseAdmin().storage.from(b).upload(nombre, datos, { contentType: "application/json", upsert: true });
+    if (error) throw new Error(`No se pudo guardar la marca: ${error.message}`);
+    return;
+  }
+  if (process.env.VERCEL) sinAlmacen();
+  await mkdir(CARPETA, { recursive: true });
+  await writeFile(path.join(CARPETA, nombre), datos);
+}
+
+export async function leerMarca<T>(nombre: string): Promise<T | null> {
+  validarMarca(nombre);
+  const b = bucket();
+  try {
+    if (b) {
+      const { data, error } = await getSupabaseAdmin().storage.from(b).download(nombre);
+      if (error || !data) return null;
+      return JSON.parse(await data.text()) as T;
+    }
+    return JSON.parse(await readFile(path.join(CARPETA, nombre), "utf8")) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function borrarMarca(nombre: string): Promise<void> {
+  validarMarca(nombre);
+  const b = bucket();
+  if (b) {
+    await getSupabaseAdmin().storage.from(b).remove([nombre]);
+    return;
+  }
+  await unlink(path.join(CARPETA, nombre)).catch(() => {});
+}

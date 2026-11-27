@@ -15,6 +15,7 @@ import type { Tool } from "@/types/tool"
 import { PROMPTS_BASE_PREGUNTAS_CHATBOT } from "@/lib/preguntas-chatbot/prompt-base"
 import { PROMPTS_BASE_EN_VIVO } from "@/lib/en-vivo/prompt-base"
 import type { ProveedorActivo } from "@/lib/proveedores/tipos"
+import { puedeVerHerramienta } from "@/lib/organizaciones/herramientas"
 
 /**
  * Main page component for tool settings
@@ -177,9 +178,18 @@ export default function ToolsSettingsPage() {
       })
 
 
+      // Post redes es sólo de las organizaciones que la tienen (hoy La Silla
+      // Vacía): las demás no ven su tarjeta ni sus conexiones.
+      const { data: organizacion } = await supabase
+        .from("organization")
+        .select("name")
+        .eq("id", organizationId)
+        .single()
+      const veEnVivo = puedeVerHerramienta(organizacion?.name, "en-vivo")
+
       // Newsletter está deprecada: no aparece en Ajustes aunque siga en la DB.
       const toolsFiltradas = processedTools.filter(
-        (t) => t.identity !== "newsletter"
+        (t) => t.identity !== "newsletter" && (veEnVivo || t.identity !== "en-vivo")
       )
 
       // Quién es quién es una herramienta activa pero no vive en default_tools.
@@ -235,7 +245,7 @@ export default function ToolsSettingsPage() {
       // En Vivo tampoco vive en default_tools: sus prompts base están en el código
       // (lib/en-vivo/prompt-base.ts). Las conexiones con Canva y Facebook se
       // configuran dentro del mismo diálogo.
-      if (!toolsFiltradas.some((t) => t.identity === "en-vivo")) {
+      if (veEnVivo && !toolsFiltradas.some((t) => t.identity === "en-vivo")) {
         toolsFiltradas.push({
           id: "en-vivo-default",
           title: "Post redes",

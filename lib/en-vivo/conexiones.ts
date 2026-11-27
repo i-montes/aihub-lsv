@@ -13,7 +13,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
  * nada guardado, se usan las variables de entorno (CANVA_*, META_PAGE_*), útiles para probar.
  *
  * Los secretos (client secret de Canva, token de página) se cifran con AES-256-GCM y la clave de
- * CONEXIONES_CLAVE (32 bytes en base64). Sin esa clave sólo se permite guardar en el archivo local.
+ * CONEXIONES_CLAVE (32 bytes en base64) dentro de `guardar`. Sin esa clave nunca van a la base: en
+ * Vercel se falla y en local se guardan sólo en el archivo.
  */
 
 export const HERRAMIENTA = "en-vivo";
@@ -55,9 +56,11 @@ function clave(): Buffer | null {
   return k;
 }
 
-function cifrar(texto: string): string {
-  const k = clave();
-  if (!k) return texto;
+/** Los campos de `datos` que son secretos y van cifrados. */
+const SECRETOS = ["client_secret", "page_token"];
+
+function cifrar(texto: string, k: Buffer): string {
+  if (texto.startsWith("gcm:")) return texto; // ya cifrado: no se cifra dos veces
   const iv = randomBytes(12);
   const c = createCipheriv("aes-256-gcm", k, iv);
   const datos = Buffer.concat([c.update(texto, "utf8"), c.final()]);
@@ -105,27 +108,48 @@ async function leer(org: string, s: Servicio): Promise<Datos | null> {
     .eq("herramienta", HERRAMIENTA)
     .eq("servicio", s)
     .maybeSingle();
-  if (!error) return (data?.datos as Datos) ?? null;
+  // En local, una conexión guardada sin clave vive sólo en el archivo aunque la tabla exista.
+  if (!error) return (data?.datos as Datos) ?? (process.env.VERCEL ? null : ((await leerLocal())[claveLocal(org, s)] ?? null));
   if (!faltaLaTabla(error)) throw new Error(`No se pudo leer la conexión: ${error.message}`);
   return (await leerLocal())[claveLocal(org, s)] ?? null;
 }
 
+async function guardarLocal(org: string, s: Servicio, datos: Datos): Promise<void> {
+  const local = await leerLocal();
+  local[claveLocal(org, s)] = datos;
+  await mkdir(path.dirname(ARCHIVO_LOCAL), { recursive: true });
+  await writeFile(ARCHIVO_LOCAL, JSON.stringify(local, null, 2));
+}
+
+/**
+ * Guarda la conexión. `datos` llega con los secretos en claro (o ya cifrados, si se reescribe lo que
+ * había) y aquí se cifran. A la base nunca llega un secreto en claro: sin CONEXIONES_CLAVE, en
+ * Vercel falla, y en local se guarda sólo en el archivo, aunque la tabla exista.
+ */
 async function guardar(org: string, s: Servicio, datos: Datos, userId: string | null): Promise<void> {
+  const k = clave();
+  const enClaro = SECRETOS.some((c) => datos[c] && !datos[c]!.startsWith("gcm:"));
+  if (enClaro && !k) {
+    if (process.env.VERCEL) throw new Error("Falta CONEXIONES_CLAVE: sin ella no se pueden guardar los tokens. Configúrala en Vercel.");
+    console.warn("[en-vivo] sin CONEXIONES_CLAVE: la conexión se guarda sin cifrar sólo en .data/en-vivo/conexiones.json");
+    await guardarLocal(org, s, datos);
+    return;
+  }
+  const cifrados: Datos = { ...datos };
+  if (k) for (const c of SECRETOS) if (cifrados[c]) cifrados[c] = cifrar(cifrados[c]!, k);
+
   const { error, status } = await (getSupabaseAdmin() as any).from("herramienta_conexiones").upsert({
     organization_id: org,
     herramienta: HERRAMIENTA,
     servicio: s,
-    datos,
+    datos: cifrados,
     actualizado_por: userId,
     updated_at: new Date().toISOString(),
   });
   if (!error) return;
   if (!faltaLaTabla(error, status)) throw new Error(`No se pudo guardar la conexión: ${error.message ?? `HTTP ${status}`}`);
   if (process.env.VERCEL) throw new Error("Falta la tabla herramienta_conexiones: aplica la migración.");
-  const local = await leerLocal();
-  local[claveLocal(org, s)] = datos;
-  await mkdir(path.dirname(ARCHIVO_LOCAL), { recursive: true });
-  await writeFile(ARCHIVO_LOCAL, JSON.stringify(local, null, 2));
+  await guardarLocal(org, s, cifrados);
 }
 
 // --- Canva -------------------------------------------------------------------
@@ -152,7 +176,7 @@ export async function guardarConexionCanva(org: string, userId: string, c: Conex
     "CANVA",
     {
       client_id: c.clientId,
-      client_secret: cifrar(c.clientSecret),
+      client_secret: c.clientSecret,
       plantilla_id: c.plantillaId,
       campo_titular: c.campoTitular,
       campo_foto: c.campoFoto,
@@ -194,7 +218,7 @@ export async function guardarConexionFacebook(
     {
       page_id: c.pageId,
       page_name: c.pageName,
-      page_token: cifrar(c.pageToken),
+      page_token: c.pageToken,
       scopes: c.scopes.join(","),
       conectado_por: userId,
       conectado_en: new Date().toISOString(),

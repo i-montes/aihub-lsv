@@ -1,26 +1,31 @@
 import { NextRequest } from "next/server";
 
-import { AnalyticsEnVivoService } from "@/lib/analytics";
+import { analyticsPropia } from "@/lib/analytics";
 import { verificarAccesoEnVivo } from "@/lib/en-vivo/acceso";
 import { leerArchivo } from "@/lib/en-vivo/almacen";
 import { conexionFacebook, conexionInstagram, marcarFacebookDesconectado } from "@/lib/en-vivo/conexiones";
 import { ErrorMeta, origenPublico, publicar } from "@/lib/en-vivo/facebook";
 import { jsonError } from "@/lib/en-vivo/flujo";
 import { publicarEnInstagram, textoInstagram } from "@/lib/en-vivo/instagram";
+import { PublicacionPendienteError, publicarUnaVez, type Red } from "@/lib/en-vivo/publicaciones";
 
 /** Instagram procesa la imagen antes de publicar: puede tardar más que Facebook. */
-export const maxDuration = 180;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-type Red = "facebook" | "instagram";
-type Resultado = { red: Red; ok: true; link: string } | { red: Red; ok: false; error: string };
+/** Lo que puede esperar Instagram desde que empieza el pedido: deja margen bajo `maxDuration`. */
+const PLAZO_MS = 240_000;
+
+type Resultado = { red: Red; ok: true; link: string; yaEstaba: boolean } | { red: Red; ok: false; error: string };
 
 /**
  * Publica la pieza en las redes pedidas. Cada red va por separado: si una falla, las otras no se
- * deshacen, y la respuesta trae el resultado de cada una.
+ * deshacen, y la respuesta trae el resultado de cada una. Cada red pasa por `publicarUnaVez`: la
+ * misma pieza no sale dos veces aunque el editor reintente o la función se corte a mitad.
  */
 export async function POST(request: NextRequest) {
-  const { negado, organizationId } = await verificarAccesoEnVivo();
+  const inicio = Date.now();
+  const { negado, organizationId, userId } = await verificarAccesoEnVivo();
   if (negado) return jsonError(negado.mensaje, negado.status);
 
   const body = await request.json().catch(() => null);
@@ -38,13 +43,15 @@ export async function POST(request: NextRequest) {
   const png = await leerArchivo(imagen);
   if (!png) return jsonError("No encontré la imagen: vuelve a generar la pieza.", 404);
   // La segunda foto (opcional) va después de la pieza, en las dos redes.
-  const segunda = typeof body?.evidencia === "string" && body.evidencia ? await leerArchivo(body.evidencia) : null;
-  if (body?.evidencia && !segunda) return jsonError("No encontré la segunda foto: vuelve a agregarla.", 404);
+  const evidencia = typeof body?.evidencia === "string" && body.evidencia ? body.evidencia : null;
+  const segunda = evidencia ? await leerArchivo(evidencia) : null;
+  if (evidencia && !segunda) return jsonError("No encontré la segunda foto: vuelve a agregarla.", 404);
   const pngs = segunda ? [png, segunda] : [png];
 
   const nombre = typeof body.nombre === "string" ? body.nombre : "envivo";
   const resultados: Resultado[] = [];
   const fallo = async (red: Red, error: unknown): Promise<Resultado> => {
+    if (error instanceof PublicacionPendienteError) return { red, ok: false, error: error.message };
     if (error instanceof ErrorMeta && error.hayQueReconectar) {
       await marcarFacebookDesconectado(organizationId).catch(() => {});
       return { red, ok: false, error: `${error.message} Hay que volver a conectar Facebook en Ajustes.` };
@@ -55,7 +62,8 @@ export async function POST(request: NextRequest) {
 
   if (redes.includes("facebook")) {
     try {
-      resultados.push({ red: "facebook", ok: true, link: (await publicar(fb, pngs, texto, nombre)).link });
+      const r = await publicarUnaVez(organizationId, "facebook", imagen, evidencia, async () => (await publicar(fb, pngs, texto, nombre)).link);
+      resultados.push({ red: "facebook", ok: true, ...r });
     } catch (error) {
       resultados.push(await fallo("facebook", error));
     }
@@ -68,17 +76,26 @@ export async function POST(request: NextRequest) {
     } else {
       try {
         const caption = typeof body.textoInstagram === "string" && body.textoInstagram.trim() ? body.textoInstagram.trim() : textoInstagram(texto, url);
-        const r = await publicarEnInstagram(fb, ig, pngs, caption, origenPublico(request.headers, request.nextUrl.origin));
-        resultados.push({ red: "instagram", ok: true, link: r.link });
+        const origen = origenPublico(request.headers, request.nextUrl.origin);
+        const r = await publicarUnaVez(
+          organizationId,
+          "instagram",
+          imagen,
+          evidencia,
+          async () => (await publicarEnInstagram(fb, ig, pngs, caption, origen, inicio + PLAZO_MS)).link,
+        );
+        resultados.push({ red: "instagram", ok: true, ...r });
       } catch (error) {
         resultados.push(await fallo("instagram", error));
       }
     }
   }
 
-  if (body.analyticsId != null) {
+  // El id lo manda el navegador: sólo se toca la fila si es de esta organización y de este usuario.
+  const analytics = await analyticsPropia(body.analyticsId, organizationId, userId).catch(() => null);
+  if (analytics) {
     const ok = (red: Red) => resultados.find((r) => r.red === red && r.ok) as Extract<Resultado, { ok: true }> | undefined;
-    await new AnalyticsEnVivoService({}, body.analyticsId)
+    await analytics
       .updateSchema({
         ...(ok("facebook") ? { publicada: true, permalink: ok("facebook")!.link } : {}),
         ...(ok("instagram") ? { publicada_instagram: true, permalink_instagram: ok("instagram")!.link } : {}),

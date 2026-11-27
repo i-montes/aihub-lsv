@@ -1,4 +1,5 @@
 import { getSupabaseServer, getSupabaseRouteHandler } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Tipos de datos para cada analytics
 export type AnalyticsCorrectorDeTextos = {
@@ -659,10 +660,28 @@ export type AnalyticsEnVivo = {
   updated_at?: Date | null;
 };
 
+/**
+ * analytics_en_vivo tiene RLS sin políticas para anon ni authenticated: sólo el rol de servicio la
+ * lee y escribe (create_analytics_en_vivo.sql). Por eso este servicio usa el cliente de servicio, y
+ * las rutas sólo actualizan filas que pasan por `analyticsPropia`.
+ */
 class AnalyticsEnVivoService extends Analytics<AnalyticsEnVivo> {
+  protected supabasePromise = Promise.resolve(getSupabaseAdmin()) as unknown as ReturnType<typeof getSupabaseRouteHandler>;
+
   constructor(schema: AnalyticsEnVivo = {} as AnalyticsEnVivo, existingId?: string | number) {
     super('en_vivo', schema, existingId);
   }
 }
 
-export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService, AnalyticsEnVivoService };
+/**
+ * La fila de analíticas de Post redes con ese id, sólo si es de esa organización y de ese usuario.
+ * El id lo manda el navegador: sin esta comprobación, cualquiera podría cambiar filas ajenas.
+ */
+async function analyticsPropia(id: unknown, organizationId: string, userId: string): Promise<AnalyticsEnVivoService | null> {
+  if ((typeof id !== "string" && typeof id !== "number") || id === "") return null;
+  const a = new AnalyticsEnVivoService({}, id);
+  await a.ensureLoaded();
+  return a.schema.organization_id === organizationId && a.schema.user_id === userId ? a : null;
+}
+
+export { AnalyticsCorrectorDeTextosService, AnalyticsGeneradorHilosService, AnalyticsGeneradorResumenService, AnalyticsDetectorService, AnalyticsQuienEsQuienService, AnalyticsPreguntasChatbotService, AnalyticsEnVivoService, analyticsPropia };

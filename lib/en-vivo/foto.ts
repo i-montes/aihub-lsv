@@ -19,6 +19,8 @@ const LADO_MAXIMO = 2400;
 const LADO_VISTA = 1200;
 /** Bytes que puede traer una foto subida por el editor (ya reducida en el navegador). */
 const MAXIMO_SUBIDA = 4 * 1024 * 1024;
+/** Bytes que puede pesar la foto destacada de la nota (la original de WordPress, sin reducir). */
+const MAXIMO_NOTA = 25 * 1024 * 1024;
 
 export type FotoPreparada = NonNullable<Pieza["foto"]>;
 
@@ -32,13 +34,35 @@ async function normalizar(original: Buffer, nombre: string): Promise<FotoPrepara
   return { archivo, ancho: info.width, alto: info.height, nombre };
 }
 
+/** El cuerpo de la respuesta, o `null` si pasa de `maximo` bytes (deja de leer en ese momento). */
+async function leerHasta(r: Response, maximo: number): Promise<Buffer | null> {
+  if (!r.body) return null;
+  const partes: Uint8Array[] = [];
+  let total = 0;
+  const lector = r.body.getReader();
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    total += value.length;
+    if (total > maximo) {
+      await lector.cancel().catch(() => {});
+      return null;
+    }
+    partes.push(value);
+  }
+  return Buffer.concat(partes);
+}
+
 /** La foto destacada de la nota, en alta si se puede. `null` si no se pudo bajar ninguna. */
 export async function fotoDeLaNota(nota: Nota): Promise<FotoPreparada | null> {
   for (const url of [...new Set([nota.fotoAlta, nota.foto])].filter(Boolean)) {
     try {
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-      if (!r.ok) continue;
-      return await normalizar(Buffer.from(await r.arrayBuffer()), decodeURIComponent(url.split("/").pop() ?? "foto"));
+      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(20_000) });
+      if (!r.ok || !(r.headers.get("content-type") ?? "").startsWith("image/")) continue;
+      if (Number(r.headers.get("content-length") ?? 0) > MAXIMO_NOTA) continue;
+      const datos = await leerHasta(r, MAXIMO_NOTA);
+      if (!datos) continue;
+      return await normalizar(datos, decodeURIComponent(url.split("/").pop() ?? "foto"));
     } catch {
       continue;
     }

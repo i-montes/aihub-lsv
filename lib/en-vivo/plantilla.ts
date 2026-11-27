@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import path from "path";
 import sharp from "sharp";
 
-import type { Etiqueta } from "@/lib/en-vivo/geometria";
+import { ANCHO, type Etiqueta } from "@/lib/en-vivo/geometria";
 
 /**
  * La pieza En Vivo armada en el servidor, igual a la plantilla de Canva
@@ -93,6 +93,26 @@ async function baseDe(f: Fuente, tamano: number): Promise<number> {
   return (await renglon("É", f, tamano, "#ffffff", false)).alto;
 }
 
+/**
+ * Si el renglón es más ancho que `ancho`, lo reduce en proporción para que quepa. sharp no deja
+ * componer una imagen más grande que el fondo, y un texto sin espacios puede serlo.
+ */
+async function caberEn(texto: string, f: Fuente, tamano: number, color: string, ancho: number, centrado = false) {
+  // Se mide sin el puntal invisible: lo que tiene que caber es lo que se ve.
+  const visible = (await renglon(texto, f, tamano, "#ffffff", false)).ancho;
+  const r = await renglon(texto, f, tamano, color, true, centrado);
+  if (visible <= ancho) return { png: r.png, ancho: r.ancho, escala: 1 };
+  const escala = ancho / visible;
+  const png = await sharp(r.png).resize({ width: Math.max(1, Math.floor(r.ancho * escala)) }).png().toBuffer();
+  return { png, ancho: (await sharp(png).metadata()).width ?? 0, escala };
+}
+
+/** Nunca más ancho que lo que queda del lienzo: lo que sobra a la derecha es puntal invisible. */
+async function hastaElBorde(png: Buffer, maximo: number): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(png).metadata();
+  return width <= maximo ? png : sharp(png).extract({ left: 0, top: 0, width: maximo, height }).png().toBuffer();
+}
+
 /** Parte el titular en renglones que quepan en el ancho, sin cortar palabras. */
 async function partir(titular: string, f: Fuente, tamano: number): Promise<string[]> {
   const palabras = titular.toUpperCase().split(/\s+/).filter(Boolean);
@@ -115,11 +135,16 @@ export async function dibujarBase(fotoRecortada: Buffer, titular: string): Promi
   const avisos: string[] = [];
   const capas: sharp.OverlayOptions[] = [{ input: path.join(CARPETA, "capa.png"), top: 0, left: 0 }];
 
-  // Titular: baja de tamaño hasta caber en 4 renglones.
+  // Titular: baja de tamaño hasta caber en 4 renglones y en el ancho (una palabra sola, como un
+  // link, puede ser más ancha que el renglón).
   const f = await fuenteTitular();
   let tamano = TITULAR.tamano;
   let lineas = await partir(titular, f, tamano);
-  while (lineas.length > TITULAR.maxLineas && tamano > TITULAR.tamanoMinimo) {
+  const demasiadoAncho = async () => {
+    for (const l of lineas) if ((await renglon(l, f, tamano, "#ffffff", false)).ancho > TITULAR.ancho) return true;
+    return false;
+  };
+  while ((lineas.length > TITULAR.maxLineas || (await demasiadoAncho())) && tamano > TITULAR.tamanoMinimo) {
     tamano -= 6;
     lineas = await partir(titular, f, tamano);
   }
@@ -127,11 +152,15 @@ export async function dibujarBase(fotoRecortada: Buffer, titular: string): Promi
     avisos.push(`El titular ocupa ${lineas.length} renglones aun con la letra más pequeña: acórtalo para que quepa en ${TITULAR.maxLineas}.`);
   }
   const base = await baseDe(f, tamano);
+  let angostado = false;
   for (const [i, linea] of lineas.entries()) {
-    const r = await renglon(linea, f, tamano, TITULAR.color);
     const lineaBase = TITULAR.top + (i + 1) * TITULAR.interlineado * tamano;
-    capas.push({ input: r.png, left: TITULAR.left, top: Math.round(lineaBase - base) });
+    // Una palabra que no cabe ni con la letra más pequeña se angosta al ancho del renglón.
+    const r = await caberEn(linea, f, tamano, TITULAR.color, TITULAR.ancho);
+    angostado ||= r.escala < 1;
+    capas.push({ input: await hastaElBorde(r.png, ANCHO - TITULAR.left), left: TITULAR.left, top: Math.round(lineaBase - base * r.escala) });
   }
+  if (angostado) avisos.push("Una palabra del titular no cabía en el renglón y se achicó: revisa cómo quedó o cámbiala.");
 
   const png = await sharp(fotoRecortada).composite(capas).png().toBuffer();
   return { png, avisos };
@@ -152,9 +181,10 @@ export async function dibujarEtiquetas(base: Buffer, etiquetas: Etiqueta[]): Pro
     ];
     for (const t of textos) {
       if (!t.texto) continue;
-      const r = await renglon(t.texto, t.f, t.caja.font_size, COLOR_ETIQUETA, true, true);
+      // Un nombre muy largo se angosta al ancho del recuadro, menos un margen.
+      const r = await caberEn(t.texto, t.f, t.caja.font_size, COLOR_ETIQUETA, e.recuadro.width - 16, true);
       const lineaBase = t.caja.top + 0.95 * t.caja.font_size;
-      capas.push({ input: r.png, left: Math.round(centro - r.ancho / 2), top: Math.round(lineaBase - (await baseDe(t.f, t.caja.font_size))) });
+      capas.push({ input: r.png, left: Math.round(centro - r.ancho / 2), top: Math.round(lineaBase - (await baseDe(t.f, t.caja.font_size)) * r.escala) });
     }
   }
   return sharp(base).composite(capas).png().toBuffer();
